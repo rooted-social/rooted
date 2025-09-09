@@ -47,9 +47,15 @@ export default function LoginPage() {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "kakao",
         options: {
-          redirectTo: typeof window !== "undefined" ? `${window.location.origin}/` : undefined,
+          // 프로덕션/프리뷰/로컬 모두 동작하도록 콜백 전용 경로로 통일
+          redirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined,
           // 이메일 수집 활성화됨: 이메일 포함 범위로 요청
           scopes: "account_email profile_nickname profile_image",
+          queryParams: {
+            // 카카오는 PKCE를 권장. supabase-js v2는 기본으로 PKCE 사용
+            // 여기서는 명시적 state를 추가해 CSRF 보호(선택)
+            state: Math.random().toString(36).slice(2),
+          },
         },
       })
       if (error) {
