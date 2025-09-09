@@ -61,12 +61,23 @@ export default function DashboardPage() {
   }, [authLoading, authUser, authProfile, myCommunities, router])
 
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut()
-    
-    if (error) {
-      toast.error('로그아웃 중 오류가 발생했습니다.')
-    } else {
+    try {
+      // 1) 글로벌 로그아웃 시도 (모든 기기 세션 무효화)
+      let { error } = await supabase.auth.signOut({ scope: 'global' as any })
+      if (error && (error.status === 401 || error.status === 403)) {
+        // 2) 권한 문제로 글로벌 실패 시 로컬만 정리
+        const res = await supabase.auth.signOut()
+        error = res.error
+      }
+      if (error) {
+        toast.error('로그아웃 중 오류가 발생했습니다.')
+        return
+      }
       toast.success('로그아웃되었습니다.')
+      router.push('/')
+    } catch {
+      // 네트워크/기타 예외 시에도 로컬 세션 제거를 최후 시도로 시도
+      try { await supabase.auth.signOut() } catch {}
       router.push('/')
     }
   }
