@@ -41,7 +41,7 @@ export async function fetchRecentActivity(communityId: string, slug?: string): P
   return data
 }
 
-const feedCache = new Map<string, { ts: number; data: { posts: any[]; likeCounts: Record<string, number>; commentCounts: Record<string, number> } }>()
+const feedCache = new Map<string, { ts: number; data: { posts: any[]; likeCounts: Record<string, number>; commentCounts: Record<string, number>; totalCount?: number } }>()
 export async function fetchFeed(communityId: string, opts?: { pageId?: string | null; force?: boolean; limit?: number; offset?: number }) {
   const params = new URLSearchParams({ communityId })
   if (opts?.pageId !== undefined) params.set('pageId', String(opts.pageId))
