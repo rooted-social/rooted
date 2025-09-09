@@ -44,11 +44,12 @@ export default function LoginPage() {
   const handleKakaoLogin = async () => {
     try {
       setLoading(true)
+      const baseUrl = (typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_BASE_URL || window.location.origin) : process.env.NEXT_PUBLIC_BASE_URL) || ''
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "kakao",
         options: {
           // 프로덕션/프리뷰/로컬 모두 동작하도록 콜백 전용 경로로 통일
-          redirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined,
+          redirectTo: baseUrl ? `${baseUrl}/auth/callback` : undefined,
           // 이메일 수집 활성화됨: 이메일 포함 범위로 요청
           scopes: "account_email profile_nickname profile_image",
         },
