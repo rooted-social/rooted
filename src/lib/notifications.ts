@@ -22,6 +22,35 @@ export async function listNotifications(opts?: { onlyUnread?: boolean; limit?: n
   return (data || []) as Notification[]
 }
 
+export async function listNotificationsPaged(opts?: { onlyUnread?: boolean; limit?: number; offset?: number; userId?: string }): Promise<{ items: Notification[]; totalCount: number }> {
+  const uid = opts?.userId || await getUserId()
+  if (!uid) return { items: [], totalCount: 0 }
+  const limit = Math.max(1, Math.min(50, opts?.limit ?? 10))
+  const offset = Math.max(0, opts?.offset ?? 0)
+
+  let countQuery = supabase
+    .from('notifications')
+    .select('*', { count: 'exact', head: true })
+    .eq('recipient_id', uid)
+
+  let dataQuery = supabase
+    .from('notifications')
+    .select('*')
+    .eq('recipient_id', uid)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  if (opts?.onlyUnread) {
+    countQuery = countQuery.eq('is_read', false as any)
+    dataQuery = dataQuery.eq('is_read', false as any)
+  }
+
+  const [countRes, dataRes] = await Promise.all([countQuery, dataQuery])
+  const items = (dataRes.data || []) as Notification[]
+  const totalCount = countRes.count || 0
+  return { items, totalCount }
+}
+
 export async function markAsRead(id: string, userId?: string) {
   const uid = userId || await getUserId()
   if (!uid) return { success: false }

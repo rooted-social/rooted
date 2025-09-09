@@ -10,7 +10,7 @@ import type { Post } from "@/types/community"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { getAvatarUrl } from "@/lib/utils"
-import { Heart, MessageSquare, MoreVertical, Rss, Eye, Sparkles, Send, Plus, Hash, Trash2, Edit3 } from "lucide-react"
+import { Heart, MessageSquare, MoreVertical, Rss, Eye, Sparkles, Send, Plus, Hash, Trash2, Edit3, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { supabase } from "@/lib/supabase"
 import { fetchFeed } from '@/lib/dashboard'
@@ -44,13 +44,14 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
   const [categories, setCategories] = useState<BoardFolder[]>([])
   const [newCategory, setNewCategory] = useState("")
   const [page, setPage] = useState(1)
+  const pageSize = 10
+  const [totalCount, setTotalCount] = useState<number>(0)
   // 인라인 포스팅 바 상태
   const [inlineTitle, setInlineTitle] = useState("")
   const [inlineContent, setInlineContent] = useState("")
   const [meAvatar, setMeAvatar] = useState<string | undefined>(undefined)
   const [expanded, setExpanded] = useState<boolean>(false)
   const taRef = useRef<HTMLTextAreaElement | null>(null)
-  const pageSize = 10
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({})
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({})
   const [showComments, setShowComments] = useState<Record<string, boolean>>({})
@@ -87,8 +88,10 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
   const load = async () => {
     setLoading(true)
     try {
-      const { posts: data, likeCounts: likeMap, commentCounts: cMap } = await fetchFeed(communityId, { pageId })
+      const offset = (page - 1) * pageSize
+      const { posts: data, likeCounts: likeMap, commentCounts: cMap, totalCount: tc } = await fetchFeed(communityId, { pageId, limit: pageSize, offset })
       setPosts(data as any)
+      setTotalCount(tc || 0)
       // 실제 카테고리는 서버에서 가져오기(존재 시)
       try {
         const serverCategories = await getCategories(communityId)
@@ -117,7 +120,7 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
     if (lastCommunityIdRef.current === communityId) return
     lastCommunityIdRef.current = communityId
     load()
-  }, [communityId])
+  }, [communityId, page, pageId])
 
   useEffect(() => {
     // 내 프로필 이미지 로드(로그인 사용자 기준)
@@ -194,8 +197,8 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
     filtered = posts.filter(p => (p as any).page_id === pageId)
   }
   const filteredPosts = activeFolder === FEED_ID ? filtered.filter(p => (p as any).category_id == null) : filtered.filter(p => (p as any).category_id === activeFolder)
-  const totalPages = Math.max(1, Math.ceil(filteredPosts.length / pageSize))
-  const pagedPosts = filteredPosts.slice((page - 1) * pageSize, page * pageSize)
+  const totalPages = Math.max(1, Math.ceil((totalCount || filteredPosts.length) / pageSize))
+  const pagedPosts = filteredPosts // 서버 페이징으로 이미 잘려옴
 
   const handleAddCategory = async () => {
     if (!newCategory.trim()) return
@@ -525,7 +528,12 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
       {/* 메인: 글 목록 */}
       <div className={`${variant === 'standalone' ? 'md:col-span-3' : ''} space-y-3 overflow-x-hidden`}>
         {loading ? (
-          <div className="h-20 bg-slate-100 rounded-lg animate-pulse" />
+          <div className="py-12 flex items-center justify-center">
+            <div className="flex items-center gap-3 rounded-2xl bg-amber-50/80 border border-amber-200 px-4 py-3 shadow-sm">
+              <Loader2 className="w-5 h-5 animate-spin text-amber-600" />
+              <span className="text-sm font-medium text-amber-700">로딩 중...</span>
+            </div>
+          </div>
         ) : filteredPosts.length === 0 ? (
           <div className="flex flex-col items-center justify-center text-center py-16 rounded-3xl border border-dashed border-slate-300 bg-white/60">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg mb-4">

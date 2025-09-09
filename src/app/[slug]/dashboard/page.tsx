@@ -14,6 +14,7 @@ import { useCommunityBySlug } from "@/hooks/useCommunity"
 import CalendarPage from "@/components/community-dashboard/pages/CalendarPage"
 import ClassesPage from "@/components/community-dashboard/pages/ClassesPage"
 import AnimatedBackground from "@/components/AnimatedBackground"
+import { Loader2 } from "lucide-react"
 import { useAuthData } from "@/components/auth/AuthProvider"
 
 type ViewKey = 'home' | 'settings' | 'classes' | 'calendar' | 'members'
@@ -95,16 +96,14 @@ export default function CommunityDashboardPage() {
           {(active === 'calendar' || active === 'members') && <AnimatedBackground />}
 
           {loading || authChecking || !communityId || !authorized ? (
-            <div className="grid gap-4 md:grid-cols-3 relative z-10">
-              <div className="md:col-span-2 space-y-4">
-                <div className="h-24 bg-slate-100 rounded-xl animate-pulse" />
-                <div className="h-40 bg-slate-100 rounded-xl animate-pulse" />
-                <div className="h-28 bg-slate-100 rounded-xl animate-pulse" />
+            <>
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/70 backdrop-blur-sm">
+                <div className="flex items-center gap-3 rounded-2xl bg-white/90 border border-slate-200 px-4 py-3 shadow-sm">
+                  <Loader2 className="w-5 h-5 animate-spin text-slate-700" />
+                  <span className="text-sm font-medium text-slate-700">로딩 중...</span>
+                </div>
               </div>
-              <div className="space-y-4">
-                <div className="h-40 bg-slate-100 rounded-xl animate-pulse" />
-              </div>
-            </div>
+            </>
           ) : (
             <div className="relative z-10">
               {active === 'home' && (

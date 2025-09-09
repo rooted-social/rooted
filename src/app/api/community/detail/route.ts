@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   const supabase = createServerClient()
 
   try {
-    // Community
+    // 1) 슬러그로 커뮤니티 조회 (단일 쿼리)
     const { data: community, error: commErr } = await supabase
       .from('communities')
       .select('*')
@@ -22,43 +22,68 @@ export async function GET(req: NextRequest) {
       return new Response(JSON.stringify({ error: 'not found' }), { status: 404 })
     }
 
-    // Owner profile
-    let ownerProfile: any = null
-    try {
-      const { data: prof } = await supabase
-        .from('profiles')
-        .select('id, username, full_name, bio, avatar_url')
-        .eq('id', (community as any).owner_id)
-        .single()
-      ownerProfile = prof || null
-    } catch {}
+    // 2) 나머지 의존 쿼리들을 병렬 실행
+    const [ownerProfileRes, servicesRes, imagesRows, membership] = await Promise.all([
+      (async () => {
+        try {
+          const { data } = await supabase
+            .from('profiles')
+            .select('id, username, full_name, bio, avatar_url')
+            .eq('id', (community as any).owner_id)
+            .single()
+          return data || null
+        } catch {
+          return null
+        }
+      })(),
+      (async () => {
+        try {
+          const { data } = await supabase
+            .from('community_services')
+            .select('id,label')
+            .eq('community_id', (community as any).id)
+            .order('created_at', { ascending: true })
+          return (data || []).map((d: any) => ({ id: d.id, label: d.label }))
+        } catch {
+          return []
+        }
+      })(),
+      (async () => {
+        try {
+          const { data: rows } = await supabase
+            .from('community_images')
+            .select('key, url, is_main, position, created_at')
+            .eq('slug', slug)
+            .order('is_main', { ascending: false })
+            .order('position', { ascending: true, nullsFirst: true })
+            .order('created_at', { ascending: true })
+            .limit(6)
+          return rows || []
+        } catch {
+          return []
+        }
+      })(),
+      (async () => {
+        try {
+          // 클라이언트 세션 없이도 멤버십을 판단할 수 있도록, 헤더에 user-id가 설정되어 있으면 사용
+          const userId = req.headers.get('x-user-id')
+          if (!userId) return null
+          const { data } = await supabase
+            .from('community_members')
+            .select('role')
+            .eq('community_id', (community as any).id)
+            .eq('user_id', userId)
+            .maybeSingle()
+          return data || null
+        } catch {
+          return null
+        }
+      })(),
+    ])
 
-    // Services
-    let services: any[] = []
-    try {
-      const { data } = await supabase
-        .from('community_services')
-        .select('id,label')
-        .eq('community_id', (community as any).id)
-        .order('created_at', { ascending: true })
-      services = (data || []).map((d: any) => ({ id: d.id, label: d.label }))
-    } catch {}
+    let images = (imagesRows || []).map((r: any) => ({ key: r.key as string, url: buildPublicR2UrlForBucket(COMMUNITY_IMAGE_BUCKET, r.key as string) }))
 
-    // Images (table first, fallback R2)
-    let images: { key: string; url: string }[] = []
-    try {
-      const { data: rows } = await supabase
-        .from('community_images')
-        .select('key, url, is_main, position, created_at')
-        .eq('slug', slug)
-        .order('is_main', { ascending: false })
-        .order('position', { ascending: true, nullsFirst: true })
-        .order('created_at', { ascending: true })
-        .limit(6)
-      if (rows && rows.length > 0) {
-        images = rows.map((r: any) => ({ key: r.key as string, url: buildPublicR2UrlForBucket(COMMUNITY_IMAGE_BUCKET, r.key as string) }))
-      }
-    } catch {}
+    // 3) 이미지가 비어있으면 R2를 폴백으로 조회
     if (images.length === 0) {
       try {
         const prefix = `${slug}/`
@@ -71,15 +96,17 @@ export async function GET(req: NextRequest) {
     }
 
     const payload = {
-      community: { ...community, profiles: ownerProfile },
-      services,
+      community: { ...community, profiles: ownerProfileRes },
+      services: servicesRes,
       images,
+      membership,
     }
 
     return new Response(JSON.stringify(payload), {
       status: 200,
       headers: {
         'content-type': 'application/json',
+        // 60초 캐시 (브라우저/에지)
         'Cache-Control': 'public, max-age=60, s-maxage=60',
       },
     })

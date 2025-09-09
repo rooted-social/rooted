@@ -5,6 +5,8 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const communityId = searchParams.get('communityId')
   const pageId = searchParams.get('pageId')
+  const limit = Math.max(1, Math.min(50, Number(searchParams.get('limit') || '10')))
+  const offset = Math.max(0, Number(searchParams.get('offset') || '0'))
   if (!communityId) {
     return new Response(JSON.stringify({ error: 'communityId is required' }), { status: 400 })
   }
@@ -12,16 +14,22 @@ export async function GET(req: NextRequest) {
   const supabase = createServerClient()
 
   try {
-    // Posts
-    let q = supabase.from('posts').select('*').eq('community_id', communityId).order('created_at', { ascending: false })
+    // Posts (count + page)
+    let base = supabase.from('posts')
+    let qCount = base.select('*', { count: 'exact', head: true }).eq('community_id', communityId)
+    let q = base.select('*').eq('community_id', communityId).order('created_at', { ascending: false }).range(offset, offset + limit - 1)
     if (pageId !== null && pageId !== undefined) {
       if (pageId === 'null') {
         q = q.is('page_id', null)
+        qCount = qCount.is('page_id', null)
       } else {
         q = q.eq('page_id', pageId)
+        qCount = qCount.eq('page_id', pageId)
       }
     }
-    const { data: posts } = await q
+    const [countRes, dataRes] = await Promise.all([qCount, q])
+    const totalCount = countRes.count || 0
+    const { data: posts } = dataRes
 
     const postList = (posts || []) as any[]
     const postIds = postList.map(p => p.id)
@@ -58,7 +66,7 @@ export async function GET(req: NextRequest) {
     const merged = postList.map(p => ({ ...p, author: profileMap[p.user_id] }))
 
     return new Response(
-      JSON.stringify({ posts: merged, likeCounts, commentCounts }),
+      JSON.stringify({ posts: merged, likeCounts, commentCounts, totalCount }),
       { 
         status: 200, 
         headers: { 

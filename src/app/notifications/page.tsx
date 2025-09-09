@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog'
 import { AnimatedBackground } from '@/components/AnimatedBackground'
-import { listNotifications, markAllAsRead, markAsRead, getMyNotificationPreferences, upsertMyNotificationPreferences } from '@/lib/notifications'
+import { listNotificationsPaged, markAllAsRead, markAsRead, getMyNotificationPreferences, upsertMyNotificationPreferences } from '@/lib/notifications'
 import { getUnreadCount } from '@/lib/notifications'
 import type { Notification, NotificationPreferences } from '@/types/notification'
 import { Settings } from 'lucide-react'
@@ -16,14 +16,19 @@ export default function NotificationsPage() {
   const [onlyUnread, setOnlyUnread] = useState(false)
   const [prefs, setPrefs] = useState<NotificationPreferences | null>(null)
   const [savingPrefs, setSavingPrefs] = useState(false)
+  const [page, setPage] = useState(1)
+  const pageSize = 10
+  const [totalCount, setTotalCount] = useState(0)
 
   const load = async () => {
     setLoading(true)
-    const [list, p] = await Promise.all([
-      listNotifications({ onlyUnread }),
+    const offset = (page - 1) * pageSize
+    const [listRes, p] = await Promise.all([
+      listNotificationsPaged({ onlyUnread, limit: pageSize, offset }),
       getMyNotificationPreferences()
     ])
-    setItems(list)
+    setItems(listRes.items)
+    setTotalCount(listRes.totalCount)
     setPrefs(p)
     setLoading(false)
   }
@@ -31,7 +36,7 @@ export default function NotificationsPage() {
   useEffect(() => {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onlyUnread])
+  }, [onlyUnread, page])
 
   const unreadCount = useMemo(() => items.filter(i => !i.is_read).length, [items])
 
@@ -141,6 +146,13 @@ export default function NotificationsPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Pagination */}
+          <div className="mt-6 flex items-center justify-center gap-4">
+            <Button variant="outline" disabled={page===1} onClick={() => setPage(p => Math.max(1, p-1))}>이전</Button>
+            <div className="text-sm text-slate-600">{page} / {Math.max(1, Math.ceil((totalCount||0)/pageSize))}</div>
+            <Button variant="outline" disabled={page >= Math.max(1, Math.ceil((totalCount||0)/pageSize))} onClick={() => setPage(p => p+1)}>다음</Button>
+          </div>
         </div>
       </main>
     </div>

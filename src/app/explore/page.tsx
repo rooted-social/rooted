@@ -52,21 +52,32 @@ export default function ExplorePage() {
 
   // 커뮤니티 데이터 로드
   useEffect(() => {
-    loadCommunities()
+    const controller = new AbortController()
+    ;(async () => {
+      try {
+        setLoading(true)
+        const data = await fetchExploreCommunities({ category: selectedCategory !== '전체' ? selectedCategory : undefined, signal: controller.signal })
+        setCommunities(data)
+      } catch (e:any) {
+        if (e?.name !== 'AbortError') console.error('커뮤니티 로드 오류:', e)
+      } finally { setLoading(false) }
+    })()
+    return () => controller.abort()
   }, [])
 
   // 별도 /create 페이지로 분리됨
 
-  const loadCommunities = async () => {
+  const loadCommunities = async (signal?: AbortSignal) => {
     try {
       setLoading(true)
       const data = await fetchExploreCommunities({
         search: searchTerm || undefined,
         category: selectedCategory !== "전체" ? selectedCategory : undefined,
+        signal,
       })
       setCommunities(data)
-    } catch (error) {
-      console.error("커뮤니티 로드 오류:", error)
+    } catch (error: any) {
+      if (error?.name !== 'AbortError') console.error("커뮤니티 로드 오류:", error)
     } finally {
       setLoading(false)
     }
@@ -74,11 +85,11 @@ export default function ExplorePage() {
 
   // 검색어나 카테고리 변경 시 데이터 다시 로드
   useEffect(() => {
+    const controller = new AbortController()
     const timer = setTimeout(() => {
-      loadCommunities()
-    }, 300) // 300ms 디바운스
-
-    return () => clearTimeout(timer)
+      loadCommunities(controller.signal)
+    }, 250) // 250ms 디바운스로 단축
+    return () => { controller.abort(); clearTimeout(timer) }
   }, [searchTerm, selectedCategory])
 
   const handleCategoryChange = (category: string) => {

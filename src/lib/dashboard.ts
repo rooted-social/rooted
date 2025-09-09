@@ -42,8 +42,12 @@ export async function fetchRecentActivity(communityId: string, slug?: string): P
 }
 
 const feedCache = new Map<string, { ts: number; data: { posts: any[]; likeCounts: Record<string, number>; commentCounts: Record<string, number> } }>()
-export async function fetchFeed(communityId: string, opts?: { pageId?: string | null; force?: boolean }) {
-  const baseUrl = `/api/dashboard/feed?communityId=${encodeURIComponent(communityId)}${opts?.pageId !== undefined ? `&pageId=${encodeURIComponent(String(opts.pageId))}` : ''}`
+export async function fetchFeed(communityId: string, opts?: { pageId?: string | null; force?: boolean; limit?: number; offset?: number }) {
+  const params = new URLSearchParams({ communityId })
+  if (opts?.pageId !== undefined) params.set('pageId', String(opts.pageId))
+  if (opts?.limit != null) params.set('limit', String(opts.limit))
+  if (opts?.offset != null) params.set('offset', String(opts.offset))
+  const baseUrl = `/api/dashboard/feed?${params.toString()}`
   const url = opts?.force ? `${baseUrl}&t=${Date.now()}` : baseUrl
   const now = Date.now()
   if (!opts?.force) {
@@ -52,7 +56,7 @@ export async function fetchFeed(communityId: string, opts?: { pageId?: string | 
   }
   const res = await fetch(url, { cache: opts?.force ? 'no-store' : 'default' })
   if (!res.ok) throw new Error('failed to fetch feed')
-  const data = await res.json() as { posts: any[]; likeCounts: Record<string, number>; commentCounts: Record<string, number> }
+  const data = await res.json() as { posts: any[]; likeCounts: Record<string, number>; commentCounts: Record<string, number>; totalCount?: number }
   // 기본 URL 키로 캐시를 갱신해 동일 파라미터의 이후 요청이 최신을 보게 함
   feedCache.set(baseUrl, { ts: now, data })
   return data
@@ -101,12 +105,12 @@ export async function fetchNotesList(pageId: string) {
 
 // Explore communities fetcher (API 사용)
 const exploreCache = new Map<string, { ts: number; data: any[] }>()
-export async function fetchExploreCommunities(opts?: { search?: string; category?: string }) {
+export async function fetchExploreCommunities(opts?: { search?: string; category?: string; signal?: AbortSignal }) {
   const url = `/api/explore/communities${opts?.search || opts?.category ? `?${new URLSearchParams({ ...(opts?.search ? { search: opts.search } : {}), ...(opts?.category ? { category: opts.category } : {}) }).toString()}` : ''}`
   const now = Date.now()
   const cached = exploreCache.get(url)
   if (cached && now - cached.ts < 60_000) return cached.data
-  const res = await fetch(url)
+  const res = await fetch(url, { signal: opts?.signal })
   if (!res.ok) throw new Error('failed to fetch explore communities')
   const data = await res.json()
   exploreCache.set(url, { ts: now, data })
