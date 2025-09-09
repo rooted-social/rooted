@@ -51,11 +51,6 @@ export default function LoginPage() {
           redirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined,
           // 이메일 수집 활성화됨: 이메일 포함 범위로 요청
           scopes: "account_email profile_nickname profile_image",
-          queryParams: {
-            // 카카오는 PKCE를 권장. supabase-js v2는 기본으로 PKCE 사용
-            // 여기서는 명시적 state를 추가해 CSRF 보호(선택)
-            state: Math.random().toString(36).slice(2),
-          },
         },
       })
       if (error) {
