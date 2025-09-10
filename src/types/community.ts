@@ -63,6 +63,8 @@ export interface CommunitySettings {
   mission?: string
   about?: string
   banner_url?: string
+  // 대시보드 활성 버튼 등에 사용하는 브랜드 컬러 (HEX)
+  brand_color?: string | null
   updated_at: string
   updated_by: string
 }

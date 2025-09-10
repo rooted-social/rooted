@@ -18,6 +18,8 @@ import { ensureProfile } from "@/lib/profiles"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuthData } from "@/components/auth/AuthProvider"
 import AnimatedBackground from "@/components/AnimatedBackground"
+import { getCommunitySettings } from "@/lib/communities"
+import { getReadableTextColor, withAlpha } from "@/utils/color"
 
 interface BoardTabProps {
   communityId: string
@@ -51,6 +53,7 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
   const [inlineContent, setInlineContent] = useState("")
   const [meAvatar, setMeAvatar] = useState<string | undefined>(undefined)
   const [expanded, setExpanded] = useState<boolean>(false)
+  const [brandColor, setBrandColor] = useState<string | null>(null)
   const taRef = useRef<HTMLTextAreaElement | null>(null)
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({})
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({})
@@ -64,6 +67,15 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [isOwner, setIsOwner] = useState<boolean>(false)
   const [editOpen, setEditOpen] = useState<boolean>(false)
+
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const s = await getCommunitySettings(communityId)
+        setBrandColor((s as any)?.brand_color || null)
+      } catch {}
+    })()
+  }, [communityId])
 
   const timeAgo = (iso: string) => {
     const now = Date.now()
@@ -305,14 +317,14 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
         <>
           {!pageId && (
             <div className="flex items-center justify-center gap-3 text-slate-800 mb-3">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-500 flex items-center justify-center shadow-lg ring-2 ring-white/60">
-                <Sparkles className="w-5 h-5 text-white" />
+              <div className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-lg ring-2 ring-white/60" style={{ backgroundColor: withAlpha(brandColor || '#0f172a', 0.18) }}>
+                <Sparkles className="w-5 h-5" style={{ color: brandColor || '#0f172a' }} />
               </div>
               <span className="font-bold text-xl tracking-tight text-black">What's on your mind?</span>
             </div>
           )}
           {/* 모바일 최적화된 작성 영역 */}
-          <div className={`rounded-3xl bg-amber-50/80 backdrop-blur-xl shadow-sm border border-black/60 hover:shadow-md transition-all duration-300 ease-out p-4 md:p-5 overflow-x-hidden w-full max-w-full`}> 
+          <div className={`rounded-3xl backdrop-blur-xl shadow-sm hover:shadow-md transition-all duration-300 ease-out p-4 md:p-5 overflow-x-hidden w-full max-w-full`} style={{ backgroundColor: withAlpha(brandColor || '#0f172a', 0.06), border: `1px solid ${withAlpha(brandColor || '#0f172a', 0.25)}` }}> 
             <div className={`flex items-start gap-3 md:gap-4 w-full max-w-full md:flex-row flex-col`}>
               <Avatar className="hidden md:block w-10 h-10 shrink-0 ring-2 ring-white shadow-lg">
                 <AvatarImage src={getAvatarUrl(meAvatar)} alt="me" />
@@ -359,7 +371,8 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
                   <span className="text-[11px] text-slate-600">{inlineContent.length}/300</span>
                   <Button
                     size={"sm"}
-                    className="rounded-xl bg-amber-500 hover:bg-amber-600 text-black shadow-sm px-4 py-2 cursor-pointer"
+                    className="rounded-xl shadow-sm px-4 py-2 cursor-pointer"
+                    style={brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor) } : undefined}
                     disabled={!inlineContent.trim()}
                     onClick={async () => {
                       try {

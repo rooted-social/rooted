@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Rss, Home as HomeIcon, Plus, FolderPlus, GripVertical, ArrowUp, ArrowDown } from "lucide-react"
-import { getCommunityPages, createCommunityPage, deleteCommunityPage, getCommunityPageGroups, createCommunityPageGroup, deleteCommunityPageGroup, moveCommunityPage, saveCommunityPageOrderInGroup, renameCommunityPage, renameCommunityPageGroup, seedNotesPage, updateCommunityPageMeta } from "@/lib/communities"
+import { Rss, Home as HomeIcon, Plus, FolderPlus, GripVertical, ArrowUp, ArrowDown, Newspaper } from "lucide-react"
+import { getCommunityPages, createCommunityPage, deleteCommunityPage, getCommunityPageGroups, createCommunityPageGroup, deleteCommunityPageGroup, moveCommunityPage, saveCommunityPageOrderInGroup, renameCommunityPage, renameCommunityPageGroup, updateCommunityPageMeta, getCommunitySettings } from "@/lib/communities"
 import { Settings } from "lucide-react"
+import { getReadableTextColor, withAlpha } from "@/utils/color"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -20,21 +21,23 @@ interface CommunitySidebarProps {
   onSelectPage: (id: string) => void
   isOpen?: boolean
   onClose?: () => void
+  initialBrandColor?: string | null
 }
 
 type PageItem = { id: string; title: string; group_id: string | null; type?: 'feed' | 'page' | 'divider' }
 
-export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, onSelectFeed, onSelectPage, isOpen = false, onClose }: CommunitySidebarProps) {
+export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, onSelectFeed, onSelectPage, isOpen = false, onClose, initialBrandColor = null }: CommunitySidebarProps) {
   const { user } = useAuthData()
   const [pages, setPages] = useState<PageItem[]>([])
   const [groups, setGroups] = useState<{ id: string; title: string }[]>([])
   const [loading, setLoading] = useState<boolean>(true)
+  const [brandColor, setBrandColor] = useState<string | null>(initialBrandColor)
   const [menu, setMenu] = useState<{ type: 'page' | 'group'; id: string } | null>(null)
   const [dragOverGroupId, setDragOverGroupId] = useState<string | '__ungrouped__' | null>(null)
   const [isAddPageOpen, setIsAddPageOpen] = useState(false)
   const [isAddGroupOpen, setIsAddGroupOpen] = useState(false)
   const [newTitle, setNewTitle] = useState('')
-  const [newType, setNewType] = useState<'feed'|'notes'|'blog'>('feed')
+  const [newType, setNewType] = useState<'feed'|'blog'>('feed')
   const [editTarget, setEditTarget] = useState<{ type: 'page' | 'group'; id: string; title: string } | null>(null)
   const [confirmTarget, setConfirmTarget] = useState<{ type: 'page' | 'group' | 'divider'; id: string; title?: string } | null>(null)
   const [dragOverItemId, setDragOverItemId] = useState<string | null>(null)
@@ -120,6 +123,23 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
     if (lastCommunityIdRef.current === communityId) return
     lastCommunityIdRef.current = communityId
     void load() 
+  }, [communityId])
+
+  // 초기 브랜드 컬러 동기화: 대시보드에서 전달된 값이 있으면 우선 사용
+  useEffect(() => {
+    if (initialBrandColor) setBrandColor(initialBrandColor)
+  }, [initialBrandColor])
+
+  // 브랜드 컬러는 페이지/그룹 로딩과 독립적으로 빠르게 가져오기
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const s = await getCommunitySettings(communityId)
+        if (!cancelled) setBrandColor((s as any)?.brand_color || null)
+      } catch {}
+    })()
+    return () => { cancelled = true }
   }, [communityId])
 
   // 사용자 또는 ownerId 변경 시 오너 여부 동기화
@@ -339,12 +359,13 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
             onClick={onSelectHome}
             className={`group w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer transform hover:scale-[1.02] ${
               active.type === 'home'
-                ? 'bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-lg shadow-slate-900/25'
+                ? (brandColor ? 'shadow-lg' : 'bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-lg shadow-slate-900/25')
                 : 'text-slate-600 hover:bg-gradient-to-r hover:from-slate-50 hover:to-slate-100 hover:text-slate-800 hover:shadow-md'
             }`}
+            style={active.type === 'home' && brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor) } : undefined}
           >
             <HomeIcon className={`w-5 h-5 transition-colors ${
-              active.type === 'home' ? 'text-white' : 'text-slate-500 group-hover:text-slate-700'
+              active.type === 'home' ? (brandColor ? 'text-white' : 'text-white') : 'text-slate-500 group-hover:text-slate-700'
             }`} />
             <span className="truncate">대시보드</span>
           </button>
@@ -353,12 +374,13 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
             onClick={onSelectFeed}
             className={`group w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer transform hover:scale-[1.02] ${
               active.type === 'feed'
-                ? 'bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-lg shadow-slate-900/25'
+                ? (brandColor ? 'shadow-lg' : 'bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-lg shadow-slate-900/25')
                 : 'text-slate-600 hover:bg-gradient-to-r hover:from-slate-50 hover:to-slate-100 hover:text-slate-800 hover:shadow-md'
             }`}
+            style={active.type === 'feed' && brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor) } : undefined}
           >
             <Rss className={`w-5 h-5 transition-colors ${
-              active.type === 'feed' ? 'text-white' : 'text-slate-500 group-hover:text-slate-700'
+              active.type === 'feed' ? (brandColor ? 'text-white' : 'text-white') : 'text-slate-500 group-hover:text-slate-700'
             }`} />
             <span className="truncate">피드</span>
           </button>
@@ -409,13 +431,14 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
                                 <GripVertical className="w-4 h-4" />
                               </button>
                             )}
-                             <button
+                            <button
                                onClick={() => onSelectPage(p.id)}
                                className={`group flex-1 text-left px-4 py-2.5 rounded-xl text-sm font-medium cursor-pointer transition-all duration-200 transform hover:scale-[1.01] ${
                                 active.type === 'page' && active.id === p.id
-                                  ? 'bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-lg shadow-slate-900/25'
+                                  ? (brandColor ? 'shadow-lg' : 'bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-lg shadow-slate-900/25')
                                   : 'text-slate-600 hover:bg-gradient-to-r hover:from-slate-50 hover:to-slate-100 hover:text-slate-800 hover:shadow-md'
                               }`}
+                              style={active.type === 'page' && active.id === p.id && brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor) } : undefined}
                             >
                               <span className="inline-block w-2 h-2 bg-current rounded-full mr-3 opacity-60"></span>
                               {p.title}
@@ -495,9 +518,10 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
                               onClick={() => onSelectPage(p.id)}
                               className={`group flex-1 text-left px-4 py-2.5 rounded-xl text-sm font-medium cursor-pointer transition-all duration-200 transform hover:scale-[1.01] ${
                                 active.type === 'page' && active.id === p.id
-                                  ? 'bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-lg shadow-slate-900/25'
+                                  ? (brandColor ? 'shadow-lg' : 'bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-lg shadow-slate-900/25')
                                   : 'text-slate-600 hover:bg-gradient-to-r hover:from-slate-50 hover:to-slate-100 hover:text-slate-800 hover:shadow-md'
                               }`}
+                              style={active.type === 'page' && active.id === p.id && brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor) } : undefined}
                             >
                               <span className="inline-block w-2 h-2 bg-current rounded-full mr-3 opacity-50"></span>
                               {p.title}
@@ -581,14 +605,11 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
                   onClose?.()
                 }}
                 className={`group w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
-                  active.type === 'home'
-                    ? 'bg-slate-900 text-white'
-                    : 'text-slate-700 hover:bg-slate-100'
+                  active.type === 'home' ? '' : 'text-slate-700 hover:bg-slate-100'
                 }`}
+                style={active.type === 'home' && brandColor ? { backgroundColor: withAlpha(brandColor, 0.12), color: brandColor } : undefined}
               >
-                <HomeIcon className={`w-5 h-5 ${
-                  active.type === 'home' ? 'text-white' : 'text-slate-500'
-                }`} />
+                <HomeIcon className="w-5 h-5" style={active.type === 'home' && brandColor ? { color: brandColor } : undefined} />
                 <span className="font-medium">대시보드</span>
               </button>
 
@@ -598,14 +619,11 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
                   onClose?.()
                 }}
                 className={`group w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
-                  active.type === 'feed'
-                    ? 'bg-slate-900 text-white'
-                    : 'text-slate-700 hover:bg-slate-100'
+                  active.type === 'feed' ? '' : 'text-slate-700 hover:bg-slate-100'
                 }`}
+                style={active.type === 'feed' && brandColor ? { backgroundColor: withAlpha(brandColor, 0.12), color: brandColor } : undefined}
               >
-                <Rss className={`w-5 h-5 ${
-                  active.type === 'feed' ? 'text-white' : 'text-slate-500'
-                }`} />
+                <Rss className="w-5 h-5" style={active.type === 'feed' && brandColor ? { color: brandColor } : undefined} />
                 <span className="font-medium">피드</span>
               </button>
 
@@ -664,10 +682,9 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
                             onClose?.()
                           }}
                           className={`group flex-1 text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
-                            active.type === 'page' && active.id === p.id
-                              ? 'bg-slate-900 text-white'
-                              : 'text-slate-700 hover:bg-slate-100'
+                            active.type === 'page' && active.id === p.id ? '' : 'text-slate-700 hover:bg-slate-100'
                           }`}
+                          style={active.type === 'page' && active.id === p.id && brandColor ? { backgroundColor: withAlpha(brandColor, 0.12), color: brandColor } : undefined}
                         >
                           {p.type === 'divider' ? (
                             <span className="text-slate-300">—————</span>
@@ -727,10 +744,9 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
                                 onClose?.()
                               }}
                               className={`group flex-1 text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
-                                active.type === 'page' && active.id === p.id
-                                  ? 'bg-slate-900 text-white'
-                                  : 'text-slate-700 hover:bg-slate-100'
+                                active.type === 'page' && active.id === p.id ? '' : 'text-slate-700 hover:bg-slate-100'
                               }`}
+                              style={active.type === 'page' && active.id === p.id && brandColor ? { backgroundColor: withAlpha(brandColor, 0.12), color: brandColor } : undefined}
                             >
                               {p.type === 'divider' ? (
                                 <span className="text-slate-300 ml-2">—————</span>
@@ -780,12 +796,11 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
           <div className="space-y-2">
             <Label htmlFor="page-title">페이지 이름</Label>
             <Input id="page-title" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="예: 소개, 공지 등" />
-            <div className="space-y-1">
+            <div className="space-y-2">
               <Label>페이지 유형</Label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {([
                   { key: 'feed', label: '피드' },
-                  { key: 'notes', label: '노트' },
                   { key: 'blog', label: '블로그' },
                 ] as const).map(opt => (
                   <button
@@ -797,6 +812,47 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
                   </button>
                 ))}
               </div>
+              {/* 유형 설명 */}
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-3">
+                {newType === 'feed' ? (
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+                      <Rss className="w-4 h-4 text-amber-600" />
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <p className="text-sm font-medium text-slate-900">피드 · 빠른 공유와 토론</p>
+                      <p className="text-xs text-slate-600">카드형 게시글과 댓글 중심. 공지, 질문, 토론 등 빠른 업데이트에 적합합니다.</p>
+                      <div className="mt-2 grid grid-cols-1 gap-1.5">
+                        <div className="h-7 rounded-lg bg-white border border-slate-200 flex items-center gap-2 px-2">
+                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500" />
+                          <span className="h-2 w-20 rounded bg-slate-200" />
+                        </div>
+                        <div className="h-7 rounded-lg bg-white border border-slate-200 flex items-center gap-2 px-2 opacity-80">
+                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400" />
+                          <span className="h-2 w-16 rounded bg-slate-200" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                      <Newspaper className="w-4 h-4 text-indigo-600" />
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <p className="text-sm font-medium text-slate-900">블로그 · 깊이 있는 글</p>
+                      <p className="text-xs text-slate-600">이미지와 본문 중심의 글 형식으로 장문 콘텐츠에 적합합니다.</p>
+                      <div className="mt-2 grid grid-cols-3 gap-1.5">
+                        <div className="col-span-1 h-12 rounded-lg bg-white border border-slate-200" />
+                        <div className="col-span-2 space-y-1.5">
+                          <div className="h-2.5 rounded bg-slate-200 w-24" />
+                          <div className="h-2 rounded bg-slate-200 w-36" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           <DialogFooter>
@@ -804,13 +860,11 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
             <button className="px-3 py-1.5 rounded-md bg-slate-900 text-white text-sm" onClick={async () => {
               if (!newTitle.trim()) return
               // 타입별 기본 메타 설정
-              const meta = newType === 'notes' ? { description: '설명을 추가하세요' } : newType === 'blog' ? { description: '블로그 글을 작성해보세요' } : {}
+              const meta = newType === 'blog' ? { description: '블로그 글을 작성해보세요' } : {}
               let created = await createCommunityPage(communityId, newTitle.trim(), null, newType, null, (meta as any).description || null)
               // 일부 환경에서 type 컬럼이 없을 수 있으므로 방어적으로 한번 더 기록
               try { created = await updateCommunityPageMeta(created.id, { type: newType }) } catch {}
               setPages(prev => [...prev, { id: created.id, title: created.title, group_id: null, type: (created as any).type || newType }])
-              // 샘플 데이터 주입 (notes만)
-              if (newType === 'notes') await seedNotesPage(created.id)
               setIsAddPageOpen(false)
             }}>추가</button>
           </DialogFooter>

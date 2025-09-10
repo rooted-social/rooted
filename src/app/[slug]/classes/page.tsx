@@ -8,6 +8,7 @@ import ClassesPage from "@/components/community-dashboard/pages/ClassesPage"
 export default function CommunityClassesPage() {
   const { slug } = useParams<{ slug: string }>()
   const [communityId, setCommunityId] = useState<string>("")
+  const [ownerId, setOwnerId] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(true)
 
   useEffect(() => {
@@ -20,6 +21,8 @@ export default function CommunityClassesPage() {
         const community = await getCommunity(String(slug))
         if (!mounted) return
         setCommunityId(community.id)
+        // 오너 아이디도 함께 보관하여 오너 전용 UI 노출
+        setOwnerId((community as any)?.owner_id || "")
       } catch (error) {
         console.error('Community load failed:', error)
       } finally {
@@ -47,7 +50,7 @@ export default function CommunityClassesPage() {
 
   return (
     <main className="py-3 md:py-6 px-[2%]">
-      <ClassesPage communityId={communityId} />
+      <ClassesPage communityId={communityId} ownerId={ownerId} />
     </main>
   )
 }

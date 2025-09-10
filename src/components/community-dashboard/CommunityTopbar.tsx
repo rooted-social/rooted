@@ -8,6 +8,8 @@ import { Bell, ChevronDown, Menu, Home, BookOpen, Calendar, Users, Settings } fr
 import { getAvatarUrl } from "@/lib/utils"
 import { useAuthData } from "@/components/auth/AuthProvider"
 import { useCommunityBySlug } from "@/hooks/useCommunity"
+import { getCommunitySettings } from "@/lib/communities"
+import { getReadableTextColor, withAlpha } from "@/utils/color"
 
 type ViewKey = "home" | "settings" | "classes" | "calendar" | "members"
 
@@ -25,11 +27,23 @@ export function CommunityTopbar({ slug, name, active, onChange, imageUrl, onTogg
   const [showCommunityDropdown, setShowCommunityDropdown] = useState(false)
   const [isOwner, setIsOwner] = useState<boolean>(false)
   const communityQ = useCommunityBySlug(slug)
+  const [brandColor, setBrandColor] = useState<string | null>(null)
 
   useEffect(() => {
     const ownerId = (communityQ.data as any)?.owner_id || null
     setIsOwner(!!user && !!ownerId && ownerId === user.id)
   }, [communityQ.data, user])
+
+  useEffect(() => {
+    const id = (communityQ.data as any)?.id
+    if (!id) return
+    ;(async () => {
+      try {
+        const s = await getCommunitySettings(id)
+        setBrandColor((s as any)?.brand_color || null)
+      } catch {}
+    })()
+  }, [communityQ.data])
   const NavItem = ({ k, label }: { k: ViewKey; label: string }) => {
     const getIcon = () => {
       switch (k) {
@@ -42,23 +56,24 @@ export function CommunityTopbar({ slug, name, active, onChange, imageUrl, onTogg
       }
     }
 
+    const activeColor = brandColor || undefined
+    const inactiveClass = 'text-slate-500 hover:text-slate-700'
     return (
       <button
         onClick={() => onChange(k)}
         className={`flex flex-col items-center gap-1.5 p-1.5 rounded-lg transition-all duration-200 ${
-          active === k ? "text-slate-900" : "text-slate-500 hover:text-slate-700"
+          active === k ? '' : inactiveClass
         }`}
+        style={active === k && activeColor ? { color: activeColor as any } : undefined}
       >
         <div className={`w-5 h-5 flex items-center justify-center transition-all duration-200 ${
           active === k 
-            ? 'text-slate-900 scale-110' 
-            : 'text-slate-500 hover:text-slate-700 hover:scale-105'
-        }`}>
+            ? 'scale-110' 
+            : 'hover:scale-105'
+        } ${active === k ? '' : ''}`} style={active === k && activeColor ? { color: activeColor as any } : undefined}>
           {getIcon()}
         </div>
-        <span className={`text-xs font-medium transition-all duration-200 ${
-          active === k ? 'text-slate-900' : 'text-slate-500'
-        }`}>{label}</span>
+        <span className={`text-xs font-medium transition-all duration-200 ${active === k ? '' : ''}`} style={active === k && activeColor ? { color: activeColor as any } : undefined}>{label}</span>
       </button>
     )
   }
@@ -90,32 +105,36 @@ export function CommunityTopbar({ slug, name, active, onChange, imageUrl, onTogg
             <button
               onClick={() => onChange("home")}
               className={`px-4 py-2 text-sm font-medium rounded-full cursor-pointer transition-all duration-200 ${
-                active === "home" ? "bg-slate-900 text-white shadow-sm" : "text-slate-700 hover:bg-slate-100 hover:shadow-sm hover:scale-105"
+                active === "home" ? (brandColor ? "shadow-sm" : "bg-slate-900 text-white shadow-sm") : "text-slate-700 hover:bg-slate-100 hover:shadow-sm hover:scale-105"
               }`}
+              style={active === 'home' && brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor) } : undefined}
             >
               홈
             </button>
             <button
               onClick={() => onChange("classes")}
               className={`px-4 py-2 text-sm font-medium rounded-full cursor-pointer transition-all duration-200 ${
-                active === "classes" ? "bg-slate-900 text-white shadow-sm" : "text-slate-700 hover:bg-slate-100 hover:shadow-sm hover:scale-105"
+                active === "classes" ? (brandColor ? "shadow-sm" : "bg-slate-900 text-white shadow-sm") : "text-slate-700 hover:bg-slate-100 hover:shadow-sm hover:scale-105"
               }`}
+              style={active === 'classes' && brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor) } : undefined}
             >
               클래스
             </button>
             <button
               onClick={() => onChange("calendar")}
               className={`px-4 py-2 text-sm font-medium rounded-full cursor-pointer transition-all duration-200 ${
-                active === "calendar" ? "bg-slate-900 text-white shadow-sm" : "text-slate-700 hover:bg-slate-100 hover:shadow-sm hover:scale-105"
+                active === "calendar" ? (brandColor ? "shadow-sm" : "bg-slate-900 text-white shadow-sm") : "text-slate-700 hover:bg-slate-100 hover:shadow-sm hover:scale-105"
               }`}
+              style={active === 'calendar' && brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor) } : undefined}
             >
               캘린더
             </button>
             <button
               onClick={() => onChange("members")}
               className={`px-4 py-2 text-sm font-medium rounded-full cursor-pointer transition-all duration-200 ${
-                active === "members" ? "bg-slate-900 text-white shadow-sm" : "text-slate-700 hover:bg-slate-100 hover:shadow-sm hover:scale-105"
+                active === "members" ? (brandColor ? "shadow-sm" : "bg-slate-900 text-white shadow-sm") : "text-slate-700 hover:bg-slate-100 hover:shadow-sm hover:scale-105"
               }`}
+              style={active === 'members' && brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor) } : undefined}
             >
               멤버
             </button>
@@ -123,8 +142,9 @@ export function CommunityTopbar({ slug, name, active, onChange, imageUrl, onTogg
               <button
                 onClick={() => onChange("settings")}
                 className={`px-4 py-2 text-sm font-medium rounded-full cursor-pointer transition-all duration-200 ${
-                  active === "settings" ? "bg-slate-900 text-white shadow-sm" : "text-slate-700 hover:bg-slate-100 hover:shadow-sm hover:scale-105"
+                  active === "settings" ? (brandColor ? "shadow-sm" : "bg-slate-900 text-white shadow-sm") : "text-slate-700 hover:bg-slate-100 hover:shadow-sm hover:scale-105"
                 }`}
+                style={active === 'settings' && brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor) } : undefined}
               >
                 설정
               </button>
@@ -152,10 +172,11 @@ export function CommunityTopbar({ slug, name, active, onChange, imageUrl, onTogg
                   {onToggleSidebar && (
                     <button
                       onClick={onToggleSidebar}
-                      className="p-1.5 rounded-lg bg-amber-500/10 border border-amber-300/50 hover:bg-amber-500/20 transition-colors shadow-sm cursor-pointer"
+                      className="p-1.5 rounded-lg transition-colors shadow-sm cursor-pointer border"
+                      style={brandColor ? { backgroundColor: withAlpha(brandColor, 0.12), borderColor: withAlpha(brandColor, 0.35) } : undefined}
                       title="메뉴"
                     >
-                      <Menu className="w-4 h-4 text-amber-600" />
+                      <Menu className="w-4 h-4" style={brandColor ? { color: brandColor } : undefined} />
                     </button>
                   )}
                   
@@ -228,9 +249,10 @@ export function CommunityTopbar({ slug, name, active, onChange, imageUrl, onTogg
                 <div className="flex items-center gap-2">
                   <Link
                     href="/notifications"
-                    className="p-1.5 rounded-lg hover:bg-slate-50 transition-colors relative"
+                    className="p-1.5 rounded-lg border transition-colors relative"
+                    style={brandColor ? { backgroundColor: withAlpha(brandColor, 0.12), borderColor: withAlpha(brandColor, 0.3) } : undefined}
                   >
-                    <Bell className="w-4 h-4 text-slate-600" />
+                    <Bell className="w-4 h-4" style={brandColor ? { color: brandColor } : undefined} />
                     {unreadCount > 0 && (
                       <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-500" />
                     )}

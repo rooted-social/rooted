@@ -294,8 +294,8 @@ export default function CreatePage() {
             <Button
               className="bg-amber-500 hover:bg-amber-600 text-black border border-black rounded-xl cursor-pointer"
               onClick={()=>{
-                if (createdSlug) router.push(`/${createdSlug}/dashboard`)
-                else router.push('/dashboard')
+                if (createdSlug) router.push(`/${createdSlug}/dashboard?onboarding=1`)
+                else router.push('/dashboard?onboarding=1')
               }}
             >
               내 루트로 이동

@@ -10,7 +10,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { getAvatarUrl } from "@/lib/profiles"
 import { deleteBlogPost } from "@/lib/blog"
 import { supabase, getUserId } from "@/lib/supabase"
-import { getCommunitySlugById } from "@/lib/communities"
+import { getCommunitySlugById, getCommunitySettings } from "@/lib/communities"
+import { getReadableTextColor } from "@/utils/color"
 import { Pencil, Trash2 } from "lucide-react"
 import { type BlogListItem as LibBlogListItem } from "@/lib/blog"
 import { fetchBlogList } from '@/lib/dashboard'
@@ -43,17 +44,19 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [isOwner, setIsOwner] = useState<boolean>(false)
+  const [brandColor, setBrandColor] = useState<string | null>(null)
 
   useEffect(() => {
     let mounted = true
     ;(async () => {
       setLoading(true)
       try {
-        const [list, s, uid, comm] = await Promise.all([
+        const [list, s, uid, comm, settings] = await Promise.all([
           fetchBlogList(pageId),
           getCommunitySlugById(communityId),
           getUserId(),
           supabase.from('communities').select('owner_id').eq('id', communityId).single(),
+          getCommunitySettings(communityId).catch(() => null),
         ])
         if (!mounted) return
         console.log('Blog posts loaded:', list) // 디버깅용
@@ -62,6 +65,7 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
         const ownerId = (comm.data as any)?.owner_id || null
         setCurrentUserId(uid || null)
         setIsOwner(!!uid && !!ownerId && uid === ownerId)
+        setBrandColor((settings as any)?.brand_color || null)
       } catch (error) {
         console.error('Failed to load blog data:', error)
         if (mounted) {
@@ -87,7 +91,9 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
       <div className="flex items-start justify-between">
         <SectionTitle title={title} description={description} />
         {slug && (
-          <Button asChild size="sm" className="whitespace-nowrap cursor-pointer rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 border-0 text-white font-semibold px-6">
+          <Button asChild size="lg" className="whitespace-nowrap cursor-pointer rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border-0 font-semibold px-7 py-5"
+            style={brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor) } : undefined}
+          >
             <Link href={`/${slug}/blog/new?pageId=${pageId}`} className="inline-flex items-center gap-2">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -134,7 +140,10 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
           <h3 className="text-lg font-semibold text-slate-900">첫 번째 게시글을 작성해보세요!</h3>
           <p className="mt-1 text-sm text-slate-600">블로그의 첫 글을 등록해 커뮤니티와 소식을 공유해보세요.</p>
           {slug && (
-            <Button asChild className="mt-4 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-lg">
+            <Button asChild className="mt-4 rounded-2xl shadow-lg"
+              size="lg"
+              style={brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor) } : undefined}
+            >
               <Link href={`/${slug}/blog/new?pageId=${pageId}`} className="inline-flex items-center gap-2">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>
                 새 글 작성하기

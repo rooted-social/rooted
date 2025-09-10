@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { getCommunityEvents, createCommunityEvent, updateCommunityEvent, deleteCommunityEvent } from "@/lib/events"
 import { supabase } from "@/lib/supabase"
 import { Calendar as CalendarIcon, MapPin, Clock, ChevronLeft, ChevronRight, Settings, ListChecks } from "lucide-react"
+import { getCommunitySettings } from "@/lib/communities"
+import { getReadableTextColor } from "@/utils/color"
 import { useAuthData } from "@/components/auth/AuthProvider"
 
 type CalendarEvent = {
@@ -44,6 +46,7 @@ export default function CalendarPage({ communityId }: { communityId: string }) {
   })
   const [detail, setDetail] = useState<CalendarEvent | null>(null)
   const [isOwner, setIsOwner] = useState<boolean>(false)
+  const [brandColor, setBrandColor] = useState<string | null>(null)
 
   const todayStr = new Date().toISOString().slice(0,10)
   const todayEvents = useMemo(() => events.filter(e => e.start_at.slice(0,10) === todayStr), [events, todayStr])
@@ -77,6 +80,15 @@ export default function CalendarPage({ communityId }: { communityId: string }) {
     })()
     return () => { mounted = false }
   }, [communityId, user])
+
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const s = await getCommunitySettings(communityId)
+        setBrandColor((s as any)?.brand_color || null)
+      } catch {}
+    })()
+  }, [communityId])
 
   const onCreate = async () => {
     const start_at = new Date(`${form.date}T${form.start}:00`).toISOString()
@@ -159,7 +171,9 @@ export default function CalendarPage({ communityId }: { communityId: string }) {
                 {isOwner && (
                   <Dialog open={open} onOpenChange={setOpen}>
                     <DialogTrigger asChild>
-                      <Button className="cursor-pointer bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-200 rounded-2xl px-6 py-3">
+                      <Button className="cursor-pointer border-0 shadow-lg hover:shadow-xl transition-all duration-200 rounded-2xl px-6 py-3"
+                        style={brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor) } : undefined}
+                      >
                         일정 생성
                       </Button>
                     </DialogTrigger>
