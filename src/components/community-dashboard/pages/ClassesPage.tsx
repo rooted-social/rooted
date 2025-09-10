@@ -13,10 +13,13 @@ import { getAvatarUrl } from "@/lib/profiles"
 import { PlusCircle, Pencil, Trash2, AlertTriangle, Calendar, User, Eye, Settings } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import Link from "next/link"
+import { toast } from "sonner"
 import { normalizeClassThumbnailUrl } from "@/lib/r2"
 import AnimatedBackground from "@/components/AnimatedBackground"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuthData } from "@/components/auth/AuthProvider"
+import { getCommunitySettings } from "@/lib/communities"
+import { getReadableTextColor, withAlpha } from "@/utils/color"
 
 function fixThumbUrl(url?: string | null) {
   if (!url) return url
@@ -53,6 +56,7 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
   const [openDelete, setOpenDelete] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
   const [isOwner, setIsOwner] = useState<boolean>(false)
+  const [brandColor, setBrandColor] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement | null>(null)
   const editFileInput = useRef<HTMLInputElement | null>(null)
   const createDialogRef = useRef<HTMLDivElement | null>(null)
@@ -75,14 +79,27 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
     setIsOwner(!!user?.id && !!oid && user.id === oid)
   }, [ownerId, user?.id])
 
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const s = await getCommunitySettings(communityId)
+        setBrandColor((s as any)?.brand_color || null)
+      } catch {}
+    })()
+  }, [communityId])
+
   const addCategory = async () => {
     if (!newCat.trim()) return
     try {
       const c = await createClassCategory(communityId, newCat.trim())
       setNewCat("")
       setCategories(prev => [...prev, c])
+      // 생성 직후 필터를 새 카테고리로 전환하여 즉시 확인 가능
+      setActiveCat(c.id)
+      toast.success('카테고리가 추가되었습니다')
     } catch (error) {
       console.error('Failed to create category:', error)
+      toast.error('카테고리 추가에 실패했습니다')
     }
   }
 
@@ -100,9 +117,11 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
       ))
       setEditingCategory(null)
       setEditCategoryName("")
+      toast.success('카테고리가 수정되었습니다')
     } catch (error) {
       console.error('Failed to update category:', error)
       // 에러 발생 시 편집 상태를 유지하여 사용자가 다시 시도할 수 있도록 함
+      toast.error('카테고리 수정에 실패했습니다')
     }
   }
 
@@ -116,8 +135,10 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
       await deleteClassCategory(id)
       setCategories(prev => prev.filter(c => c.id !== id))
       if (activeCat === id) setActiveCat(null)
+      toast.success('카테고리가 삭제되었습니다')
     } catch (error) {
       console.error('Failed to delete category:', error)
+      toast.error('카테고리 삭제에 실패했습니다')
     }
   }
 
@@ -144,6 +165,10 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
   }
 
   const onCreate = async () => {
+    if (!form.title.trim() || !form.description.trim() || !form.category_id) {
+      toast.error('제목, 설명, 카테고리는 필수입니다')
+      return
+    }
     const payload = {
       community_id: communityId,
       category_id: form.category_id || null,
@@ -153,10 +178,16 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
       youtube_url: form.youtube_url || null,
       completed: false,
     } as any
-    await createClass(payload)
-    setOpenCreate(false)
-    setForm({ title: "", description: "", category_id: "", thumbnail_url: "", youtube_url: "" })
-    await load()
+    try {
+      await createClass(payload)
+      toast.success('클래스가 생성되었습니다')
+      setOpenCreate(false)
+      setForm({ title: "", description: "", category_id: "", thumbnail_url: "", youtube_url: "" })
+      // 즉시 목록에 반영
+      await load()
+    } catch (e) {
+      toast.error('클래스 생성에 실패했습니다')
+    }
   }
 
   const openEditModal = (cls: ClassItem) => {
@@ -173,16 +204,25 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
 
   const onUpdate = async () => {
     if (!editing) return
-    await updateClass(editing.id, {
-      title: editForm.title,
-      description: editForm.description,
-      category_id: editForm.category_id || null,
-      thumbnail_url: editForm.thumbnail_url || null,
-      youtube_url: editForm.youtube_url || null,
-    })
-    setOpenEdit(false)
-    setEditing(null)
-    await load()
+    if (!editForm.title.trim() || !editForm.description.trim() || !editForm.category_id) {
+      toast.error('제목, 설명, 카테고리는 필수입니다')
+      return
+    }
+    try {
+      await updateClass(editing.id, {
+        title: editForm.title,
+        description: editForm.description,
+        category_id: editForm.category_id || null,
+        thumbnail_url: editForm.thumbnail_url || null,
+        youtube_url: editForm.youtube_url || null,
+      })
+      toast.success('클래스가 수정되었습니다')
+      setOpenEdit(false)
+      setEditing(null)
+      await load()
+    } catch (e) {
+      toast.error('클래스 수정에 실패했습니다')
+    }
   }
 
   const onDelete = (id: string, title: string) => {
@@ -192,10 +232,15 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
 
   const confirmDelete = async () => {
     if (!deleteTarget) return
-    await deleteClass(deleteTarget.id)
-    setOpenDelete(false)
-    setDeleteTarget(null)
-    await load()
+    try {
+      await deleteClass(deleteTarget.id)
+      toast.success('클래스가 삭제되었습니다')
+      setOpenDelete(false)
+      setDeleteTarget(null)
+      await load()
+    } catch (e) {
+      toast.error('클래스 삭제에 실패했습니다')
+    }
   }
 
   return (
@@ -209,17 +254,18 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
             {isOwner && (
               <button 
                 onClick={() => setOpenCategoryManage(true)}
-                className="p-2 rounded-lg hover:bg-slate-100 transition-colors duration-200"
+                className="p-2 rounded-lg transition-colors duration-200"
+                style={brandColor ? { backgroundColor: withAlpha(brandColor, 0.08), border: `1px solid ${withAlpha(brandColor, 0.25)}` } : undefined}
                 title="카테고리 관리"
               >
-                <Settings className="w-4 h-4 text-slate-600" />
+                <Settings className="w-4 h-4" style={{ color: brandColor || '#0f172a' }} />
               </button>
             )}
           </div>
           {isOwner && (
           <Dialog open={openCreate} onOpenChange={setOpenCreate}>
             <DialogTrigger asChild>
-              <Button className="cursor-pointer"><PlusCircle className="w-4 h-4 mr-2"/>클래스 추가</Button>
+              <Button className="cursor-pointer" size="lg" style={brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor) } : undefined}><PlusCircle className="w-4 h-4 mr-2"/>클래스 추가</Button>
             </DialogTrigger>
             <DialogContent
               className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto"
@@ -327,9 +373,10 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
               onClick={() => setActiveCat(null)} 
               className={`flex-shrink-0 px-4 py-2 rounded-full border text-sm font-medium transition-all duration-200 ${
                 !activeCat 
-                  ? 'bg-slate-900 text-white border-slate-900 shadow-sm' 
+                  ? 'shadow-sm' 
                   : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
               }`}
+              style={!activeCat && brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor), borderColor: brandColor } : undefined}
             >
               전체
             </button>
@@ -339,9 +386,10 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
                 onClick={() => setActiveCat(category.id)} 
                 className={`flex-shrink-0 px-4 py-2 rounded-full border text-sm font-medium transition-all duration-200 ${
                   activeCat === category.id 
-                    ? 'bg-slate-900 text-white border-slate-900 shadow-sm' 
+                    ? 'shadow-sm' 
                     : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                 }`}
+                style={activeCat === category.id && brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor), borderColor: brandColor } : undefined}
               >
                 {category.name}
               </button>

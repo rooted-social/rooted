@@ -12,6 +12,7 @@ import { fetchDashboardStats, fetchHomeData } from '@/lib/dashboard'
 import { Target, Users2, FileText, MessageCircle, BookOpen, Newspaper, CalendarClock, Rss, StickyNote, Calendar, TrendingUp, Bell, Activity, Settings, Edit3, Trash2, MoreVertical } from "lucide-react"
 import { toast } from "sonner"
 import type { CommunitySettings, Notice, Post } from "@/types/community"
+import { withAlpha } from "@/utils/color"
 
 interface HomeTabProps { communityId: string; slug?: string }
 
@@ -44,6 +45,15 @@ export function HomeTab({ communityId, slug }: HomeTabProps) {
     }
   }, [communityId])
 
+  // 대시보드 내 브랜드 컬러를 전역 이벤트로 즉시 업데이트
+  useEffect(() => {
+    const handler = (e: any) => {
+      setSettings(prev => prev ? { ...prev, brand_color: e?.detail?.color ?? null } as any : prev)
+    }
+    window.addEventListener('brand-color-updated', handler as any)
+    return () => window.removeEventListener('brand-color-updated', handler as any)
+  }, [])
+
   if (loading) {
     return (
       <div className="grid gap-4 md:grid-cols-3">
@@ -75,12 +85,27 @@ export function HomeTab({ communityId, slug }: HomeTabProps) {
       )}
       {/* 좌측 메인 컨텐츠 */}
       <div className="lg:col-span-2 space-y-6">
-        {/* 통계 카드 - 상단으로 이동, 세련된 그리드 디자인 */}
-        <div className="bg-gradient-to-br from-slate-50 to-white rounded-3xl border border-slate-200/50 shadow-sm">
+        {/* 1) Our Mission */}
+        <div className="rounded-3xl shadow-sm bg-white/60 backdrop-blur-md border" style={{ borderColor: withAlpha(settings?.brand_color || '#0f172a', 0.18) }}>
+          <div className="p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center border shadow-sm" style={{ backgroundColor: withAlpha(settings?.brand_color || '#0f172a', 0.08), borderColor: withAlpha(settings?.brand_color || '#0f172a', 0.25) }}>
+                <Target className="w-5 h-5" style={{ color: settings?.brand_color || '#0f172a' }} />
+              </div>
+              <span className="text-sm font-medium text-slate-600">Our Mission</span>
+            </div>
+            <div className="text-slate-900 font-medium text-lg leading-relaxed">
+              {settings?.mission || "커뮤니티의 목표와 가치를 설정해보세요."}
+            </div>
+          </div>
+        </div>
+
+        {/* 2) 커뮤니티 통계 - 세련된 그리드 디자인 */}
+        <div className="rounded-3xl shadow-sm bg-white/60 backdrop-blur-md border" style={{ borderColor: withAlpha(settings?.brand_color || '#0f172a', 0.18) }}>
           <div className="p-6">
             <div className="flex items-center gap-2 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-300/50 shadow-sm flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-slate-800" />
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center border shadow-sm" style={{ backgroundColor: withAlpha(settings?.brand_color || '#0f172a', 0.08), borderColor: withAlpha(settings?.brand_color || '#0f172a', 0.25) }}>
+                <TrendingUp className="w-5 h-5" style={{ color: settings?.brand_color || '#0f172a' }} />
               </div>
               <h3 className="text-xl font-semibold text-slate-900">커뮤니티 통계</h3>
             </div>
@@ -155,36 +180,22 @@ export function HomeTab({ communityId, slug }: HomeTabProps) {
           </div>
         </div>
 
-        {/* 공지사항 */}
-        <NoticesSection 
-          communityId={communityId} 
-          notices={notices} 
-          onNoticesChange={(newNotices) => setNotices(newNotices)}
-        />
-
-        {/* 최근 활동 */}
-        <RecentActivityCard communityId={communityId} slug={slug} />
+        {/* 3) 최근 활동 */}
+        <RecentActivityCard communityId={communityId} slug={slug} brandColor={settings?.brand_color || undefined} />
       </div>
 
       {/* 우측 사이드바 */}
       <div className="space-y-6">
-        {/* Mission */}
-        <div className="bg-gradient-to-br from-slate-50 to-white rounded-3xl border border-slate-200/50 shadow-sm">
-          <div className="p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-50/20 to-slate-100 border border-blue-200/30 shadow-sm flex items-center justify-center">
-                <Target className="w-5 h-5 text-blue-700/80" />
-              </div>
-              <span className="text-sm font-medium text-slate-600">Our Mission</span>
-            </div>
-            <div className="text-slate-900 font-medium text-lg leading-relaxed">
-              {settings?.mission || "커뮤니티의 목표와 가치를 설정해보세요."}
-            </div>
-          </div>
-        </div>
+        {/* 4) 공지사항 */}
+        <NoticesSection 
+          communityId={communityId} 
+          notices={notices} 
+          onNoticesChange={(newNotices) => setNotices(newNotices)}
+          brandColor={settings?.brand_color || undefined}
+        />
 
-        {/* 다가오는 이벤트 */}
-        <UpcomingEventsCard communityId={communityId} />
+        {/* 5) 다가오는 이벤트 */}
+        <UpcomingEventsCard communityId={communityId} brandColor={settings?.brand_color || undefined} />
       </div>
     </section>
   )
@@ -194,11 +205,13 @@ export function HomeTab({ communityId, slug }: HomeTabProps) {
 function NoticesSection({ 
   communityId, 
   notices, 
-  onNoticesChange 
+  onNoticesChange, 
+  brandColor 
 }: { 
   communityId: string
   notices: Notice[]
   onNoticesChange: (notices: Notice[]) => void
+  brandColor?: string
 }) {
   const [editingNotice, setEditingNotice] = useState<Notice | null>(null)
   const [editTitle, setEditTitle] = useState('')
@@ -268,11 +281,11 @@ function NoticesSection({
 
   return (
     <>
-              <div className="bg-white rounded-3xl border border-slate-200/50 shadow-sm">
+              <div className="rounded-3xl shadow-sm bg-white/60 backdrop-blur-md border" style={{ borderColor: withAlpha(brandColor || '#0f172a', 0.18) }}>
           <div className="p-6">
             <div className="flex items-center gap-2 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-50/30 to-slate-100 border border-amber-200/40 shadow-sm flex items-center justify-center">
-                <Bell className="w-5 h-5 text-amber-700/80" />
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center border shadow-sm" style={{ backgroundColor: withAlpha(brandColor || '#0f172a', 0.08), borderColor: withAlpha(brandColor || '#0f172a', 0.25) }}>
+                <Bell className="w-5 h-5" style={{ color: brandColor || '#0f172a' }} />
               </div>
               <h3 className="text-xl font-semibold text-slate-900">공지사항</h3>
             </div>
@@ -380,7 +393,7 @@ function NoticesSection({
   )
 }
 
-function UpcomingEventsCard({ communityId }: { communityId: string }) {
+function UpcomingEventsCard({ communityId, brandColor }: { communityId: string; brandColor?: string }) {
   const [items, setItems] = useState<{ id: string; title: string; start_at: string }[]>([])
   useEffect(() => { (async () => {
     try {
@@ -391,11 +404,11 @@ function UpcomingEventsCard({ communityId }: { communityId: string }) {
     } catch {}
   })() }, [communityId])
   return (
-    <div className="bg-white rounded-3xl border border-slate-200/50 shadow-sm">
+    <div className="rounded-3xl shadow-sm bg-white/60 backdrop-blur-md border" style={{ borderColor: withAlpha(brandColor || '#0f172a', 0.18) }}>
       <div className="p-6">
         <div className="flex items-center gap-2 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-50/20 to-slate-100 border border-emerald-200/30 shadow-sm flex items-center justify-center">
-            <CalendarClock className="w-5 h-5 text-emerald-700/80" />
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center border shadow-sm" style={{ backgroundColor: withAlpha(brandColor || '#0f172a', 0.08), borderColor: withAlpha(brandColor || '#0f172a', 0.25) }}>
+            <CalendarClock className="w-5 h-5" style={{ color: brandColor || '#0f172a' }} />
           </div>
           <h3 className="text-xl font-semibold text-slate-900">다가오는 이벤트</h3>
         </div>
@@ -409,18 +422,25 @@ function UpcomingEventsCard({ communityId }: { communityId: string }) {
             </div>
           ) : (
             items.map(ev => (
-              <div key={ev.id} className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl p-4 border border-emerald-100 hover:shadow-sm transition-all hover:scale-[1.02]">
+              <div
+                key={ev.id}
+                className="rounded-2xl p-4 border transition-all hover:shadow-sm hover:scale-[1.02]"
+                style={{
+                  backgroundColor: withAlpha(brandColor || '#0f172a', 0.08),
+                  borderColor: withAlpha(brandColor || '#0f172a', 0.22),
+                }}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3">
-                    <div className="w-3 h-3 rounded-full bg-emerald-500 mt-2 flex-shrink-0"></div>
+                    <div className="w-3 h-3 rounded-full mt-2 flex-shrink-0" style={{ backgroundColor: brandColor || '#0f172a' }}></div>
                     <div>
                       <div className="text-sm font-semibold text-slate-900 mb-1">{ev.title}</div>
-                      <div className="text-xs text-emerald-700 font-medium">
-                        {new Date(ev.start_at).toLocaleDateString('ko-KR', { 
-                          month: 'short', 
+                      <div className="text-xs font-medium" style={{ color: brandColor || '#0f172a' }}>
+                        {new Date(ev.start_at).toLocaleDateString('ko-KR', {
+                          month: 'short',
                           day: 'numeric',
                           hour: '2-digit',
-                          minute: '2-digit'
+                          minute: '2-digit',
                         })}
                       </div>
                     </div>
@@ -436,7 +456,7 @@ function UpcomingEventsCard({ communityId }: { communityId: string }) {
 }
 
 
-function RecentActivityCard({ communityId, slug }: { communityId: string; slug?: string }) {
+function RecentActivityCard({ communityId, slug, brandColor }: { communityId: string; slug?: string; brandColor?: string }) {
   const [items, setItems] = useState<{ id: string; kind: 'feed'|'blog'|'note'|'event'|'class'; title: string; created_at: string; href?: string; meta?: string }[]>([])
   useEffect(() => { (async () => {
     try {
@@ -478,11 +498,11 @@ function RecentActivityCard({ communityId, slug }: { communityId: string; slug?:
   }
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200/50 shadow-sm">
+    <div className="rounded-3xl shadow-sm bg-white/60 backdrop-blur-md border" style={{ borderColor: withAlpha(brandColor || '#0f172a', 0.18) }}>
       <div className="p-6">
         <div className="flex items-center gap-2 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-50/20 to-slate-100 border border-purple-200/30 shadow-sm flex items-center justify-center">
-            <Activity className="w-5 h-5 text-purple-700/80" />
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center border shadow-sm" style={{ backgroundColor: withAlpha(brandColor || '#0f172a', 0.08), borderColor: withAlpha(brandColor || '#0f172a', 0.25) }}>
+            <Activity className="w-5 h-5" style={{ color: brandColor || '#0f172a' }} />
           </div>
           <h3 className="text-xl font-semibold text-slate-900">최근 활동</h3>
         </div>
