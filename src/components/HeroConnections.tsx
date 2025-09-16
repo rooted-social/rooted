@@ -70,7 +70,7 @@ export default function HeroConnections() {
           const dist = Math.hypot(dx, dy)
           if (dist < 160) {
             const alpha = 1 - dist / 160
-            ctx.strokeStyle = `rgba(255,255,255,${0.35 * alpha})`
+            ctx.strokeStyle = `rgba(255,255,255,${0.45 * alpha})`
             ctx.beginPath()
             ctx.moveTo(a.x, a.y)
             ctx.lineTo(b.x, b.y)

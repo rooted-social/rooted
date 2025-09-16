@@ -3,6 +3,10 @@ import { getProfilesCached } from './community-utils'
 import { Community, Post, Comment, Notice, CommunitySettings, BoardCategory, CommunityService, PostLike, CommunityPage, CommunityPageGroup } from '@/types/community'
 // 인메모리 캐시 (간단, 프로세스 생존 동안만 유지)
 const cache60 = new Map<string, { ts: number; data: any }>()
+// 사이드바 페이지/그룹 장기 캐시 (세션 동안 재사용)
+const pagesCache = new Map<string, { ts: number; data: CommunityPage[] }>()
+const pageGroupsCache = new Map<string, { ts: number; data: CommunityPageGroup[] }>()
+const FIVE_MIN = 300_000
 
 export interface CreateCommunityData {
   name: string
@@ -888,10 +892,14 @@ export async function removeCommunityMember(communityId: string, userId: string)
 // 커뮤니티 커스텀 페이지
 export async function getCommunityPages(communityId: string) {
   try {
+    const now = Date.now()
+    const cached = pagesCache.get(communityId)
+    if (cached && now - cached.ts < FIVE_MIN) return cached.data
     const res = await fetch(`/api/community/pages?communityId=${encodeURIComponent(communityId)}`)
     if (!res.ok) throw new Error('failed')
-    const data = await res.json()
-    return (data || []) as CommunityPage[]
+    const data = (await res.json()) as CommunityPage[]
+    pagesCache.set(communityId, { ts: now, data: data || [] })
+    return data || []
   } catch {
     return []
   }
@@ -919,6 +927,8 @@ export async function createCommunityPage(communityId: string, title: string, gr
     .select()
     .single()
   if (error) throw error
+  // 캐시 무효화: 페이지 변경
+  pagesCache.delete(communityId)
   return data as CommunityPage
 }
 
@@ -1004,6 +1014,8 @@ export async function saveCommunityPageOrder(communityId: string, orderedIds: st
       .eq('community_id', communityId)
     if (error) throw error
   }
+  // 순서 변경 시 캐시 갱신 무효화
+  pagesCache.delete(communityId)
   return true
 }
 
@@ -1014,15 +1026,20 @@ export async function moveCommunityPage(pageId: string, nextGroupId: string | nu
     .update({ group_id: nextGroupId, position: nextPosition })
     .eq('id', pageId)
   if (error) throw error
+  // 이동 시 페이지 캐시 무효화 (어느 커뮤니티인지 모를 수 있으나, 호출부가 알고 있음)
   return true
 }
 
 export async function getCommunityPageGroups(communityId: string) {
   try {
+    const now = Date.now()
+    const cached = pageGroupsCache.get(communityId)
+    if (cached && now - cached.ts < FIVE_MIN) return cached.data
     const res = await fetch(`/api/community/page-groups?communityId=${encodeURIComponent(communityId)}`)
     if (!res.ok) throw new Error('failed')
-    const data = await res.json()
-    return (data || []) as CommunityPageGroup[]
+    const data = (await res.json()) as CommunityPageGroup[]
+    pageGroupsCache.set(communityId, { ts: now, data: data || [] })
+    return data || []
   } catch {
     return []
   }
@@ -1035,6 +1052,7 @@ export async function createCommunityPageGroup(communityId: string, title: strin
     .select()
     .single()
   if (error) throw error
+  pageGroupsCache.delete(communityId)
   return data as CommunityPageGroup
 }
 
@@ -1081,6 +1099,7 @@ export async function saveCommunityPageOrderInGroup(communityId: string, groupId
       .eq('community_id', communityId)
     if (error) throw error
   }
+  pagesCache.delete(communityId)
   return true
 }
 

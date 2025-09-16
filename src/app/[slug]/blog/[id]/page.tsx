@@ -95,7 +95,7 @@ export default function BlogDetailPage() {
       </div>
 
       {/* 메인 콘텐츠 */}
-      <div className="max-w-4xl mx-auto px-4 py-10 pt-5 md:pt-12">
+      <div className="max-w-4xl mx-auto px-4 py-10 pt-20 md:pt-12">
         {/* 커버/타이틀 섹션 */}
         <div className="bg-slate-50 p-0 md:p-0 relative">
           {/* 통계 (우측 상단) */}

@@ -75,7 +75,7 @@ export default function CreatePage() {
   return (
     <div className="min-h-screen relative">
       <AnimatedBackground />
-      <main className="relative px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 pt-6 pb-24 z-10">
+      <main className="relative px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 pt-10 pb-24 z-10">
         <div className="w-full max-w-3xl mx-auto">
           <div className="mb-6 text-center">
             <div className="flex items-center justify-center gap-3 mb-2">

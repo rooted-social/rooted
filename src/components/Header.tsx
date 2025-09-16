@@ -1,18 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuthData } from './auth/AuthProvider'
 import { getAvatarUrl } from "@/lib/utils"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Bell, LogIn, Menu } from "lucide-react"
+import { Bell, LogIn, Menu, ChevronDown, Compass, Sparkles, CreditCard } from "lucide-react"
 
 export function Header() {
   const pathname = usePathname()
-  const { user, profile, unreadCount, loading } = useAuthData()
+  const { user, profile, unreadCount, loading, myCommunities } = useAuthData()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [showCommunityDropdown, setShowCommunityDropdown] = useState(false)
+  const desktopDropdownRef = useRef<HTMLDivElement | null>(null)
 
   const firstSegment = pathname?.split('/').filter(Boolean)[0] || ''
   const topLevelRoutes = new Set(['', 'explore', 'features', 'pricing', 'create', 'login', 'signup', 'dashboard', 'messages', 'notifications', 'api'])
@@ -22,18 +24,35 @@ export function Header() {
   const isCommunityDashboardPage = firstSegment && !topLevelRoutes.has(firstSegment) && 
     (pathname?.includes('/dashboard') || pathname?.includes('/blog') || pathname?.includes('/classes') || 
      pathname?.includes('/calendar') || pathname?.includes('/members') || pathname?.includes('/settings'))
+  // 커뮤니티 상세 루트 페이지(/[slug])에서는 중앙 메뉴 캡슐을 비표시 (데스크탑 전용)
+  const isCommunityRootPage = firstSegment && !topLevelRoutes.has(firstSegment) && !isCommunityDashboardPage
 
   if (isAuthRoute || isCommunityDashboardPage) return null
 
   const isActive = (href: string) => pathname === href
+  // 특정 페이지에서는 캡슐을 화이트 톤으로 전환
+  const useWhiteCapsule = pathname === '/explore' || pathname === '/features' || pathname === '/pricing' || pathname === '/dashboard' || pathname === '/create' || pathname === '/notifications' || isCommunityRootPage
+  const gradientBg = 'linear-gradient(135deg, #f8fafc 0%, #e5e7eb 20%, #cbd5e1 50%, #f1f5f9 75%, #d1d5db 100%)'
+  const capsuleStyle = useWhiteCapsule ? { backgroundColor: '#ffffff' } : { background: gradientBg }
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white md:bg-transparent">
+      {/* 외부 클릭으로 데스크탑 드롭다운 닫기 */}
+      {showCommunityDropdown && (
+        <div
+          className="hidden md:block fixed inset-0 z-40"
+          onClick={() => setShowCommunityDropdown(false)}
+          aria-hidden
+        />
+      )}
       <div className="mx-auto max-w-7xl px-4 lg:px-6">
         <div className="h-12 md:h-20 grid grid-cols-3 items-center md:flex md:justify-between">
           {/* 좌측: 로고 (Desktop 캡슐) */}
           <Link href="/" className="hidden md:flex items-center hover:opacity-95">
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white px-6 py-3 h-12 shadow-md transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg">
+            <span
+              className="inline-flex items-center gap-2 rounded-xl border px-6 py-3 h-12 transition-transform duration-200 hover:-translate-y-0.5 shadow-[0_0_14px_rgba(148,163,184,0.28)] hover:shadow-[0_0_20px_rgba(148,163,184,0.4)] border-slate-300"
+              style={capsuleStyle}
+            >
               <img src="/logos/logo_icon.png" alt="Rooted 아이콘" className="w-7 h-7" />
               <img src="/logos/logo_main.png" alt="Rooted" className="h-5" />
             </span>
@@ -58,59 +77,133 @@ export function Header() {
             </Link>
           </div>
 
-          {/* 중앙: 메뉴 */}
+          {/* 중앙: 메뉴 (커뮤니티 상세 루트 페이지에서는 데스크탑에서 숨김) */}
+          {!isCommunityRootPage && (
           <nav className="hidden md:flex items-center">
-            <div className="px-6 py-3 rounded-full bg-white text-slate-900 shadow-md border border-white/70">
-              <ul className="flex items-center gap-8 text-base font-medium">
+            <div
+              className="px-6 py-3 rounded-xl text-slate-900 border border-slate-300 shadow-[0_0_14px_rgba(148,163,184,0.28)] hover:shadow-[0_0_20px_rgba(148,163,184,0.4)]"
+              style={capsuleStyle}
+            >
+              <ul className="flex items-center gap-3 text-base">
                 <li>
-                  <Link href="/explore" className={`${isActive('/explore') ? 'text-black' : 'text-slate-600 hover:text-black'} transition-transform duration-200 hover:-translate-y-0.5`}>
-                    <span className={`mr-2 ${isActive('/explore') ? 'text-amber-500' : 'text-slate-300'}`}>ㆍ</span>루트 둘러보기
+                  <Link
+                    href="/explore"
+                    className={`px-3 py-1 rounded-lg transition-colors duration-200 ${isActive('/explore') ? 'bg-black text-white shadow-sm' : 'text-slate-900 hover:bg-white/60 hover:text-black'}`}
+                  >
+                    루트 둘러보기
                   </Link>
                 </li>
+                <li aria-hidden className="h-5 w-px bg-slate-300/70" />
                 <li>
-                  <Link href="/features" className={`${isActive('/features') ? 'text-black' : 'text-slate-600 hover:text-black'} transition-transform duration-200 hover:-translate-y-0.5`}>
-                    <span className={`mr-2 ${isActive('/features') ? 'text-amber-500' : 'text-slate-300'}`}>ㆍ</span>기능 소개
+                  <Link
+                    href="/features"
+                    className={`px-3 py-1 rounded-lg transition-colors duration-200 ${isActive('/features') ? 'bg-black text-white shadow-sm' : 'text-slate-900 hover:bg-white/60 hover:text-black'}`}
+                  >
+                    서비스 소개
                   </Link>
                 </li>
+                <li aria-hidden className="h-5 w-px bg-slate-300/70" />
                 <li>
-                  <Link href="/pricing" className={`${isActive('/pricing') ? 'text-black' : 'text-slate-600 hover:text-black'} transition-transform duration-200 hover:-translate-y-0.5`}>
-                    <span className={`mr-2 ${isActive('/pricing') ? 'text-amber-500' : 'text-slate-300'}`}>ㆍ</span>가격 정책
+                  <Link
+                    href="/pricing"
+                    className={`px-3 py-1 rounded-lg transition-colors duration-200 ${isActive('/pricing') ? 'bg-black text-white shadow-sm' : 'text-slate-900 hover:bg-white/60 hover:text-black'}`}
+                  >
+                    가격 정책
                   </Link>
                 </li>
               </ul>
             </div>
           </nav>
+          )}
 
-          {/* 우측: 알림 + 로그인/프로필 */}
-          <div className="hidden md:flex items-center gap-3">
-            {user && (
-              <Link href="/notifications" className="relative rounded-full border border-white/70 bg-white px-4 py-3 h-12 flex items-center shadow-md hover:shadow-lg transition-transform duration-200 hover:-translate-y-0.5">
-                <Bell className="w-5 h-5 text-slate-900" />
-                {unreadCount > 0 && <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-red-500" />}
-              </Link>
-            )}
-
-            {loading ? (
-              <div className="w-12 h-12 rounded-full bg-white/40 animate-pulse" />
-            ) : user ? (
-              <Link href="/dashboard" className="flex items-center gap-2 rounded-full border border-white/70 bg-white px-4 py-3 h-12 shadow-md hover:shadow-lg transition-transform duration-200 hover:-translate-y-0.5">
-                <Avatar className="w-8 h-8">
-                  <AvatarImage src={getAvatarUrl(profile?.avatar_url, profile?.updated_at)} alt="프로필 이미지" />
-                  <AvatarFallback className="text-xs">
-                    {profile?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || '?'}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="hidden sm:block text-sm font-medium text-slate-900 max-w-[160px] truncate">{profile?.full_name || '사용자'}</span>
-              </Link>
-            ) : (
-              <Link href="/login" className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white px-6 py-3 h-12 shadow-md hover:shadow-lg text-slate-900">
-                <LogIn className="w-4 h-4" />
-                <span className="text-sm font-semibold">로그인</span>
-              </Link>
-            )}
+          {/* 우측: 알림+루트+프로필 통합 캡슐 */}
+          <div className="hidden md:flex items-center">
+            <div
+              className="relative inline-flex items-center gap-2 rounded-xl border border-slate-300 px-3 py-2 shadow-[0_0_14px_rgba(148,163,184,0.28)] hover:shadow-[0_0_20px_rgba(148,163,184,0.4)]"
+              style={capsuleStyle}
+              ref={desktopDropdownRef}
+            >
+              {user && (
+                <Link href="/notifications" className="relative p-2 rounded-full hover:bg-white/50 transition-colors cursor-pointer">
+                  <Bell className="w-5 h-5 text-slate-900" />
+                  {unreadCount > 0 && <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-red-500" />}
+                </Link>
+              )}
+              {user && <div className="h-6 w-px bg-slate-300/70" />}
+              {user && (
+                <>
+                  <button
+                    onClick={() => setShowCommunityDropdown(v => !v)}
+                    className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full hover:bg-white/50 transition-colors cursor-pointer"
+                    aria-haspopup="menu"
+                    aria-expanded={showCommunityDropdown}
+                    title="내 커뮤니티로 이동"
+                  >
+                    <span className="text-sm text-slate-900">My Root</span>
+                    <ChevronDown className="w-4 h-4 text-slate-600" />
+                  </button>
+                  {showCommunityDropdown && (
+                    <div className="absolute right-0 top-full mt-2 w-72 bg-white border border-slate-200 rounded-xl shadow-lg z-50">
+                      <div className="p-3">
+                        <div className="text-xs text-slate-500 mb-2">나의 루트</div>
+                        <div className="space-y-1 max-h-64 overflow-y-auto">
+                          {myCommunities.map((community) => (
+                            <Link
+                              key={community.id}
+                              href={`/${community.communities?.slug}/dashboard`}
+                              className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors"
+                              onClick={() => setShowCommunityDropdown(false)}
+                            >
+                              <div className="w-8 h-8 rounded-md overflow-hidden bg-slate-100">
+                                {community.communities?.image_url ? (
+                                  <img src={community.communities.image_url} alt="icon" className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full bg-slate-900 text-white flex items-center justify-center">
+                                    <span className="text-xs font-medium">{community.communities?.name?.[0]}</span>
+                                  </div>
+                                )}
+                              </div>
+                              <span className="text-sm font-medium text-slate-700 truncate">{community.communities?.name}</span>
+                            </Link>
+                          ))}
+                        </div>
+                        <div className="pt-3">
+                          <Link
+                            href="/explore"
+                            className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-black text-white px-3 py-2 text-sm font-semibold hover:bg-black/90 transition-colors"
+                            onClick={() => setShowCommunityDropdown(false)}
+                          >
+                            다른 커뮤니티 둘러보기
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+              {user && <div className="h-6 w-px bg-slate-300/70" />}
+              {loading ? (
+                <div className="w-8 h-8 rounded-full bg-slate-200 animate-pulse" />
+              ) : user ? (
+                <Link href="/dashboard" className="flex items-center gap-2 px-1.5 py-1 rounded-full hover:bg-white/50 transition-colors">
+                  <Avatar className="w-8 h-8">
+                    <AvatarImage src={getAvatarUrl(profile?.avatar_url, profile?.updated_at)} alt="프로필 이미지" />
+                    <AvatarFallback className="text-xs">
+                      {profile?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || '?'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="hidden sm:block text-sm text-slate-900 max-w-[160px] truncate">{profile?.full_name || '사용자'}</span>
+                </Link>
+              ) : (
+                <Link href="/login" className="inline-flex items-center gap-2 px-3 py-2 rounded-full hover:bg-white/50 transition-colors text-slate-900">
+                  <LogIn className="w-4 h-4" />
+                  <span className="text-sm">로그인</span>
+                </Link>
+              )}
+            </div>
           </div>
 
-          {/* 모바일 우측: 알림 + 아바타/로그인 */}
+          {/* 모바일 우측: 알림 + 아바타/로그인 (아바타 클릭 시 내 커뮤니티 목록) */}
           <div className="md:hidden flex items-center gap-2 justify-end">
             {user && (
               <Link href="/notifications" className="w-9 h-9 grid place-items-center text-slate-900">
@@ -120,12 +213,64 @@ export function Header() {
             {loading ? (
               <div className="w-8 h-8 rounded-full bg-slate-200 animate-pulse" />
             ) : user ? (
-              <Link href="/dashboard" className="w-9 h-9 rounded-full overflow-hidden border border-slate-200">
-                <Avatar className="w-9 h-9">
-                  <AvatarImage src={getAvatarUrl(profile?.avatar_url, profile?.updated_at)} alt="프로필" />
-                  <AvatarFallback className="text-xs">?</AvatarFallback>
-                </Avatar>
-              </Link>
+              <>
+                <button
+                  onClick={() => setShowCommunityDropdown(v => !v)}
+                  className="w-9 h-9 rounded-full overflow-hidden border border-slate-200 active:scale-[0.98]"
+                  aria-haspopup="menu"
+                  aria-expanded={showCommunityDropdown}
+                  title="내 커뮤니티"
+                >
+                  <Avatar className="w-9 h-9">
+                    <AvatarImage src={getAvatarUrl(profile?.avatar_url, profile?.updated_at)} alt="프로필" />
+                    <AvatarFallback className="text-xs">?</AvatarFallback>
+                  </Avatar>
+                </button>
+                {showCommunityDropdown && (
+                  <div className="fixed top-12 right-2 z-50 w-64 bg-white border border-slate-200 rounded-xl shadow-xl">
+                    <div className="p-3">
+                      <div className="text-xs text-slate-500 mb-2">나의 커뮤니티</div>
+                      <div className="space-y-1 max-h-64 overflow-y-auto">
+                        {myCommunities.map((community) => (
+                          <Link
+                            key={community.id}
+                            href={`/${community.communities?.slug}/dashboard`}
+                            className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors"
+                            onClick={() => setShowCommunityDropdown(false)}
+                          >
+                            <div className="w-8 h-8 rounded-md overflow-hidden bg-slate-100">
+                              {community.communities?.image_url ? (
+                                <img src={community.communities.image_url} alt="icon" className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full bg-slate-900 text-white flex items-center justify-center">
+                                  <span className="text-xs font-medium">{community.communities?.name?.[0]}</span>
+                                </div>
+                              )}
+                            </div>
+                            <span className="text-sm font-medium text-slate-700 truncate">{community.communities?.name}</span>
+                          </Link>
+                        ))}
+                      </div>
+                      <div className="pt-3 space-y-2">
+                        <Link
+                          href="/explore"
+                          className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-black text-white px-3 py-2 text-sm font-semibold hover:bg-black/90 transition-colors"
+                          onClick={() => setShowCommunityDropdown(false)}
+                        >
+                          다른 커뮤니티 둘러보기
+                        </Link>
+                        <Link
+                          href="/dashboard"
+                          className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-white text-slate-900 border border-slate-300 px-3 py-2 text-sm font-semibold hover:bg-slate-50 transition-colors"
+                          onClick={() => setShowCommunityDropdown(false)}
+                        >
+                          프로필 페이지 이동
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
               <Link href="/login" className="w-9 h-9 grid place-items-center text-slate-900">
                 <LogIn className="w-5 h-5" />
@@ -140,13 +285,22 @@ export function Header() {
         <div className="mx-4 rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden">
           <ul className="divide-y divide-slate-100">
             <li>
-              <Link href="/explore" onClick={() => setMobileOpen(false)} className="block px-5 py-4 text-slate-800 font-semibold">루트 둘러보기</Link>
+              <Link href="/explore" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-5 py-4 text-slate-800 font-semibold">
+                <Compass className="w-5 h-5 text-slate-500" />
+                루트 둘러보기
+              </Link>
             </li>
             <li>
-              <Link href="/features" onClick={() => setMobileOpen(false)} className="block px-5 py-4 text-slate-800 font-semibold">기능 소개</Link>
+              <Link href="/features" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-5 py-4 text-slate-800 font-semibold">
+                <Sparkles className="w-5 h-5 text-slate-500" />
+                서비스 소개
+              </Link>
             </li>
             <li>
-              <Link href="/pricing" onClick={() => setMobileOpen(false)} className="block px-5 py-4 text-slate-800 font-semibold">가격 정책</Link>
+              <Link href="/pricing" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-5 py-4 text-slate-800 font-semibold">
+                <CreditCard className="w-5 h-5 text-slate-500" />
+                가격 정책
+              </Link>
             </li>
           </ul>
         </div>

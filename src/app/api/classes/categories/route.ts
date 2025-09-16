@@ -15,7 +15,8 @@ export async function GET(req: NextRequest) {
       .eq('community_id', communityId)
       .order('created_at', { ascending: true })
     if (error) throw error
-    return new Response(JSON.stringify(data || []), { status: 200, headers: { 'content-type': 'application/json', 'Cache-Control': 'public, max-age=120, s-maxage=120' } })
+    // 카테고리 추가/삭제가 즉시 반영되도록 캐시 비활성화
+    return new Response(JSON.stringify(data || []), { status: 200, headers: { 'content-type': 'application/json', 'Cache-Control': 'no-store' } })
   } catch (e: any) {
     return new Response(JSON.stringify({ error: e?.message || 'failed to load class categories' }), { status: 500 })
   }

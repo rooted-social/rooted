@@ -137,7 +137,10 @@ export default function CalendarPage({ communityId }: { communityId: string }) {
           <div className="bg-white/80 backdrop-blur-sm rounded-3xl border border-slate-200/50 shadow-sm p-6">
             <div className="grid grid-cols-1 md:grid-cols-3 items-center gap-4 md:gap-0">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg">
+                <div
+                  className={`p-2 rounded-2xl ${brandColor ? '' : 'bg-gradient-to-br from-indigo-500 to-purple-600'} shadow-lg`}
+                  style={brandColor ? { backgroundImage: 'none', backgroundColor: brandColor } : undefined}
+                >
                   <CalendarIcon className="w-5 h-5 text-white" />
                 </div>
                 <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
@@ -282,7 +285,10 @@ export default function CalendarPage({ communityId }: { communityId: string }) {
                   <div key={idx} className={`border-r border-b border-slate-200/30 min-h-[100px] md:min-h-[120px] p-2 hover:bg-slate-50/50 transition-colors ${idx % 7 === 6 ? 'border-r-0' : ''}`}>
                     {day && (
                       <>
-                        <div className={`text-sm mb-2 ${isToday ? 'w-7 h-7 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-full flex items-center justify-center font-bold shadow-md' : 'text-slate-600 font-medium'}`}>
+                        <div
+                          className={`text-sm mb-2 ${isToday ? 'w-7 h-7 rounded-full flex items-center justify-center font-bold shadow-md ' + (brandColor ? '' : 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white') : 'text-slate-600 font-medium'}`}
+                          style={isToday && brandColor ? { backgroundImage: 'none', backgroundColor: brandColor, color: getReadableTextColor(brandColor) } : undefined}
+                        >
                           {day}
                         </div>
                         <div className="space-y-1">

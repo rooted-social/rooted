@@ -108,16 +108,16 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white via-slate-50/30 to-slate-100/60 relative overflow-hidden p-4 pt-5 pb-24 md:pt-4 md:pb-4">
       <AnimatedBackground zIndexClass="-z-0" />
-      <div className="max-w-4xl mx-auto relative z-10">
+      <div className="max-w-4xl mx-auto relative z-10 pt-2 md:pt-10">
         {/* Header */}
         <div className="flex justify-end items-center mb-8">
-          <Button onClick={handleLogout} variant="outline" className="cursor-pointer hover:bg-slate-50 transition-colors">
+          <Button onClick={handleLogout} className="cursor-pointer bg-red-600 hover:bg-red-700 text-white border border-red-700/70 shadow-sm">
             로그아웃
           </Button>
         </div>
 
         {/* 계정 정보 */}
-        <Card className="mb-8 shadow-sm border-0 bg-white/80 backdrop-blur-sm">
+        <Card className="mb-8 shadow-sm border border-slate-200 bg-white/90 backdrop-blur-sm">
           <CardHeader className="pb-4">
             <CardTitle className="text-xl font-semibold text-slate-900">계정 정보</CardTitle>
           </CardHeader>
@@ -180,7 +180,7 @@ export default function DashboardPage() {
 
         {/* 나의 커뮤니티 */}
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <Card className="shadow-sm border-0 bg-white/80 backdrop-blur-sm">
+          <Card className="shadow-sm border border-slate-200 bg-white/90 backdrop-blur-sm">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg font-semibold text-slate-900">운영 중인 루트</CardTitle>
               <CardDescription className="text-slate-600">내가 소유한 커뮤니티</CardDescription>
@@ -215,7 +215,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-sm border-0 bg-white/80 backdrop-blur-sm">
+          <Card className="shadow-sm border border-slate-200 bg-white/90 backdrop-blur-sm">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg font-semibold text-slate-900">가입한 루트</CardTitle>
               <CardDescription className="text-slate-600">내가 멤버로 참여 중</CardDescription>
