@@ -127,3 +127,31 @@ export async function getUnreadCount(userId?: string): Promise<number> {
 }
 
 
+// 오래된 알림 자동 정리: 최신 max개만 유지
+export async function pruneNotificationsToMax(max: number = 10, userId?: string): Promise<number> {
+  const uid = userId || await getUserId()
+  if (!uid || max <= 0) return 0
+  try {
+    // max 인덱스 이후(0-based) 레코드 선택
+    const { data } = await supabase
+      .from('notifications')
+      .select('id')
+      .eq('recipient_id', uid)
+      .order('created_at', { ascending: false })
+      .range(max, 999)
+    const ids = (data || []).map((r: any) => r.id).filter(Boolean)
+    if (ids.length === 0) return 0
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .in('id', ids)
+      .eq('recipient_id', uid)
+    if (error) return 0
+    emitUnreadChanged()
+    return ids.length
+  } catch {
+    return 0
+  }
+}
+
+

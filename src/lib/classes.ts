@@ -41,7 +41,7 @@ export interface ClassEnrollment {
 
 export async function listClassCategories(communityId: string) {
   try {
-    const res = await fetch(`/api/classes/categories?communityId=${encodeURIComponent(communityId)}`)
+    const res = await fetch(`/api/classes/categories?communityId=${encodeURIComponent(communityId)}&t=${Date.now()}`, { cache: 'no-store' })
     if (!res.ok) throw new Error('failed')
     const data = await res.json()
     return (data || []) as ClassCategory[]

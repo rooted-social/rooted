@@ -63,7 +63,7 @@ export default function CommunitySettingsPage() {
   }
 
   return (
-    <main className="py-3 md:py-6 px-[2%]">
+    <main className="pt-14 md:pt-6 pb-3 px-[2%]">
       <SettingsTab communityId={communityId} />
     </main>
   )

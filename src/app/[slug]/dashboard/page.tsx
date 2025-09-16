@@ -109,7 +109,7 @@ export default function CommunityDashboardPage() {
 
   return (
     <>
-    <div className="min-h-screen md:pt-0 pt-0 pb-20">
+    <div className="min-h-screen md:pt-0 pt-15 pb-20">
       <div className="flex">
         {/* 좌측 대시보드 사이드바는 홈 뷰에서만 표시 */}
         {active === 'home' && communityId && (

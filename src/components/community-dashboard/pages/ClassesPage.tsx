@@ -250,7 +250,7 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
         {/* 상단 액션 바 */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <h2 className="text-xl font-semibold text-slate-900">카테고리 관리</h2>
+            <h2 className="text-xl font-semibold text-slate-900">카테고리</h2>
             {isOwner && (
               <button 
                 onClick={() => setOpenCategoryManage(true)}

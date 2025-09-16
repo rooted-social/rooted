@@ -16,6 +16,7 @@ import { fetchExploreCommunities } from '@/lib/dashboard'
 import { Community } from "@/types/community"
 import { useRouter } from "next/navigation"
 import { COMMUNITY_CATEGORIES, DEFAULT_EXPLORE_CATEGORY } from '@/lib/constants'
+import { getVersionedUrl } from '@/lib/utils'
 
 export default function ExplorePage() {
   const router = useRouter()
@@ -41,6 +42,12 @@ export default function ExplorePage() {
   })
 
   const categories = COMMUNITY_CATEGORIES
+  // 모바일에서 '전체' 항목을 항상 포함하고 처음 선택되도록 보장
+  useEffect(() => {
+    if (!categories.includes('전체')) return
+    if (!selectedCategory) setSelectedCategory('전체' as any)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // 화면 크기 감지
   useEffect(() => {
@@ -177,12 +184,13 @@ export default function ExplorePage() {
         const results = await Promise.all(
           communities.map(async (c) => {
             try {
-              const res = await fetch(`/api/community-images/${c.slug}`, { cache: 'force-cache' })
+              const res = await fetch(`/api/community-images/${c.slug}?t=${Date.now()}`, { cache: 'no-store' })
               const j = await res.json()
-              const url = j?.images?.[0]?.url || ''
+              const url = j?.images?.[0]?.url || getVersionedUrl((c as any)?.image_url, (c as any)?.updated_at) || ''
               return [c.slug as string, url] as const
             } catch {
-              return [c.slug as string, ''] as const
+              const fallback = getVersionedUrl((c as any)?.image_url, (c as any)?.updated_at) || ''
+              return [c.slug as string, fallback] as const
             }
           })
         )
@@ -199,13 +207,13 @@ export default function ExplorePage() {
     <div className="min-h-screen bg-white relative overflow-hidden">
       <AnimatedBackground zIndexClass="-z-0" />
       {/* Main Content */}
-      <main className="relative px-4 sm:px-6 md:px-10 lg:px-16 xl:px-24 pt-10 pb-24 z-10">
+      <main className="relative px-4 sm:px-6 md:px-10 lg:px-16 xl:px-24 pt-12 md:pt-20 pb-24 z-10">
         <div className="w-full">
           {/* 상단 헤더 - 중앙 정렬 */}
           <div className="mb-8 text-center">
             <div className="flex items-center justify-center gap-3 mb-3">
-              <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-500 rounded-xl shadow-lg">
-                <Compass className="w-5 h-5 text-white" />
+              <div className="flex items-center justify-center w-10 h-10 rounded-xl shadow-sm border border-slate-300 bg-white">
+                <Compass className="w-5 h-5 text-slate-900" />
               </div>
               <h1 className="text-3xl font-bold text-slate-900">루트 둘러보기</h1>
             </div>
@@ -225,13 +233,13 @@ export default function ExplorePage() {
                   </div>
                   <Input
                     type="text"
-                    placeholder="커뮤니티 이름이나 키워드로 검색해보세요..."
+                    placeholder={isMobile ? '' : '커뮤니티 이름이나 키워드로 검색해보세요...'}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="h-12 pl-14 pr-6 text-base rounded-2xl border-2 border-slate-300 focus:border-amber-500 bg-white shadow-lg hover:shadow-xl transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-amber-100"
+                    className="h-12 pl-14 pr-6 text-base rounded-2xl border-2 border-slate-300 focus:border-slate-900 bg-white shadow-lg hover:shadow-xl transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-slate-200"
                   />
                 </div>
-                <Button asChild className="h-12 px-3 sm:px-4 rounded-2xl bg-amber-400 hover:bg-amber-500 text-black border border-black shrink-0 transition-transform duration-200 hover:-translate-y-0.5">
+                <Button asChild className="h-12 px-3 sm:px-4 rounded-2xl bg-black hover:bg-black/90 text-white border border-slate-300 shrink-0 transition-transform duration-200 hover:-translate-y-0.5">
                   <Link href={user ? "/create" : "/login"} className="inline-flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                     커뮤니티 생성
@@ -319,18 +327,18 @@ export default function ExplorePage() {
           )}
 
           {/* Category Filter - 중앙 정렬 */}
-          <div className="mb-8">
-            <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 justify-center">
+          <div className="mb-6">
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-2 justify-start md:justify-center -mx-1 px-1">
               {categories.map((category) => {
                 const isSelected = selectedCategory === category
                 return (
                   <Button
                     key={category}
                     variant="ghost"
-                    className={`px-5 py-2.5 rounded-xl border text-sm font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 cursor-pointer
+                    className={`px-4 py-2 rounded-lg border text-xs font-medium transition-all duration-300 whitespace-nowrap flex-shrink-0 cursor-pointer
                       ${isSelected 
-                        ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-white border-amber-400' 
-                        : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50 hover:border-slate-400 shadow-sm hover:shadow-md'
+                        ? 'bg-black text-white border-slate-700' 
+                        : 'bg-white text-slate-900 border-slate-300 hover:bg-slate-50 hover:border-slate-400 shadow-sm hover:shadow-md'
                       }`}
                     onClick={() => handleCategoryChange(category)}
                     aria-pressed={isSelected}
@@ -346,11 +354,11 @@ export default function ExplorePage() {
           <div className="flex flex-col items-center">
             <div className="w-full mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
               {/* 한 줄 최대 4개, 카드 최대 너비 350px, 최소 간격 보장 */}
-              <div className="grid gap-6 xl:gap-7 justify-items-center grid-cols-[repeat(auto-fit,minmax(290px,1fr))] xl:[&>*]:max-w-[350px]">
+              <div className="grid gap-4 sm:gap-6 xl:gap-7 justify-items-center grid-cols-[repeat(auto-fit,minmax(270px,1fr))] sm:grid-cols-[repeat(auto-fit,minmax(290px,1fr))] xl:[&>*]:max-w-[350px]">
                 {loading ? (
                   // 로딩 스켈레톤
                   Array.from({ length: 8 }).map((_, index) => (
-                    <Card key={index} className="w-full min-w-[290px] max-w-[350px] h-[260px] animate-pulse border border-slate-300 bg-white shadow-sm rounded-xl overflow-hidden">
+                    <Card key={index} className="w-full min-w-[290px] max-w-[350px] h-[260px] animate-pulse border border-slate-300 bg-white shadow-sm rounded-xl overflow-hidden p-0">
                       <div className="w-full h-40 bg-slate-100" />
                       <div className="p-4">
                         <div className="h-4 bg-gray-200 rounded mb-2"></div>
@@ -368,16 +376,19 @@ export default function ExplorePage() {
                     return (
                       <Card
                         key={community.id}
-                        className="w-full min-w-[290px] max-w-[350px] group cursor-pointer border border-slate-300 bg-white rounded-xl hover:border-slate-400 hover:shadow-lg shadow-sm transition-all duration-200 overflow-hidden"
+                        className="w-full min-w-[290px] max-w-[370px] group cursor-pointer border border-slate-300 bg-white rounded-xl hover:border-slate-400 hover:shadow-lg shadow-sm transition-all duration-200 overflow-hidden p-0"
                         onClick={() => router.push(`/${community.slug}`)}
                       >
                         {/* 상단 대표 이미지 */}
-                        <div className="w-full h-45 bg-slate-100">
-                          {bannerMap[community.slug] ? (
-                            <img src={bannerMap[community.slug]} alt="banner" className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full bg-gradient-to-b from-slate-100 to-slate-200" />
-                          )}
+                        <div className="w-full h-50 bg-slate-100">
+                          {(() => {
+                            const topUrl = bannerMap[community.slug] || getVersionedUrl((community as any)?.image_url, (community as any)?.updated_at)
+                            return topUrl ? (
+                              <img src={topUrl} alt="banner" className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full bg-gradient-to-b from-slate-100 to-slate-200" />
+                            )
+                          })()}
                         </div>
 
                         {/* 본문 */}

@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useAuthData } from "@/components/auth/AuthProvider"
 import HeroConnections from "@/components/HeroConnections"
 import { getCommunities } from "@/lib/communities"
+import { getVersionedUrl } from "@/lib/utils"
 import type { Community } from "@/types/community"
 import { Flame, Users, FileText, Megaphone, CalendarDays, GraduationCap, BarChart3 } from "lucide-react"
 
@@ -42,12 +43,13 @@ export default function HomePage() {
         const results = await Promise.all(
           communities.map(async (c) => {
             try {
-              const res = await fetch(`/api/community-images/${c.slug}`, { cache: 'force-cache' })
+              const res = await fetch(`/api/community-images/${c.slug}?t=${Date.now()}`, { cache: 'no-store' })
               const j = await res.json()
-              const url = j?.images?.[0]?.url || ''
+              const url = j?.images?.[0]?.url || getVersionedUrl((c as any)?.image_url, (c as any)?.updated_at) || ''
               return [c.slug as string, url] as const
             } catch {
-              return [c.slug as string, ''] as const
+              const fallback = getVersionedUrl((c as any)?.image_url, (c as any)?.updated_at) || ''
+              return [c.slug as string, fallback] as const
             }
           })
         )
@@ -150,7 +152,10 @@ export default function HomePage() {
           <div className="mt-8">
             <button
               onClick={() => router.push(user ? '/create' : '/login')}
-              className="px-6 py-3 rounded-full bg-orange-500 text-white font-semibold shadow-md hover:shadow-lg hover:bg-orange-500/90 transition-transform duration-200 cursor-pointer hover:-translate-y-0.5 ring-1 ring-white/10 hover:ring-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 active:scale-[0.99]"
+              className="px-6 py-3 rounded-full text-slate-900 font-semibold transition-transform transition-shadow duration-200 cursor-pointer hover:-translate-y-0.5 ring-1 ring-white/10 hover:ring-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 active:scale-[0.99] border border-slate-300 shadow-[0_0_18px_rgba(148,163,184,0.35)] hover:shadow-[0_0_26px_rgba(148,163,184,0.5)]"
+              style={{
+                background: 'linear-gradient(135deg, #f8fafc 0%, #e5e7eb 20%, #cbd5e1 50%, #f1f5f9 75%, #d1d5db 100%)'
+              }}
             >
               나의 커뮤니티 생성하기
             </button>
@@ -193,16 +198,19 @@ export default function HomePage() {
                   {[...communities, ...communities].map((c, index) => (
                     <Card
                       key={`${c.id}-${index}`}
-                      className="w-[350px] flex-shrink-0 cursor-pointer border border-slate-300 bg-white rounded-xl hover:border-slate-400 hover:shadow-lg shadow-sm transition-all duration-200 overflow-hidden"
+                      className="w-[350px] flex-shrink-0 cursor-pointer border border-slate-300 bg-white rounded-xl hover:border-slate-400 hover:shadow-lg shadow-sm transition-all duration-200 overflow-hidden p-0"
                       onClick={() => !isDragging && router.push(`/${c.slug}`)}
                     >
                       {/* 상단 대표 이미지 */}
                       <div className="w-full h-50 bg-slate-100">
-                        {bannerMap[c.slug] ? (
-                          <img src={bannerMap[c.slug]} alt="banner" className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-b from-slate-100 to-slate-200" />
-                        )}
+                        {(() => {
+                          const topUrl = bannerMap[c.slug] || getVersionedUrl((c as any)?.image_url, (c as any)?.updated_at)
+                          return topUrl ? (
+                            <img src={topUrl} alt="banner" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-b from-slate-100 to-slate-200" />
+                          )
+                        })()}
                       </div>
 
                       {/* 본문 */}

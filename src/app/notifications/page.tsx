@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog'
 import { AnimatedBackground } from '@/components/AnimatedBackground'
-import { listNotificationsPaged, markAllAsRead, markAsRead, getMyNotificationPreferences, upsertMyNotificationPreferences } from '@/lib/notifications'
+import { listNotificationsPaged, markAllAsRead, markAsRead, getMyNotificationPreferences, upsertMyNotificationPreferences, pruneNotificationsToMax } from '@/lib/notifications'
 import { getUnreadCount } from '@/lib/notifications'
 import type { Notification, NotificationPreferences } from '@/types/notification'
 import { Settings } from 'lucide-react'
@@ -23,6 +23,8 @@ export default function NotificationsPage() {
   const load = async () => {
     setLoading(true)
     const offset = (page - 1) * pageSize
+    // 먼저 오래된 알림 정리(최대 10개 유지)
+    try { await pruneNotificationsToMax(10) } catch {}
     const [listRes, p] = await Promise.all([
       listNotificationsPaged({ onlyUnread, limit: pageSize, offset }),
       getMyNotificationPreferences()
@@ -144,6 +146,7 @@ export default function NotificationsPage() {
                   ))}
                 </ul>
               )}
+              <p className="mt-3 text-xs text-slate-500">알림은 최대 10개까지 보관되며, 그 이상은 오래된 순서대로 자동 삭제됩니다.</p>
             </CardContent>
           </Card>
 

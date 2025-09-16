@@ -84,6 +84,52 @@ export function CommunityTopbar({ slug, name, active, onChange, imageUrl, onTogg
       <div className="hidden md:block bg-white border-b border-slate-200 relative z-50">
         <div className="flex items-center justify-between h-17 px-6">
           <div className="flex items-center gap-3">
+            {/* Desktop: Community switcher dropdown (like mobile) */}
+            <button
+              onClick={() => setShowCommunityDropdown(!showCommunityDropdown)}
+              className="p-1 hover:bg-slate-50 rounded-lg transition-colors relative flex-shrink-0 border cursor-pointer"
+              title="커뮤니티 전환"
+              style={brandColor ? { backgroundColor: withAlpha(brandColor, 0.06), borderColor: withAlpha(brandColor, 0.25) } : undefined}
+            >
+              <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
+              {showCommunityDropdown && (
+                <div className="absolute top-full left-0 mt-2 w-72 bg-white border border-slate-200 rounded-xl shadow-lg z-40">
+                  <div className="p-3">
+                    <div className="text-xs font-semibold text-slate-500 mb-2">나의 커뮤니티</div>
+                    <div className="space-y-1 max-h-60 overflow-y-auto">
+                      {myCommunities.map((community) => (
+                        <Link
+                          key={community.id}
+                          href={`/${community.communities?.slug}/dashboard`}
+                          className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors"
+                          onClick={() => setShowCommunityDropdown(false)}
+                        >
+                          <div className="w-8 h-8 rounded-md overflow-hidden bg-slate-100">
+                            {community.communities?.image_url ? (
+                              <img src={community.communities.image_url} alt="icon" className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full bg-slate-900 text-white flex items-center justify-center">
+                                <span className="text-xs font-medium">{community.communities?.name?.[0]}</span>
+                              </div>
+                            )}
+                          </div>
+                          <span className="text-sm font-medium text-slate-700 truncate">{community.communities?.name}</span>
+                        </Link>
+                      ))}
+                    </div>
+                    <div className="pt-3">
+                      <Link
+                        href="/explore"
+                        className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-black text-white px-3 py-2 text-sm font-semibold hover:bg-black/90 transition-colors"
+                        onClick={() => setShowCommunityDropdown(false)}
+                      >
+                        다른 커뮤니티 둘러보기
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </button>
             <button
               onClick={() => onChange("home")}
               className="flex items-center gap-3 hover:bg-slate-50 cursor-pointer rounded-lg px-2 py-1.5 transition-all duration-200 hover:shadow-sm"
@@ -155,6 +201,26 @@ export function CommunityTopbar({ slug, name, active, onChange, imageUrl, onTogg
             <Button asChild variant="outline" className="rounded-full cursor-pointer transition-all duration-200 hover:shadow-sm hover:scale-105">
               <Link href={`/${slug}`}>커뮤니티 보기</Link>
             </Button>
+            {/* Desktop right actions: notifications + profile */}
+            <Link
+              href="/notifications"
+              className="p-1.5 rounded-lg border transition-colors relative hover:bg-slate-50"
+              title="알림"
+              style={brandColor ? { borderColor: withAlpha(brandColor, 0.3) } : undefined}
+            >
+              <Bell className="w-4 h-4 text-slate-700" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-500" />
+              )}
+            </Link>
+            <Link href="/dashboard" className="p-1 rounded-lg hover:bg-slate-50 transition-colors" title="내 프로필">
+              <Avatar className="w-8 h-8">
+                <AvatarImage src={getAvatarUrl(profile?.avatar_url, profile?.updated_at)} alt="프로필 이미지" />
+                <AvatarFallback className="text-xs">
+                  {profile?.username?.[0]?.toUpperCase() || profile?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || '?'}
+                </AvatarFallback>
+              </Avatar>
+            </Link>
           </div>
         </div>
       </div>
@@ -197,7 +263,7 @@ export function CommunityTopbar({ slug, name, active, onChange, imageUrl, onTogg
                   
                   <button
                     onClick={() => setShowCommunityDropdown(!showCommunityDropdown)}
-                    className="p-1 hover:bg-slate-50 rounded-lg transition-colors relative flex-shrink-0"
+                    className="p-1 hover:bg-slate-50 rounded-lg transition-colors relative flex-shrink-0 cursor-pointer"
                   >
                     <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
                     
@@ -230,7 +296,7 @@ export function CommunityTopbar({ slug, name, active, onChange, imageUrl, onTogg
                           <div className="pt-3">
                             <Link
                               href="/explore"
-                              className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-amber-500 text-white px-3 py-2 text-sm font-semibold hover:bg-amber-600 transition-colors"
+                              className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-black text-white px-3 py-2 text-sm font-semibold hover:bg-black/90 transition-colors"
                               onClick={() => setShowCommunityDropdown(false)}
                             >
                               다른 커뮤니티 둘러보기
@@ -290,7 +356,7 @@ export function CommunityTopbar({ slug, name, active, onChange, imageUrl, onTogg
                   
                   <button
                     onClick={() => setShowCommunityDropdown(!showCommunityDropdown)}
-                    className="p-1 hover:bg-slate-50 rounded-lg transition-colors relative flex-shrink-0"
+                    className="p-1 hover:bg-slate-50 rounded-lg transition-colors relative flex-shrink-0 cursor-pointer"
                   >
                     <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
                     
@@ -323,7 +389,7 @@ export function CommunityTopbar({ slug, name, active, onChange, imageUrl, onTogg
                           <div className="pt-3">
                             <Link
                               href="/explore"
-                              className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-amber-500 text-white px-3 py-2 text-sm font-semibold hover:bg-amber-600 transition-colors"
+                              className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-black text-white px-3 py-2 text-sm font-semibold hover:bg-black/90 transition-colors"
                               onClick={() => setShowCommunityDropdown(false)}
                             >
                               다른 커뮤니티 둘러보기

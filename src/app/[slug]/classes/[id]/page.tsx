@@ -123,7 +123,7 @@ export default function ClassDetailPage() {
       </div>
 
       {/* 메인 콘텐츠 */}
-      <div className="max-w-4xl mx-auto px-4 py-8 pt-5 md:pt-8">
+      <div className="max-w-4xl mx-auto px-4 py-8 pt-20 md:pt-8">
         {/* 제목 및 정보 섹션 */}
         <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 mb-8 relative">
           {/* 조회수 (우측 상단) */}

@@ -15,7 +15,7 @@ import type { CommunitySettings, Notice } from "@/types/community"
 import { buildPublicR2UrlForBucket, COMMUNITY_BANNER_BUCKET } from "@/lib/r2"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
 import { COMMUNITY_CATEGORIES } from '@/lib/constants'
-import { Trash2, X } from "lucide-react"
+import { Trash2, X, Pin } from "lucide-react"
 import { BRAND_COLOR_PALETTE, getReadableTextColor, normalizeHex } from "@/utils/color"
 
 interface SettingsTabProps {
@@ -280,9 +280,33 @@ export function SettingsTab({ communityId }: SettingsTabProps) {
       await fetch(`/api/community-images/order/${encodeURIComponent(slug)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ keys: current.map(i => i.key) })
+        body: JSON.stringify({ keys: current.map(i => i.key), mainKey: current[0]?.key })
       })
     } catch {}
+  }
+
+  const onPin = async (key: string) => {
+    if (!slug) return
+    // 순서를 UI에서 먼저 반영: 대상 이미지를 맨 앞으로 이동
+    const next = images.slice()
+    const idx = next.findIndex(i => i.key === key)
+    if (idx <= 0) return // 이미 대표이거나 존재하지 않음
+    const [picked] = next.splice(idx, 1)
+    next.unshift(picked)
+    setImages(next)
+    try {
+      const token = await (await import('@/lib/supabase')).getAuthToken()
+      await fetch(`/api/community-images/order/${encodeURIComponent(slug)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ keys: next.map(i => i.key), mainKey: key })
+      })
+      toast.success('대표 사진으로 설정했습니다')
+    } catch (e: any) {
+      toast.error(e?.message || '대표 사진 설정 중 오류가 발생했습니다')
+      // 실패 시 목록 재로드로 복구
+      await reloadImages(slug)
+    }
   }
 
   if (loading) {
@@ -402,7 +426,16 @@ export function SettingsTab({ communityId }: SettingsTabProps) {
                           <span className="inline-flex items-center px-2 py-1 rounded-full bg-amber-500 text-white text-[11px] font-semibold shadow-sm border border-white/70">대표 사진</span>
                         </div>
                       )}
-                      <div className="absolute top-2 right-2">
+                      <div className="absolute top-2 right-2 flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="h-7 px-2 rounded-md bg-white/90 hover:bg-white text-slate-900 shadow-sm opacity-100"
+                          onClick={(e) => { e.stopPropagation(); onPin(img.key) }}
+                          title="대표 사진으로 설정"
+                        >
+                          <Pin className="w-4 h-4" />
+                        </Button>
                         <Button
                           size="sm"
                           variant="secondary"
@@ -438,6 +471,15 @@ export function SettingsTab({ communityId }: SettingsTabProps) {
                       </div>
                     )}
                     <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="h-7 px-2 rounded-md bg-white/90 hover:bg-white text-slate-900 shadow-sm"
+                        onClick={(e) => { e.stopPropagation(); onPin(img.key) }}
+                        title="대표 사진으로 설정"
+                      >
+                        <Pin className="w-4 h-4" />
+                      </Button>
                       <Button
                         size="sm"
                         variant="secondary"
