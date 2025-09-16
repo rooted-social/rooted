@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/Header";
 import { Toaster } from "@/components/ui/sonner";
 import { SidebarPadding } from "@/components/SidebarPadding";
 import Providers from "../components/providers";
 
-const inter = Inter({
+const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  variable: "--font-inter",
+  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -30,7 +31,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body className={`${inter.variable} antialiased font-sans`}>
+      <body className={`${jakarta.className} antialiased`}>
         <Providers>
           {/* 좌측 사이드바 */}
           <Header />

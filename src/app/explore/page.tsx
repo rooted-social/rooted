@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
+import Link from "next/link"
+import { useAuthData } from "@/components/auth/AuthProvider"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 // 사이드바가 전역 레이아웃으로 이동함에 따라 개별 페이지에서 헤더 임포트 제거
 import { AnimatedBackground } from "@/components/AnimatedBackground"
@@ -17,9 +19,11 @@ import { COMMUNITY_CATEGORIES, DEFAULT_EXPLORE_CATEGORY } from '@/lib/constants'
 
 export default function ExplorePage() {
   const router = useRouter()
+  const { user } = useAuthData()
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState(DEFAULT_EXPLORE_CATEGORY)
   const [communities, setCommunities] = useState<Community[]>([])
+  const [bannerMap, setBannerMap] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   // 모바일 페이지네이션
   const [currentPage, setCurrentPage] = useState(1)
@@ -164,42 +168,76 @@ export default function ExplorePage() {
     setCurrentPage(1)
   }, [searchTerm, selectedCategory])
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white via-slate-50/30 to-slate-100/60 relative overflow-hidden">
-      <AnimatedBackground zIndexClass="-z-0" />
+  // 커뮤니티별 대표 이미지(첫 번째) 로드
+  useEffect(() => {
+    if (!communities || communities.length === 0) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const results = await Promise.all(
+          communities.map(async (c) => {
+            try {
+              const res = await fetch(`/api/community-images/${c.slug}`, { cache: 'force-cache' })
+              const j = await res.json()
+              const url = j?.images?.[0]?.url || ''
+              return [c.slug as string, url] as const
+            } catch {
+              return [c.slug as string, ''] as const
+            }
+          })
+        )
+        if (cancelled) return
+        const map: Record<string, string> = {}
+        results.forEach(([slug, url]) => { if (url) map[slug] = url })
+        setBannerMap(map)
+      } catch {}
+    })()
+    return () => { cancelled = true }
+  }, [communities])
 
+  return (
+    <div className="min-h-screen bg-white relative overflow-hidden">
+      <AnimatedBackground zIndexClass="-z-0" />
       {/* Main Content */}
-      <main className="relative px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 pt-5 pb-24 z-10">
+      <main className="relative px-4 sm:px-6 md:px-10 lg:px-16 xl:px-24 pt-10 pb-24 z-10">
         <div className="w-full">
-          {/* 상단 헤더 - 개선된 디자인 */}
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-3 text-center md:text-left justify-center md:justify-start">
+          {/* 상단 헤더 - 중앙 정렬 */}
+          <div className="mb-8 text-center">
+            <div className="flex items-center justify-center gap-3 mb-3">
               <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-500 rounded-xl shadow-lg">
                 <Compass className="w-5 h-5 text-white" />
               </div>
-              <div>
-                <h1 className="text-3xl font-bold text-slate-900">루트 둘러보기</h1>
-              </div>
+              <h1 className="text-3xl font-bold text-slate-900">루트 둘러보기</h1>
             </div>
-            <div className="flex items-center gap-2 text-center md:text-left justify-center md:justify-start">
+            <div className="flex items-center justify-center gap-2">
               <Sparkles className="w-4 h-4 text-amber-500" />
               <p className="text-slate-600 font-medium">관심 있는 루트를 찾아보세요!</p>
             </div>
           </div>
-          
-          {/* 검색창 - 개선된 디자인 */}
+
+          {/* 검색창 + 커뮤니티 생성 버튼 */}
           <div className="mb-8">
-            <div className="relative max-w-2xl mx-auto md:mx-0">
-              <div className="absolute left-5 top-1/2 -translate-y-1/2 z-10">
-                <Search className="w-5 h-5 text-slate-500" />
+            <div className="mx-auto max-w-2xl">
+              <div className="flex items-center justify-center gap-2 sm:gap-3">
+                <div className="relative flex-1 max-w-2xl">
+                  <div className="absolute left-5 top-1/2 -translate-y-1/2 z-10">
+                    <Search className="w-5 h-5 text-slate-500" />
+                  </div>
+                  <Input
+                    type="text"
+                    placeholder="커뮤니티 이름이나 키워드로 검색해보세요..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="h-12 pl-14 pr-6 text-base rounded-2xl border-2 border-slate-300 focus:border-amber-500 bg-white shadow-lg hover:shadow-xl transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-amber-100"
+                  />
+                </div>
+                <Button asChild className="h-12 px-3 sm:px-4 rounded-2xl bg-amber-400 hover:bg-amber-500 text-black border border-black shrink-0 transition-transform duration-200 hover:-translate-y-0.5">
+                  <Link href={user ? "/create" : "/login"} className="inline-flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    커뮤니티 생성
+                  </Link>
+                </Button>
               </div>
-              <Input
-                type="text"
-                placeholder="커뮤니티 이름이나 키워드로 검색해보세요..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-14 pr-6 py-4 text-base rounded-2xl border-2 border-slate-300 focus:border-amber-500 bg-white shadow-lg hover:shadow-xl transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-amber-100"
-              />
             </div>
           </div>
 
@@ -280,9 +318,9 @@ export default function ExplorePage() {
             </div>
           )}
 
-          {/* Category Filter */}
+          {/* Category Filter - 중앙 정렬 */}
           <div className="mb-8">
-            <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
+            <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 justify-center">
               {categories.map((category) => {
                 const isSelected = selectedCategory === category
                 return (
@@ -306,33 +344,18 @@ export default function ExplorePage() {
 
           {/* Community Grid */}
           <div className="flex flex-col items-center">
-            {/* 커뮤니티 카드 그리드 - 반응형 최적화 */}
-            <div className="w-full px-2 sm:px-4 md:px-0">
-              <div className="grid gap-6 justify-items-center md:justify-items-start"
-                   style={{
-                     gridTemplateColumns: isMobile
-                       ? '1fr'  // 모바일에서는 1줄에 1개 유지
-                       : 'repeat(auto-fit, minmax(290px, 1fr))'  // PC에서는 2~4개 유연하게
-                   }}>
+            <div className="w-full mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
+              {/* 한 줄 최대 4개, 카드 최대 너비 350px, 최소 간격 보장 */}
+              <div className="grid gap-6 xl:gap-7 justify-items-center grid-cols-[repeat(auto-fit,minmax(290px,1fr))] xl:[&>*]:max-w-[350px]">
                 {loading ? (
                   // 로딩 스켈레톤
-                  Array.from({ length: 6 }).map((_, index) => (
-                    <Card key={index} className="w-full h-[145px] animate-pulse border border-slate-300 bg-white shadow-sm">
-                      <CardHeader className="pb-3">
-                        <div className="flex items-start gap-3">
-                          <div className="w-10 h-10 bg-slate-100 rounded-md border border-slate-300"></div>
-                          <div className="flex-1 pt-1">
-                            <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                            <div className="h-3 bg-gray-200 rounded w-2/3"></div>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="pt-0">
-                        <div className="space-y-2">
-                          <div className="h-3 bg-gray-200 rounded"></div>
-                          <div className="h-3 bg-gray-200 rounded w-5/6"></div>
-                        </div>
-                      </CardContent>
+                  Array.from({ length: 8 }).map((_, index) => (
+                    <Card key={index} className="w-full min-w-[290px] max-w-[350px] h-[260px] animate-pulse border border-slate-300 bg-white shadow-sm rounded-xl overflow-hidden">
+                      <div className="w-full h-40 bg-slate-100" />
+                      <div className="p-4">
+                        <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                        <div className="h-3 bg-gray-200 rounded w-5/6"></div>
+                      </div>
                     </Card>
                   ))
                 ) : communities.length === 0 ? (
@@ -341,51 +364,44 @@ export default function ExplorePage() {
                     <p className="text-slate-500">다른 검색어나 카테고리를 시도해보세요.</p>
                   </div>
                 ) : (
-                  // 모바일에서는 페이지네이션된 커뮤니티만 표시
                   (isMobile ? getDisplayedCommunities() : communities).map((community) => {
                     return (
-                      <Card 
-                        key={community.id} 
-                        className="w-full h-[145px] group cursor-pointer border border-slate-400 bg-white rounded-xl hover:border-slate-500 hover:shadow-lg shadow-sm transition-all duration-200 gap-3 py-5 relative"
+                      <Card
+                        key={community.id}
+                        className="w-full min-w-[290px] max-w-[350px] group cursor-pointer border border-slate-300 bg-white rounded-xl hover:border-slate-400 hover:shadow-lg shadow-sm transition-all duration-200 overflow-hidden"
                         onClick={() => router.push(`/${community.slug}`)}
                       >
-                        {/* 카테고리 스티커 - 카드 바깥 우측 상단 플로팅 */}
-                        <div className="pointer-events-none absolute -top-4 -right-4 z-20">
-                          <span className="inline-flex items-center px-3 py-1 rounded-full bg-slate-900 text-white text-[11px] font-semibold shadow-lg border-2 border-white">
-                            {community.category}
-                          </span>
+                        {/* 상단 대표 이미지 */}
+                        <div className="w-full h-45 bg-slate-100">
+                          {bannerMap[community.slug] ? (
+                            <img src={bannerMap[community.slug]} alt="banner" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-b from-slate-100 to-slate-200" />
+                          )}
                         </div>
 
-                        <CardHeader className="pb-0 relative px-4">
-                          
+                        {/* 본문 */}
+                        <div className="px-4 py-3">
                           <div className="flex items-start gap-3">
-                            <div className="relative">
-                              <div className="w-10 h-10 rounded-md overflow-hidden bg-slate-100 text-slate-600 flex items-center justify-center border border-slate-300">
-                                {(community as any)?.image_url ? (
-                                  <img src={(community as any).image_url as any} alt="icon" className="w-full h-full object-cover" />
-                                ) : (
-                                  <span className="font-semibold text-sm">{community.name[0]}</span>
-                                )}
-                              </div>
+                            <div className="w-8 h-8 rounded-md overflow-hidden bg-slate-100 text-slate-600 flex items-center justify-center border border-slate-300">
+                              {(community as any)?.image_url ? (
+                                <img src={(community as any).image_url as any} alt="icon" className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="font-semibold text-sm">{community.name[0]}</span>
+                              )}
                             </div>
-                            <div className="flex-1 pt-0.5 min-w-0">
-                              <CardTitle className="text-base font-semibold text-slate-900 leading-tight min-w-0">
-                                <div className="w-full overflow-hidden truncate">
-                                  <span>{community.name}</span>
-                                </div>
-                              </CardTitle>
-                              <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
-                                <span>멤버 {community.member_count}명</span>
-                              </div>
+                            <div className="flex-1 min-w-0">
+                              <CardTitle className="text-base font-semibold text-slate-900 leading-tight truncate">{community.name}</CardTitle>
+                              <p className="text-sm text-slate-600 line-clamp-2 mt-1">{community.description}</p>
                             </div>
                           </div>
-                        </CardHeader>
-                        <CardContent className="pt-0 px-4">
-                          <p className="text-sm text-slate-600 line-clamp-2">
-                            {community.description}
-                          </p>
-                        </CardContent>
-                        
+
+                          {/* 하단 정보: 멤버수 • 카테고리 */}
+                          <div className="mt-3 flex items-center justify-between text-xs text-slate-600">
+                            <span>멤버 {community.member_count}명</span>
+                            <span className="flex items-center gap-1"><span className="text-slate-400">•</span>{community.category}</span>
+                          </div>
+                        </div>
                       </Card>
                     )
                   })
