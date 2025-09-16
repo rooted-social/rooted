@@ -4,9 +4,8 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Custom font styles */
+/* Baseline typographic settings (font-family is provided by Next.js font on <body>) */
 * {
-  font-family: 'PretendardVariable', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Segoe UI', 'Roboto', system-ui, sans-serif;
   font-feature-settings: 'cv11', 'ss01', 'liga', 'kern';
   font-variant-numeric: tabular-nums;
   font-optical-sizing: auto;

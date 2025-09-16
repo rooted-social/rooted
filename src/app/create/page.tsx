@@ -87,7 +87,7 @@ export default function CreatePage() {
             <p className="text-slate-600 mt-1">진정한 커뮤니티로 연결과 성장을 시작하세요!</p>
           </div>
 
-          <Card className="backdrop-blur-sm bg-white/80 border-slate-200/60 shadow-xl rounded-3xl">
+          <Card className="backdrop-blur-sm bg-white/80 border-2 border-slate-500 shadow-xl rounded-3xl">
             <CardContent className="p-6 md:p-10">
               <form onSubmit={handleSubmit} className="grid gap-5 md:gap-6 md:grid-cols-2">
             <div className="space-y-2 md:col-span-1">
