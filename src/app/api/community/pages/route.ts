@@ -31,4 +31,37 @@ export async function GET(req: NextRequest) {
   }
 }
 
+// 일괄 정렬 저장 (브라우저 → 서버 1회 요청)
+export async function POST(req: NextRequest) {
+  const supabase = createServerClient()
+  try {
+    const body = await req.json().catch(() => null)
+    const communityId: string | undefined = body?.communityId
+    const orderedIds: string[] | undefined = body?.orderedIds
+    if (!communityId || !Array.isArray(orderedIds)) {
+      return new Response(JSON.stringify({ error: 'communityId and orderedIds are required' }), { status: 400 })
+    }
+
+    if (orderedIds.length === 0) {
+      return new Response(JSON.stringify({ ok: true }), { status: 200 })
+    }
+
+    // 다수 업데이트를 병렬 실행 (단일 HTTP 요청 내에서 처리)
+    const updates = orderedIds.map((id: string, index: number) =>
+      supabase
+        .from('community_pages')
+        .update({ position: index })
+        .eq('id', id)
+        .eq('community_id', communityId)
+    )
+    const results = await Promise.all(updates)
+    const firstError = results.find(r => (r as any).error)?.error
+    if (firstError) throw firstError
+
+    return new Response(JSON.stringify({ ok: true }), { status: 200 })
+  } catch (e: any) {
+    return new Response(JSON.stringify({ error: e?.message || 'failed to save order' }), { status: 500 })
+  }
+}
+
 

@@ -9,9 +9,9 @@ export default function FeaturesPage() {
 
       <div className="relative z-20 mx-auto max-w-6xl px-4 py-16 text-center">
         {/* Intro heading outside of the card */}
-        <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">ㆍ루티드가 뭔가요?</h1>
+        <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 fade-in-down" style={{ animationDelay: '40ms' }}>ㆍ루티드가 뭔가요?</h1>
         {/* Intro section */}
-        <div className="mx-auto max-w-3xl rounded-3xl bg-white/80 backdrop-blur-md border border-slate-200 shadow-md p-6 md:p-8 mt-4">
+        <div className="mx-auto max-w-3xl rounded-3xl bg-white/80 backdrop-blur-md border border-slate-200 shadow-md p-6 md:p-8 mt-4 fade-in-down" style={{ animationDelay: '120ms' }}>
           <div className="text-slate-700 leading-relaxed text-[15px] md:text-base text-left md:text-center">
             <p>루티드는 커뮤니티 플랫폼이며, 루트는 하나의 커뮤니티입니다.</p>
             <p className="mt-2"><span className="font-semibold">루트(Root)</span>는 뿌리라는 뜻으로, 생명의 근본이 됩니다. </p>
@@ -20,12 +20,12 @@ export default function FeaturesPage() {
         </div>
 
         {/* Title */}
-        <h1 className="mt-20 text-3xl font-extrabold tracking-tight">ㆍ어떤 기능을 제공하나요?</h1>
-        <p className="mt-3 text-slate-600">루티드가 제공하는 핵심 기능을 한 눈에 살펴보세요.</p>
+        <h1 className="mt-20 text-3xl font-extrabold tracking-tight fade-in-down" style={{ animationDelay: '40ms' }}>ㆍ어떤 기능을 제공하나요?</h1>
+        <p className="mt-3 text-slate-600 fade-in-down" style={{ animationDelay: '110ms' }}>루티드가 제공하는 핵심 기능을 한 눈에 살펴보세요.</p>
 
         <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* 카드 컴포넌트 템플릿 */}
-          <div className="group relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg">
+          <div className="group relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg fade-in-down" style={{ animationDelay: '60ms' }}>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-400 to-amber-500 grid place-items-center shadow">
                 <Users className="w-5 h-5 text-white" />
@@ -42,7 +42,7 @@ export default function FeaturesPage() {
             </ul>
           </div>
 
-          <div className="group relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg">
+          <div className="group relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg fade-in-down" style={{ animationDelay: '120ms' }}>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-green-500 grid place-items-center shadow">
                 <FileText className="w-5 h-5 text-white" />
@@ -59,7 +59,7 @@ export default function FeaturesPage() {
             </ul>
           </div>
 
-          <div className="group relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg">
+          <div className="group relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg fade-in-down" style={{ animationDelay: '180ms' }}>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-400 to-fuchsia-500 grid place-items-center shadow">
                 <Megaphone className="w-5 h-5 text-white" />
@@ -76,7 +76,7 @@ export default function FeaturesPage() {
             </ul>
           </div>
 
-          <div className="group relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg">
+          <div className="group relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg fade-in-down" style={{ animationDelay: '240ms' }}>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-400 to-indigo-500 grid place-items-center shadow">
                 <CalendarDays className="w-5 h-5 text-white" />
@@ -93,7 +93,7 @@ export default function FeaturesPage() {
             </ul>
           </div>
 
-          <div className="group relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg">
+          <div className="group relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg fade-in-down" style={{ animationDelay: '300ms' }}>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-teal-500 grid place-items-center shadow">
                 <GraduationCap className="w-5 h-5 text-white" />

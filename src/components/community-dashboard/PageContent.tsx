@@ -4,7 +4,6 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getCommunityPageById } from "@/lib/communities"
 import { BoardTab } from "./BoardTab"
-import NotesPage from "@/components/community-dashboard/pages/NotesPage"
 import BlogPage from "./pages/BlogPage"
 import Image from "next/image"
 import SectionTitle from "@/components/SectionTitle"
@@ -17,7 +16,7 @@ export function PageContent({ pageId }: PageContentProps) {
   const [title, setTitle] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(true)
   const [communityId, setCommunityId] = useState<string | null>(null)
-  const [type, setType] = useState<'feed' | 'notes' | 'blog' | 'divider' | null>(null)
+  const [type, setType] = useState<'feed' | 'blog' | null>(null)
   const [bannerUrl, setBannerUrl] = useState<string | null>(null)
   const [desc, setDesc] = useState<string | null>(null)
 
@@ -30,23 +29,15 @@ export function PageContent({ pageId }: PageContentProps) {
         if (!mounted) return
         setTitle(page?.title || "페이지")
         const t = (page as any)?.type as any
-        if (t) {
+        if (t === 'feed' || t === 'blog') {
           setType(t)
         } else {
           // 폴백: 타입 컬럼이 없거나 비어있을 때 테이블 존재로 추정
           try {
             const supa = (await import('@/lib/supabase')).supabase
-            const { data: noteProbe } = await supa.from('community_page_notes').select('page_id').eq('page_id', pageId).maybeSingle()
-            if (noteProbe) setType('notes')
-            else {
-              const { data: noteItemsProbe } = await supa.from('community_page_note_items').select('id').eq('page_id', pageId).limit(1)
-              if ((noteItemsProbe as any)?.length > 0) setType('notes')
-              else {
-                const { data: blogProbe } = await supa.from('community_page_blog_posts').select('id').eq('page_id', pageId).limit(1)
-                if ((blogProbe as any)?.length > 0) setType('blog')
-                else setType('feed')
-              }
-            }
+            const { data: blogProbe } = await supa.from('community_page_blog_posts').select('id').eq('page_id', pageId).limit(1)
+            if ((blogProbe as any)?.length > 0) setType('blog')
+            else setType('feed')
           } catch {
             setType('feed')
           }
@@ -75,9 +66,13 @@ export function PageContent({ pageId }: PageContentProps) {
   if (type === 'blog') {
     return <BlogPage title={title} bannerUrl={bannerUrl} description={desc} pageId={pageId} communityId={communityId as string} />
   }
-
-  // notes 레이아웃 (배너 + 설명 + 카드)
-  return <NotesPage title={title} bannerUrl={bannerUrl} description={desc} pageId={pageId} />
+  // 알 수 없는 타입: 피드로 폴백
+  return (
+    <div className="space-y-3">
+      <SectionTitle title={title} description={desc} />
+      {communityId && <BoardTab communityId={communityId} pageId={pageId} variant="contentOnly" />}
+    </div>
+  )
 }
 
 

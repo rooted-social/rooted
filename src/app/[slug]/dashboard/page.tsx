@@ -4,6 +4,7 @@ import { useParams, useSearchParams, useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { CommunityTopbar } from "@/components/community-dashboard/CommunityTopbar"
 import { CommunitySidebar } from "@/components/community-dashboard/CommunitySidebar"
+import { CommunityProvider } from "@/components/community-dashboard/CommunityContext"
 import { PageContent } from "@/components/community-dashboard/PageContent"
 import { HomeTab } from "@/components/community-dashboard/HomeTab"
 import { BoardTab } from "@/components/community-dashboard/BoardTab"
@@ -94,6 +95,21 @@ export default function CommunityDashboardPage() {
     return () => window.removeEventListener('brand-color-updated', handler as any)
   }, [])
 
+  // 최초 진입 시 쿼리 파라미터로 사이드바 열기 지원
+  useEffect(() => {
+    const open = searchParams.get('openSidebar')
+    if (open === '1') {
+      setIsSidebarOpen(true)
+      // 히스토리 정리로 파라미터 제거 (뒤로가기 UX 보완)
+      try {
+        const url = new URL(window.location.href)
+        url.searchParams.delete('openSidebar')
+        window.history.replaceState({}, '', url.toString())
+      } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // 사이드바 토글 이벤트 리스너
   useEffect(() => {
     const handleToggleSidebar = () => {
@@ -113,17 +129,20 @@ export default function CommunityDashboardPage() {
       <div className="flex">
         {/* 좌측 대시보드 사이드바는 홈 뷰에서만 표시 */}
         {active === 'home' && communityId && (
-          <CommunitySidebar
-            communityId={communityId}
-            ownerId={ownerId}
-            active={activeHome}
-            onSelectHome={() => setActiveHome({ type: 'home' })}
-            onSelectFeed={() => setActiveHome({ type: 'feed' })}
-            onSelectPage={(id) => setActiveHome({ type: 'page', id })}
-            isOpen={isSidebarOpen}
-            onClose={() => setIsSidebarOpen(false)}
-            initialBrandColor={brandColor}
-          />
+          <CommunityProvider value={{ brandColor }}>
+            <CommunitySidebar
+              communityId={communityId}
+              ownerId={ownerId}
+              active={activeHome}
+              onSelectHome={() => setActiveHome({ type: 'home' })}
+              onSelectFeed={() => setActiveHome({ type: 'feed' })}
+              onSelectPage={(id) => setActiveHome({ type: 'page', id })}
+              isOpen={isSidebarOpen}
+              onClose={() => setIsSidebarOpen(false)}
+              communityName={communityName}
+              communityIconUrl={communityIcon}
+            />
+          </CommunityProvider>
         )}
 
         <main className={`flex-1 px-3 md:px-6 lg:px-10 xl:px-16 ${active === 'home' ? 'pt-2 pb-3 md:pt-2 md:pb-6' : 'py-3 md:py-6'} relative`}>

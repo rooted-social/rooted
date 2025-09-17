@@ -17,7 +17,7 @@ export function SidebarPadding({ children }: SidebarPaddingProps) {
   // 상단 글로벌 헤더가 표시되지 않는 페이지들(커뮤니티 대시보드/내부 탭)
   const hideGlobalHeader = firstSegment && !topLevelRoutes.has(firstSegment) &&
     (pathname?.includes('/dashboard') || pathname?.includes('/blog') || pathname?.includes('/classes') ||
-     pathname?.includes('/calendar') || pathname?.includes('/members') || pathname?.includes('/settings'))
+     pathname?.includes('/calendar') || pathname?.includes('/members') || pathname?.includes('/settings') || pathname?.includes('/stats'))
 
   // 헤더가 보이면 상단 패딩 적용, 아니면 0
   const paddingClass = (isAuthRoute || hideGlobalHeader || isHome) ? 'pt-0' : 'pt-16'

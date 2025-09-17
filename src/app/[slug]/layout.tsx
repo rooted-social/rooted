@@ -3,6 +3,7 @@
 import { useParams, usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 import { CommunityTopbar } from "@/components/community-dashboard/CommunityTopbar"
+import { CommunitySidebar } from "@/components/community-dashboard/CommunitySidebar"
 import { useCommunityBySlug } from "@/hooks/useCommunity"
 
 interface CommunityLayoutProps {
@@ -14,6 +15,9 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
   const pathname = usePathname()
   const [communityName, setCommunityName] = useState<string>("")
   const [communityIcon, setCommunityIcon] = useState<string | null>(null)
+  const [communityId, setCommunityId] = useState<string | null>(null)
+  const [ownerId, setOwnerId] = useState<string | null>(null)
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false)
   // 제거된 로컬 로딩 상태: Topbar가 사라지는 문제 방지
 
   // 현재 활성 탭 결정
@@ -45,6 +49,10 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
       // /slug/settings
       if (secondLastSegment === String(slug) && lastSegment === 'settings') return 'settings'
       if (pathname.includes(`/${slug}/settings`)) return 'settings'
+
+      // /slug/stats -> 설정 탭과 동일 톤으로 하이라이트
+      if (secondLastSegment === String(slug) && lastSegment === 'stats') return 'settings'
+      if (pathname.includes(`/${slug}/stats`)) return 'settings'
     }
     
     return 'home' // 기본값 (블로그나 기타 페이지)
@@ -62,6 +70,8 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
     if (!data) return
     setCommunityName(data.name || String(slug))
     setCommunityIcon(data?.image_url || null)
+    setCommunityId(data?.id || null)
+    setOwnerId(data?.owner_id || null)
   }, [communityQ.data, slug])
 
   const handleTabChange = (newTab: typeof active) => {
@@ -92,6 +102,7 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
   const isCommunityDashboardPage = pathname?.includes('/dashboard') || 
     pathname?.includes('/classes') || pathname?.includes('/calendar') || 
     pathname?.includes('/members') || pathname?.includes('/settings') ||
+    pathname?.includes('/stats') ||
     pathname?.includes('/blog')
 
   return (
@@ -102,16 +113,34 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
           slug={String(slug)} 
           name={communityName} 
           active={active} 
-          onChange={handleTabChange} 
+          onChangeAction={handleTabChange} 
           imageUrl={communityIcon || undefined}
           onToggleSidebar={() => {
-            // 대시보드 페이지에서만 사이드바 토글 가능
-            if (pathname?.includes('/dashboard')) {
-              // 이 부분은 dashboard 페이지에서 처리하도록 이벤트 전달
-              const event = new CustomEvent('toggle-community-sidebar')
-              window.dispatchEvent(event)
+            // 대시보드가 아니면 레이아웃 레벨에서 모바일 사이드바 오버레이 토글
+            if (!pathname?.includes('/dashboard')) {
+              setIsMobileSidebarOpen(prev => !prev)
+              return
             }
+            // 대시보드면 바로 토글 이벤트 디스패치
+            const event = new CustomEvent('toggle-community-sidebar')
+            window.dispatchEvent(event)
           }}
+        />
+      )}
+      {/* 비-대시보드 탭에서도 모바일 사이드바 오버레이 제공 (데스크톱에서는 숨김) */}
+      {isCommunityDashboardPage && !pathname?.includes('/dashboard') && communityId && (
+        <CommunitySidebar
+          communityId={communityId}
+          ownerId={ownerId}
+          active={{ type: 'home' }}
+          onSelectHome={() => { window.location.href = `/${slug}/dashboard`; setIsMobileSidebarOpen(false) }}
+          onSelectFeed={() => { window.location.href = `/${slug}/dashboard`; setIsMobileSidebarOpen(false) }}
+          onSelectPage={() => { window.location.href = `/${slug}/dashboard`; setIsMobileSidebarOpen(false) }}
+          isOpen={isMobileSidebarOpen}
+          onClose={() => setIsMobileSidebarOpen(false)}
+          hideDesktop
+          communityName={communityName}
+          communityIconUrl={communityIcon}
         />
       )}
       {children}
