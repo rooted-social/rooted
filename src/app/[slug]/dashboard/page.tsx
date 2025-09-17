@@ -49,7 +49,7 @@ export default function CommunityDashboardPage() {
     if (!data) return
     setCommunityId(data.id)
     setCommunityName(data.name || String(slug))
-    setCommunityIcon(data?.image_url || null)
+    setCommunityIcon((data as any)?.icon_url || data?.image_url || null)
     setAuthChecking(true)
     setOwnerId(data?.owner_id || null)
     if (user && user.id === data?.owner_id) {

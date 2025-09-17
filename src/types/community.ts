@@ -7,6 +7,7 @@ export interface Community {
   slug: string
   category: string
   image_url?: string
+  icon_url?: string
   owner_id: string
   member_count: number
   created_at: string

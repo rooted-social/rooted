@@ -69,10 +69,19 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
     const data = communityQ.data as any
     if (!data) return
     setCommunityName(data.name || String(slug))
-    setCommunityIcon(data?.image_url || null)
+    setCommunityIcon(data?.icon_url || data?.image_url || null)
     setCommunityId(data?.id || null)
     setOwnerId(data?.owner_id || null)
   }, [communityQ.data, slug])
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      const url = e?.detail?.url as string | undefined
+      if (url) setCommunityIcon(url)
+    }
+    window.addEventListener('community-icon-updated', handler)
+    return () => window.removeEventListener('community-icon-updated', handler)
+  }, [])
 
   const handleTabChange = (newTab: typeof active) => {
     // 탭 변경 시 해당 경로로 이동

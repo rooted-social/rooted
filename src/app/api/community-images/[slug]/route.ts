@@ -87,8 +87,10 @@ export async function POST(req: NextRequest, context: { params: Promise<{ slug: 
         commId = (comm as any)?.id || null
       }
       if (target === 'icon') {
-        // 아이콘은 communities.image_url에 바로 저장
-        if (commId) await supa.from('communities').update({ image_url: url }).eq('id', commId)
+        // 아이콘은 별도 컬럼(icon_url)에 저장 (image_url과 분리)
+        try {
+          if (commId) await supa.from('communities').update({ icon_url: url }).eq('id', commId)
+        } catch {}
       } else if (target === 'images') {
         // position 계산: 현재 최대 position + 1
         let position = 0
