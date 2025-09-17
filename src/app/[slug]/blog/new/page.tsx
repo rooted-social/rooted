@@ -53,7 +53,7 @@ export default function NewBlogPostPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white md:pt-0 pt-15 pb-24">
       <div className="max-w-5xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-6">
           <div className="text-sm text-slate-500">새 글 작성</div>

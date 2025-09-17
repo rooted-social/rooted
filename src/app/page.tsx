@@ -143,17 +143,18 @@ export default function HomePage() {
 
         {/* 콘텐츠 */}
         <div className="relative z-30 text-center px-6 max-w-3xl">
-          <h1 className="text-white text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight leading-[1.05]">
+          <h1 className="text-white text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight leading-[1.05] fade-in-down" style={{ animationDelay: '60ms' }}>
             Your Community Platform
           </h1>
-          <p className="mt-5 text-slate-100 text-base sm:text-lg">
+          <p className="mt-5 text-slate-100 text-base sm:text-lg fade-in-down" style={{ animationDelay: '140ms' }}>
             멤버십, 이벤트, 클래스, 멤버 관리를 — 한 곳에서.
           </p>
           <div className="mt-8">
             <button
               onClick={() => router.push(user ? '/create' : '/login')}
-              className="px-6 py-3 rounded-full text-slate-900 font-semibold transition-transform transition-shadow duration-200 cursor-pointer hover:-translate-y-0.5 ring-1 ring-white/10 hover:ring-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 active:scale-[0.99] border border-slate-300 shadow-[0_0_18px_rgba(148,163,184,0.35)] hover:shadow-[0_0_26px_rgba(148,163,184,0.5)]"
+              className="px-6 py-3 rounded-full text-slate-900 font-semibold transition-transform transition-shadow duration-200 cursor-pointer hover:-translate-y-0.5 ring-1 ring-white/10 hover:ring-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 active:scale-[0.99] border border-slate-300 shadow-[0_0_18px_rgba(148,163,184,0.35)] hover:shadow-[0_0_26px_rgba(148,163,184,0.5)] fade-in-down"
               style={{
+                animationDelay: '220ms',
                 background: 'linear-gradient(135deg, #f8fafc 0%, #e5e7eb 20%, #cbd5e1 50%, #f1f5f9 75%, #d1d5db 100%)'
               }}
             >

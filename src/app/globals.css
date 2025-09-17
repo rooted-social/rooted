@@ -203,6 +203,20 @@ h1, h2, h3, h4, h5, h6 {
   40%, 50% { opacity: 0.95; transform: translateY(-2px) scale(1.01); }
 }
 
+/* 공용 등장 애니메이션: Fade-in-down (위에서 아래로 자연스럽게 등장) */
+@keyframes fade-in-down {
+  0% { opacity: 0; transform: translateY(-10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.fade-in-down {
+  opacity: 0;
+  animation: fade-in-down 700ms cubic-bezier(0.22,1,0.36,1) both;
+  will-change: transform, opacity;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fade-in-down { animation: none; opacity: 1; transform: none; }
+}
+
 /* 스크롤바 숨김 - 카테고리 가로 스크롤용 */
 .scrollbar-hide {
   -ms-overflow-style: none;  /* IE and Edge */

@@ -23,7 +23,7 @@ export function Header() {
   // 커뮤니티 대시보드 및 내부 탭에서는 전용 헤더를 사용하므로 글로벌 헤더 숨김
   const isCommunityDashboardPage = firstSegment && !topLevelRoutes.has(firstSegment) && 
     (pathname?.includes('/dashboard') || pathname?.includes('/blog') || pathname?.includes('/classes') || 
-     pathname?.includes('/calendar') || pathname?.includes('/members') || pathname?.includes('/settings'))
+     pathname?.includes('/calendar') || pathname?.includes('/members') || pathname?.includes('/settings') || pathname?.includes('/stats'))
   // 커뮤니티 상세 루트 페이지(/[slug])에서는 중앙 메뉴 캡슐을 비표시 (데스크탑 전용)
   const isCommunityRootPage = firstSegment && !topLevelRoutes.has(firstSegment) && !isCommunityDashboardPage
 
@@ -139,7 +139,7 @@ export function Header() {
                     aria-expanded={showCommunityDropdown}
                     title="내 커뮤니티로 이동"
                   >
-                    <span className="text-sm text-slate-900">My Root</span>
+                    <span className="text-sm text-slate-900">My 루트</span>
                     <ChevronDown className="w-4 h-4 text-slate-600" />
                   </button>
                   {showCommunityDropdown && (

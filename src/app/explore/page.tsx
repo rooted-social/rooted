@@ -372,11 +372,12 @@ export default function ExplorePage() {
                     <p className="text-slate-500">다른 검색어나 카테고리를 시도해보세요.</p>
                   </div>
                 ) : (
-                  (isMobile ? getDisplayedCommunities() : communities).map((community) => {
+                  (isMobile ? getDisplayedCommunities() : communities).map((community, idx) => {
                     return (
                       <Card
                         key={community.id}
-                        className="w-full min-w-[290px] max-w-[370px] group cursor-pointer border border-slate-300 bg-white rounded-xl hover:border-slate-400 hover:shadow-lg shadow-sm transition-all duration-200 overflow-hidden p-0"
+                        className="w-full min-w-[290px] max-w-[370px] group cursor-pointer border border-slate-300 bg-white rounded-xl hover:border-slate-400 hover:shadow-lg shadow-sm transition-all duration-200 overflow-hidden p-0 fade-in-down"
+                        style={{ animationDelay: `${Math.min(idx, 8) * 70 + 40}ms` }}
                         onClick={() => router.push(`/${community.slug}`)}
                       >
                         {/* 상단 대표 이미지 */}

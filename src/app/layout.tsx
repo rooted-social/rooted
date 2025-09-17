@@ -13,14 +13,37 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "루티드 - 커뮤니티 플랫폼",
-  description: "크리에이터와 전문가를 위한 멤버십 커뮤니티 플랫폼",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
+  title: "루티드 - 올인원 커뮤니티 플랫폼",
+  description:
+    "루티드는 크리에이터와 멤버를 연결하는 올인원 커뮤니티 플랫폼입니다. 멤버십, 콘텐츠, 이벤트, 클래스 운영까지 손쉽게 관리하고, 함께 성장할 수 있는 공간을 제공합니다.",
   icons: {
     icon: [
       { url: "/logos/logo_icon.png", type: "image/png", rel: "icon" },
       { url: "/logos/logo_icon.png", type: "image/png", rel: "shortcut icon" },
     ],
     apple: [{ url: "/logos/logo_icon.png", type: "image/png" }],
+  },
+  openGraph: {
+    type: "website",
+    url: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+    title: "루티드 - 올인원 커뮤니티 플랫폼",
+    description:
+      "루티드는 크리에이터와 멤버를 연결하는 올인원 커뮤니티 플랫폼입니다. 멤버십, 콘텐츠, 이벤트, 클래스 운영까지 손쉽게 관리하고, 함께 성장할 수 있는 공간을 제공합니다.",
+    siteName: "Rooted",
+    images: [
+      {
+        url: "/logos/thumbnail.png",
+        alt: "Rooted",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "루티드 - 올인원 커뮤니티 플랫폼",
+    description:
+      "루티드는 크리에이터와 멤버를 연결하는 올인원 커뮤니티 플랫폼입니다. 멤버십, 콘텐츠, 이벤트, 클래스 운영까지 손쉽게 관리하고, 함께 성장할 수 있는 공간을 제공합니다.",
+    images: ["/logos/thumbnail.png"],
   },
 };
 
