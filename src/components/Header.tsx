@@ -155,8 +155,8 @@ export function Header() {
                               onClick={() => setShowCommunityDropdown(false)}
                             >
                               <div className="w-8 h-8 rounded-md overflow-hidden bg-slate-100">
-                                {community.communities?.image_url ? (
-                                  <img src={community.communities.image_url} alt="icon" className="w-full h-full object-cover" />
+                                {(community.communities as any)?.icon_url || community.communities?.image_url ? (
+                                  <img src={(community.communities as any).icon_url || (community.communities as any).image_url} alt="icon" className="w-full h-full object-cover" />
                                 ) : (
                                   <div className="w-full h-full bg-slate-900 text-white flex items-center justify-center">
                                     <span className="text-xs font-medium">{community.communities?.name?.[0]}</span>
@@ -239,8 +239,8 @@ export function Header() {
                             onClick={() => setShowCommunityDropdown(false)}
                           >
                             <div className="w-8 h-8 rounded-md overflow-hidden bg-slate-100">
-                              {community.communities?.image_url ? (
-                                <img src={community.communities.image_url} alt="icon" className="w-full h-full object-cover" />
+                              {(community.communities as any)?.icon_url || community.communities?.image_url ? (
+                                <img src={(community.communities as any).icon_url || (community.communities as any).image_url} alt="icon" className="w-full h-full object-cover" />
                               ) : (
                                 <div className="w-full h-full bg-slate-900 text-white flex items-center justify-center">
                                   <span className="text-xs font-medium">{community.communities?.name?.[0]}</span>

@@ -99,14 +99,14 @@ export function SettingsTab({ communityId }: SettingsTabProps) {
     ;(async () => {
       let { data, error } = await supabase
         .from('communities')
-        .select('name, slug, description, category, image_url, is_public, join_policy')
+        .select('name, slug, description, category, image_url, icon_url, is_public, join_policy')
         .eq('id', communityId)
         .single()
       if (error) {
         // 폴백: 확장 필드 없는 구 스키마
         const retry = await supabase
           .from('communities')
-          .select('name, slug, description, category, image_url')
+          .select('name, slug, description, category, image_url, icon_url')
           .eq('id', communityId)
           .single()
         data = retry.data as any
@@ -116,7 +116,7 @@ export function SettingsTab({ communityId }: SettingsTabProps) {
       setCommunitySlug(data.slug || '')
       setCommunityDesc(data.description || '')
       setCommunityCategory(data.category || '')
-      setCommunityIconUrl(data.image_url || '')
+      setCommunityIconUrl((data as any).icon_url || data.image_url || '')
       setIsPublic((data as any)?.is_public ?? true)
       setJoinPolicy(((data as any)?.join_policy as any) || 'free')
       if (!slug) setSlug(data.slug || '')
@@ -149,13 +149,16 @@ export function SettingsTab({ communityId }: SettingsTabProps) {
         slug: communitySlug?.trim() || '',
         description: communityDesc || '',
         category: communityCategory || '',
-        image_url: (communityIconUrl || undefined) as any,
+        // 대표 이미지(image_url)와 아이콘(icon_url)을 분리 저장
+        image_url: (values.banner_url ? values.banner_url : undefined) as any,
+        // @ts-ignore - 확장 컬럼 icon_url 지원
+        icon_url: (communityIconUrl || undefined) as any,
         // @ts-ignore - 확장 필드 지원
         is_public: isPublic,
         join_policy: joinPolicy,
       })
       setSlug(updated.slug)
-      setCommunityIconUrl(updated.image_url || '')
+      setCommunityIconUrl(((updated as any).icon_url || (updated as any).image_url) || '')
       toast.success('커뮤니티 기본 정보가 저장되었습니다')
     } catch (e: any) {
       toast.error(e?.message || '저장 중 오류가 발생했습니다')
@@ -214,7 +217,9 @@ export function SettingsTab({ communityId }: SettingsTabProps) {
       const body = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(body?.error || '업로드 실패')
       if (target === 'icon') {
-        setCommunityIconUrl(body?.url || communityIconUrl)
+        const url = body?.url || communityIconUrl
+        setCommunityIconUrl(url)
+        try { window.dispatchEvent(new CustomEvent('community-icon-updated', { detail: { url } })) } catch {}
       } else {
         await reloadImages(slug)
       }

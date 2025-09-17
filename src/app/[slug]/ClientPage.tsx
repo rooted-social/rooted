@@ -21,6 +21,7 @@ interface CommunityWithOwner {
   slug: string
   category: string
   image_url?: string
+  icon_url?: string
   owner_id: string
   member_count: number
   created_at: string
@@ -214,9 +215,9 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
           {/* 최상단: 타이틀 섹션 */}
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-300 mb-4 sm:mb-6">
             <div className="flex items-center gap-3 sm:gap-4">
-              <div className={`${community.image_url ? 'bg-transparent' : 'bg-slate-600'} w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0`}>
-                {community.image_url ? (
-                  <Image src={community.image_url} alt={community.name} width={56} height={56} className="object-cover rounded-xl" />
+            <div className={`${(community.icon_url || community.image_url) ? 'bg-transparent' : 'bg-slate-600'} w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0`}>
+              {community.icon_url || community.image_url ? (
+                <Image src={(community.icon_url || community.image_url) as string} alt={community.name} width={56} height={56} className="object-cover rounded-xl" />
                 ) : (
                   <span className="text-white font-bold text-lg sm:text-xl">{community.name[0]}</span>
                 )}

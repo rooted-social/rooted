@@ -197,8 +197,8 @@ export default function DashboardPage() {
                 <div className="space-y-2">
                   {ownedCommunities.map((c) => (
                     <Link key={c.id} href={`/${c.slug}/dashboard`} className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 border border-slate-100 hover:border-slate-200 transition-all duration-200 hover:shadow-sm">
-                      {c.image_url ? (
-                        <img src={getVersionedUrl(c.image_url, c.updated_at)} alt="icon" className="w-10 h-10 rounded-lg object-cover" />
+                      {(c as any).icon_url || c.image_url ? (
+                        <img src={getVersionedUrl(((c as any).icon_url || c.image_url) as any, c.updated_at)} alt="icon" className="w-10 h-10 rounded-lg object-cover" />
                       ) : (
                         <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 text-slate-600 flex items-center justify-center">
                           <span className="text-sm font-semibold">{c.name?.[0]}</span>
@@ -232,8 +232,8 @@ export default function DashboardPage() {
                 <div className="space-y-2">
                   {joinedCommunities.map((m) => (
                     <Link key={m.id} href={`/${m.communities?.slug}/dashboard`} className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 border border-slate-100 hover:border-slate-200 transition-all duration-200 hover:shadow-sm">
-                      {m.communities?.image_url ? (
-                        <img src={getVersionedUrl(m.communities?.image_url, m.communities?.updated_at)} alt="icon" className="w-10 h-10 rounded-lg object-cover" />
+                      {(m.communities as any)?.icon_url || m.communities?.image_url ? (
+                        <img src={getVersionedUrl(((m.communities as any)?.icon_url || m.communities?.image_url) as any, (m.communities as any)?.updated_at)} alt="icon" className="w-10 h-10 rounded-lg object-cover" />
                       ) : (
                         <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 text-slate-600 flex items-center justify-center">
                           <span className="text-sm font-semibold">{m.communities?.name?.[0]}</span>
