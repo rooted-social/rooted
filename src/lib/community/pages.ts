@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { supabase, getUserId } from '@/lib/supabase'
 import { CommunityPage, CommunityPageGroup } from '@/types/community'
 import { FIVE_MIN, pagesCache, pageGroupsCache, invalidatePagesCache } from './cache'
 
@@ -8,7 +8,11 @@ export async function getCommunityPages(communityId: string) {
     const now = Date.now()
     const cached = pagesCache.get(communityId)
     if (cached && now - cached.ts < FIVE_MIN) return cached.data as CommunityPage[]
-    const res = await fetch(`/api/community/pages?communityId=${encodeURIComponent(communityId)}`, { cache: 'no-store' })
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await fetch(`/api/community/pages?communityId=${encodeURIComponent(communityId)}`, {
+      cache: 'no-store',
+      headers: session?.access_token ? { authorization: `Bearer ${session.access_token}` } : undefined,
+    })
     if (!res.ok) throw new Error('failed')
     const data = (await res.json()) as CommunityPage[]
     pagesCache.set(communityId, { ts: now, data: data || [] })
@@ -80,9 +84,10 @@ export async function updateCommunityPageMeta(id: string, payload: Partial<Pick<
 
 export async function saveCommunityPageOrder(communityId: string, orderedIds: string[]) {
   // 서버 라우트로 1회 요청
+  const { data: { session } } = await supabase.auth.getSession()
   const res = await fetch('/api/community/pages', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...(session?.access_token ? { authorization: `Bearer ${session.access_token}` } : {}) },
     body: JSON.stringify({ communityId, orderedIds }),
   })
   if (!res.ok) throw new Error('failed')
@@ -105,7 +110,10 @@ export async function getCommunityPageGroups(communityId: string) {
     const now = Date.now()
     const cached = pageGroupsCache.get(communityId)
     if (cached && now - cached.ts < FIVE_MIN) return cached.data as CommunityPageGroup[]
-    const res = await fetch(`/api/community/page-groups?communityId=${encodeURIComponent(communityId)}`)
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await fetch(`/api/community/page-groups?communityId=${encodeURIComponent(communityId)}`, {
+      headers: session?.access_token ? { authorization: `Bearer ${session.access_token}` } : undefined,
+    })
     if (!res.ok) throw new Error('failed')
     const data = (await res.json()) as CommunityPageGroup[]
     pageGroupsCache.set(communityId, { ts: now, data: data || [] })

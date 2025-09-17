@@ -11,7 +11,9 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
   // 고정 경로 또는 커뮤니티 대시보드(/:slug/dashboard) 보호
   const isCommunityDashboard = /^\/[^\/]+\/dashboard(\/|$)/.test(pathname)
-  const isProtected = isCommunityDashboard || protectedPaths.some(p => pathname.startsWith(p))
+  // 커뮤니티 내부 탭 전체 보호: classes, calendar, members, settings, stats, blog
+  const isCommunityInternal = /^\/[^\/]+\/(dashboard|classes|calendar|members|settings|stats|blog)(\/|$)/.test(pathname)
+  const isProtected = isCommunityDashboard || isCommunityInternal || protectedPaths.some(p => pathname.startsWith(p))
   if (!isProtected) return NextResponse.next()
 
   // 클라이언트 쿠키 기반 세션 토큰 확인 (supabase-js와 별개로, 간단 가드)
@@ -25,7 +27,7 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // 커뮤니티 대시보드 포함
-  matcher: ['/dashboard', '/notifications', '/(.*)/dashboard'],
+  // 커뮤니티 대시보드 및 내부 탭 전체 포함
+  matcher: ['/dashboard', '/notifications', '/(.*)/(dashboard|classes|calendar|members|settings|stats|blog)'],
 }
 

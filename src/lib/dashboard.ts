@@ -18,7 +18,10 @@ export async function fetchDashboardStats(communityId: string): Promise<Dashboar
   if (cached && now - cached.ts < 300_000) {
     return cached.data
   }
-  const res = await fetch(`/api/dashboard/stats?communityId=${encodeURIComponent(communityId)}`)
+  const { data: { session } } = await supabase.auth.getSession()
+  const res = await fetch(`/api/dashboard/stats?communityId=${encodeURIComponent(communityId)}` , {
+    headers: session?.access_token ? { authorization: `Bearer ${session.access_token}` } : undefined,
+  })
   if (!res.ok) throw new Error('failed to fetch dashboard stats')
   const data = (await res.json()) as DashboardStats
   statsCache.set(key, { ts: now, data })
@@ -34,7 +37,8 @@ export async function fetchRecentActivity(communityId: string, slug?: string): P
   const now = Date.now()
   const cached = recentCache.get(key)
   if (cached && now - cached.ts < 300_000) return cached.data
-  const res = await fetch(url)
+  const { data: { session } } = await supabase.auth.getSession()
+  const res = await fetch(url, { headers: session?.access_token ? { authorization: `Bearer ${session.access_token}` } : undefined })
   if (!res.ok) throw new Error('failed to fetch recent activity')
   const data = (await res.json()) as RecentActivityItem[]
   recentCache.set(key, { ts: now, data })
@@ -54,7 +58,8 @@ export async function fetchFeed(communityId: string, opts?: { pageId?: string | 
     const cached = feedCache.get(baseUrl)
     if (cached && now - cached.ts < 120_000) return cached.data
   }
-  const res = await fetch(url, { cache: opts?.force ? 'no-store' : 'default' })
+  const { data: { session } } = await supabase.auth.getSession()
+  const res = await fetch(url, { cache: opts?.force ? 'no-store' : 'default', headers: session?.access_token ? { authorization: `Bearer ${session.access_token}` } : undefined })
   if (!res.ok) throw new Error('failed to fetch feed')
   const data = await res.json() as { posts: any[]; likeCounts: Record<string, number>; commentCounts: Record<string, number>; totalCount?: number }
   // 기본 URL 키로 캐시를 갱신해 동일 파라미터의 이후 요청이 최신을 보게 함
@@ -68,7 +73,8 @@ export async function fetchHomeData(communityId: string) {
   const now = Date.now()
   const cached = homeCache.get(key)
   if (cached && now - cached.ts < 300_000) return cached.data
-  const res = await fetch(`/api/dashboard/home?communityId=${encodeURIComponent(communityId)}`)
+  const { data: { session } } = await supabase.auth.getSession()
+  const res = await fetch(`/api/dashboard/home?communityId=${encodeURIComponent(communityId)}`, { headers: session?.access_token ? { authorization: `Bearer ${session.access_token}` } : undefined })
   if (!res.ok) throw new Error('failed to fetch home data')
   const data = await res.json() as { settings: any; notices: any[] }
   homeCache.set(key, { ts: now, data })
@@ -82,7 +88,8 @@ export async function fetchBlogList(pageId: string) {
   const now = Date.now()
   const cached = blogCache.get(key)
   if (cached && now - cached.ts < 120_000) return cached.data
-  const res = await fetch(key)
+  const { data: { session } } = await supabase.auth.getSession()
+  const res = await fetch(key, { headers: session?.access_token ? { authorization: `Bearer ${session.access_token}` } : undefined })
   if (!res.ok) throw new Error('failed to fetch blog list')
   const data = await res.json()
   blogCache.set(key, { ts: now, data })
@@ -96,7 +103,8 @@ export async function fetchNotesList(pageId: string) {
   const now = Date.now()
   const cached = notesCache.get(key)
   if (cached && now - cached.ts < 120_000) return cached.data
-  const res = await fetch(key)
+  const { data: { session } } = await supabase.auth.getSession()
+  const res = await fetch(key, { headers: session?.access_token ? { authorization: `Bearer ${session.access_token}` } : undefined })
   if (!res.ok) throw new Error('failed to fetch notes list')
   const data = await res.json()
   notesCache.set(key, { ts: now, data })

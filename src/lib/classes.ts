@@ -41,7 +41,8 @@ export interface ClassEnrollment {
 
 export async function listClassCategories(communityId: string) {
   try {
-    const res = await fetch(`/api/classes/categories?communityId=${encodeURIComponent(communityId)}&t=${Date.now()}`, { cache: 'no-store' })
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await fetch(`/api/classes/categories?communityId=${encodeURIComponent(communityId)}&t=${Date.now()}`, { cache: 'no-store', headers: session?.access_token ? { authorization: `Bearer ${session.access_token}` } : undefined })
     if (!res.ok) throw new Error('failed')
     const data = await res.json()
     return (data || []) as ClassCategory[]
@@ -79,8 +80,9 @@ export async function deleteClassCategory(id: string) {
 
 export async function listClasses(communityId: string, categoryId?: string | null, userId?: string) {
   try {
+    const { data: { session } } = await supabase.auth.getSession()
     const url = `/api/classes/list?communityId=${encodeURIComponent(communityId)}${categoryId ? `&categoryId=${encodeURIComponent(categoryId)}` : ''}${userId ? `&userId=${encodeURIComponent(userId)}` : ''}`
-    const res = await fetch(url)
+    const res = await fetch(url, { headers: session?.access_token ? { authorization: `Bearer ${session.access_token}` } : undefined })
     if (!res.ok) throw new Error('failed')
     const data = await res.json()
     return (data || []) as ClassItem[]
