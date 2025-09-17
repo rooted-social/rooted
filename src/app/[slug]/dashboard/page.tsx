@@ -125,11 +125,11 @@ export default function CommunityDashboardPage() {
 
   return (
     <>
+    <CommunityProvider value={{ brandColor }}>
     <div className="min-h-screen md:pt-0 pt-15 pb-20">
       <div className="flex">
         {/* 좌측 대시보드 사이드바는 홈 뷰에서만 표시 */}
         {active === 'home' && communityId && (
-          <CommunityProvider value={{ brandColor }}>
             <CommunitySidebar
               communityId={communityId}
               ownerId={ownerId}
@@ -142,7 +142,6 @@ export default function CommunityDashboardPage() {
               communityName={communityName}
               communityIconUrl={communityIcon}
             />
-          </CommunityProvider>
         )}
 
         <main className={`flex-1 px-3 md:px-6 lg:px-10 xl:px-16 ${active === 'home' ? 'pt-2 pb-3 md:pt-2 md:pb-6' : 'py-3 md:py-6'} relative`}>
@@ -182,6 +181,7 @@ export default function CommunityDashboardPage() {
         </main>
       </div>
     </div>
+    </CommunityProvider>
 
     {/* 온보딩 다이얼로그 */}
     <Dialog open={showOnboarding} onOpenChange={setShowOnboarding}>

@@ -13,6 +13,7 @@ import { Target, FileText, BookOpen, Newspaper, CalendarClock, Rss, StickyNote, 
 import { toast } from "sonner"
 import type { CommunitySettings, Notice, Post } from "@/types/community"
 import { withAlpha } from "@/utils/color"
+import { useCommunityContext } from "@/components/community-dashboard/CommunityContext"
 import { supabase, getUserId } from "@/lib/supabase"
 
 interface HomeTabProps { communityId: string; slug?: string }
@@ -24,6 +25,7 @@ export function HomeTab({ communityId, slug }: HomeTabProps) {
   const [loading, setLoading] = useState<boolean>(true)
   const [canManage, setCanManage] = useState<boolean>(false)
   // 홈 탭 내 통계 섹션은 별도 페이지로 이동됨
+  const { brandColor: contextBrandColor } = useCommunityContext()
 
   useEffect(() => {
     let isMounted = true
@@ -104,13 +106,14 @@ export function HomeTab({ communityId, slug }: HomeTabProps) {
         </div>
       )}
       {/* 좌측 메인 컨텐츠 */}
+      {(() => { const brandColor = settings?.brand_color || contextBrandColor || undefined; return (
       <div className="lg:col-span-2 space-y-6">
         {/* 1) Our Mission */}
-        <div className="rounded-3xl shadow-sm bg-white/60 backdrop-blur-md border" style={{ borderColor: withAlpha(settings?.brand_color || '#0f172a', 0.18) }}>
+        <div className="rounded-3xl shadow-sm bg-white/60 backdrop-blur-md border" style={{ borderColor: withAlpha(brandColor || '#0f172a', 0.18) }}>
           <div className="p-6">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center border shadow-sm" style={{ backgroundColor: withAlpha(settings?.brand_color || '#0f172a', 0.08), borderColor: withAlpha(settings?.brand_color || '#0f172a', 0.25) }}>
-                <Target className="w-5 h-5" style={{ color: settings?.brand_color || '#0f172a' }} />
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center border shadow-sm" style={{ backgroundColor: withAlpha(brandColor || '#0f172a', 0.08), borderColor: withAlpha(brandColor || '#0f172a', 0.25) }}>
+                <Target className="w-5 h-5" style={{ color: brandColor || '#0f172a' }} />
               </div>
               <h3 className="text-xl font-semibold text-slate-900">Our Mission</h3>
             </div>
@@ -125,19 +128,22 @@ export function HomeTab({ communityId, slug }: HomeTabProps) {
           communityId={communityId} 
           notices={notices} 
           onNoticesChange={(newNotices) => setNotices(newNotices)}
-          brandColor={settings?.brand_color || undefined}
+          brandColor={brandColor}
           canManage={canManage}
         />
 
         {/* 3) 최근 활동 */}
-        <RecentActivityCard communityId={communityId} slug={slug} brandColor={settings?.brand_color || undefined} />
+        <RecentActivityCard communityId={communityId} slug={slug} brandColor={brandColor} />
       </div>
+      )})()}
 
       {/* 우측 사이드바 */}
+      {(() => { const brandColor = settings?.brand_color || contextBrandColor || undefined; return (
       <div className="space-y-6">
         {/* 4) 다가오는 이벤트 */}
-        <UpcomingEventsCard communityId={communityId} brandColor={settings?.brand_color || undefined} />
+        <UpcomingEventsCard communityId={communityId} brandColor={brandColor} />
       </div>
+      )})()}
     </section>
   )
 }

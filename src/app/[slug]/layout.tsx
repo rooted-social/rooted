@@ -5,6 +5,9 @@ import { useEffect, useState } from "react"
 import { CommunityTopbar } from "@/components/community-dashboard/CommunityTopbar"
 import { CommunitySidebar } from "@/components/community-dashboard/CommunitySidebar"
 import { useCommunityBySlug } from "@/hooks/useCommunity"
+import { useRouter } from "next/navigation"
+import { useAuthData } from "@/components/auth/AuthProvider"
+import { supabase } from "@/lib/supabase"
 
 interface CommunityLayoutProps {
   children: React.ReactNode
@@ -13,12 +16,15 @@ interface CommunityLayoutProps {
 export default function CommunityLayout({ children }: CommunityLayoutProps) {
   const { slug } = useParams<{ slug: string }>()
   const pathname = usePathname()
+  const router = useRouter()
+  const { user } = useAuthData()
   const [communityName, setCommunityName] = useState<string>("")
   const [communityIcon, setCommunityIcon] = useState<string | null>(null)
   const [communityId, setCommunityId] = useState<string | null>(null)
   const [ownerId, setOwnerId] = useState<string | null>(null)
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false)
   // 제거된 로컬 로딩 상태: Topbar가 사라지는 문제 방지
+  const [guardChecked, setGuardChecked] = useState<boolean>(false)
 
   // 현재 활성 탭 결정
   const getActiveTab = () => {
@@ -74,6 +80,55 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
     setOwnerId(data?.owner_id || null)
   }, [communityQ.data, slug])
 
+  // 멤버십 가드: 커뮤니티 대시보드/내부 탭은 멤버 또는 오너만 접근 가능
+  useEffect(() => {
+    const run = async () => {
+      // 아직 커뮤니티/경로 정보가 없으면 대기
+      if (!pathname || !slug) return
+      const isDashboardArea = pathname?.includes('/dashboard') || 
+        pathname?.includes('/classes') || pathname?.includes('/calendar') || 
+        pathname?.includes('/members') || pathname?.includes('/settings') ||
+        pathname?.includes('/stats') || pathname?.includes('/blog')
+      if (!isDashboardArea) {
+        setGuardChecked(true)
+        return
+      }
+
+      // 커뮤니티 ID 로드 대기
+      if (!communityId) return
+
+      // 오너는 통과
+      if (user && ownerId && user.id === ownerId) {
+        setGuardChecked(true)
+        return
+      }
+
+      // 비로그인 또는 멤버 아님 → 공개 커뮤니티 랜딩으로 보내기
+      if (!user) {
+        router.replace(`/${slug}`)
+        return
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('community_members')
+          .select('id, role')
+          .eq('community_id', communityId)
+          .eq('user_id', user.id)
+          .maybeSingle()
+        const role = (data as any)?.role as string | undefined
+        if (!data || role === 'pending') {
+          router.replace(`/${slug}`)
+          return
+        }
+        setGuardChecked(true)
+      } catch {
+        router.replace(`/${slug}`)
+      }
+    }
+    void run()
+  }, [pathname, slug, communityId, ownerId, user, router])
+
   useEffect(() => {
     const handler = (e: any) => {
       const url = e?.detail?.url as string | undefined
@@ -117,7 +172,7 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
   return (
     <div className="min-h-screen">
       {/* 커뮤니티 대시보드 페이지에서만 CommunityTopbar 표시 */}
-      {isCommunityDashboardPage && (
+      {isCommunityDashboardPage && guardChecked && (
         <CommunityTopbar 
           slug={String(slug)} 
           name={communityName} 
@@ -137,7 +192,7 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
         />
       )}
       {/* 비-대시보드 탭에서도 모바일 사이드바 오버레이 제공 (데스크톱에서는 숨김) */}
-      {isCommunityDashboardPage && !pathname?.includes('/dashboard') && communityId && (
+      {isCommunityDashboardPage && guardChecked && !pathname?.includes('/dashboard') && communityId && (
         <CommunitySidebar
           communityId={communityId}
           ownerId={ownerId}
@@ -152,7 +207,8 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
           communityIconUrl={communityIcon}
         />
       )}
-      {children}
+      {/* 대시보드 영역은 가드 완료 후 렌더 */}
+      {(!isCommunityDashboardPage || guardChecked) && children}
     </div>
   )
 }

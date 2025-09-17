@@ -218,8 +218,8 @@ export default function HomePage() {
                       <div className="px-4 py-3">
                         <div className="flex items-start gap-3">
                           <div className="w-8 h-8 rounded-md overflow-hidden bg-slate-100 text-slate-600 flex items-center justify-center border border-slate-300">
-                            {(c as any)?.image_url ? (
-                              <img src={(c as any).image_url as any} alt="icon" className="w-full h-full object-cover" />
+                            {(c as any)?.icon_url || (c as any)?.image_url ? (
+                              <img src={((c as any).icon_url || (c as any).image_url) as any} alt="icon" className="w-full h-full object-cover" />
                             ) : (
                               <span className="font-semibold text-sm">{c.name[0]}</span>
                             )}

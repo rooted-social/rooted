@@ -11,6 +11,25 @@ export async function GET(req: NextRequest) {
   const supabase = createServerClient()
 
   try {
+    // 페이지가 속한 커뮤니티 식별 후 멤버십 체크 (쿠키 기반 사용자)
+    const { data: page } = await supabase.from('community_pages').select('id, community_id').eq('id', pageId).maybeSingle()
+    const communityId = (page as any)?.community_id as string | undefined
+    if (!communityId) return new Response(JSON.stringify({ error: 'not found' }), { status: 404 })
+    const authHeader = req.headers.get('authorization') || ''
+    const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : undefined
+    const { data: { user } } = bearer ? await supabase.auth.getUser(bearer) : await supabase.auth.getUser()
+    const authUserId = user?.id
+    if (!authUserId) return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 })
+    const [{ data: community }, { data: member }] = await Promise.all([
+      supabase.from('communities').select('owner_id').eq('id', communityId).single(),
+      supabase.from('community_members').select('role').eq('community_id', communityId).eq('user_id', authUserId).maybeSingle(),
+    ])
+    const isOwner = community && (community as any).owner_id === authUserId
+    const isMember = member && (member as any).role && (member as any).role !== 'pending'
+    if (!isOwner && !isMember) {
+      return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 })
+    }
+
     // 포스트 목록
     const { data: posts } = await supabase
       .from('community_page_blog_posts')

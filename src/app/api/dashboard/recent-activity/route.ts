@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { createServerClient } from '@/lib/supabase-server'
+import { createServerClient, createServerClientWithAuth } from '@/lib/supabase-server'
 
 // 최근 활동 API 스켈레톤
 // 반환 형태는 클라이언트의 RecentActivityCard 사용 형태에 맞춤
@@ -12,9 +12,25 @@ export async function GET(req: NextRequest) {
     return new Response(JSON.stringify({ error: 'communityId is required' }), { status: 400 })
   }
 
-  const supabase = createServerClient()
+  const authHeader = req.headers.get('authorization') || ''
+  const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : undefined
+  const supabase = createServerClientWithAuth(bearer)
 
   try {
+    // 멤버십 체크: 쿠키 또는 Authorization 헤더 기반 사용자
+    const { data: { user } } = await supabase.auth.getUser()
+    const authUserId = user?.id
+    if (!authUserId) return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 })
+    const [{ data: community }, { data: member }] = await Promise.all([
+      supabase.from('communities').select('owner_id').eq('id', communityId).single(),
+      supabase.from('community_members').select('role').eq('community_id', communityId).eq('user_id', authUserId).maybeSingle(),
+    ])
+    const isOwner = community && (community as any).owner_id === authUserId
+    const isMember = member && (member as any).role && (member as any).role !== 'pending'
+    if (!isOwner && !isMember) {
+      return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 })
+    }
+
     // feed 최근 글 (필요 필드만 선택)
     const { data: feed } = await supabase
       .from('posts')
