@@ -9,6 +9,10 @@ const protectedPaths = [
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
+  // API/Next 내부 자원은 미들웨어 대상에서 제외
+  if (pathname.startsWith('/api') || pathname.startsWith('/_next') || pathname === '/favicon.ico') {
+    return NextResponse.next()
+  }
   // 고정 경로 또는 커뮤니티 대시보드(/:slug/dashboard) 보호
   const isCommunityDashboard = /^\/[^\/]+\/dashboard(\/|$)/.test(pathname)
   // 커뮤니티 내부 탭 전체 보호: classes, calendar, members, settings, stats, blog

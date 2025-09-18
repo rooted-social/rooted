@@ -10,6 +10,7 @@ export async function getCommunityPages(communityId: string) {
     if (cached && now - cached.ts < FIVE_MIN) return cached.data as CommunityPage[]
     const { data: { session } } = await supabase.auth.getSession()
     const res = await fetch(`/api/community/pages?communityId=${encodeURIComponent(communityId)}`, {
+      // 뒤로가기/복귀 시 최신 목록을 보장하기 위해 no-store 유지
       cache: 'no-store',
       headers: session?.access_token ? { authorization: `Bearer ${session.access_token}` } : undefined,
     })

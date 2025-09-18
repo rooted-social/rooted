@@ -126,8 +126,8 @@ export default function CommunityDashboardPage() {
   return (
     <>
     <CommunityProvider value={{ brandColor }}>
-    <div className="min-h-screen md:pt-0 pt-15 pb-20">
-      <div className="flex">
+    <div className="min-h-screen md:pt-0 pt-15 pb-20 overflow-x-hidden">
+      <div className="flex w-full">
         {/* 좌측 대시보드 사이드바는 홈 뷰에서만 표시 */}
         {active === 'home' && communityId && (
             <CommunitySidebar
@@ -144,7 +144,7 @@ export default function CommunityDashboardPage() {
             />
         )}
 
-        <main className={`flex-1 px-3 md:px-6 lg:px-10 xl:px-16 ${active === 'home' ? 'pt-2 pb-3 md:pt-2 md:pb-6' : 'py-3 md:py-6'} relative`}>
+        <main className={`flex-1 min-w-0 px-3 md:px-6 lg:px-10 xl:px-16 ${active === 'home' ? 'pt-2 pb-3 md:pt-2 md:pb-6' : 'py-3 md:py-6'} relative overflow-x-hidden` }>
           {/* 배경 효과: 캘린더/멤버 탭에서만 */}
           {(active === 'calendar' || active === 'members') && <AnimatedBackground />}
 
@@ -158,7 +158,7 @@ export default function CommunityDashboardPage() {
               </div>
             </>
           ) : (
-            <div className="relative z-10">
+            <div className="relative z-10 max-w-full overflow-x-hidden">
               {active === 'home' && (
                 activeHome.type === 'home' ? (
                   <HomeTab communityId={communityId} slug={String(slug)} />

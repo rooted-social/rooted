@@ -5,13 +5,14 @@ import { useParams, useSearchParams } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import { getCommunity } from "@/lib/communities"
-import { getBlogPostById, incrementBlogViews, toggleBlogLike, hasLikedBlog, getBlogCounts, addBlogComment, listBlogComments, updateBlogComment, deleteBlogComment } from "@/lib/blog"
+import { getBlogPostById, incrementBlogViews, toggleBlogLike, hasLikedBlog, getBlogCounts, addBlogComment, listBlogComments, updateBlogComment, deleteBlogComment, deleteBlogPost } from "@/lib/blog"
 import { Input } from "@/components/ui/input"
 import { Button as UIButton } from "@/components/ui/button"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { getAvatarUrl } from "@/lib/profiles"
-import { CalendarDays, Heart, MessageCircle, Eye, ArrowLeft } from "lucide-react"
+import { CalendarDays, Heart, MessageCircle, Eye, ArrowLeft, Settings } from "lucide-react"
+import { AnimatedBackground } from "@/components/AnimatedBackground"
 
 export default function BlogDetailPage() {
   const params = useParams<{ slug: string; id: string }>()
@@ -26,6 +27,8 @@ export default function BlogDetailPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingText, setEditingText] = useState<string>("")
   const [myAvatar, setMyAvatar] = useState<string | null>(null)
+  const [canEdit, setCanEdit] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   useEffect(() => {
     let mounted = true
     ;(async () => {
@@ -33,7 +36,7 @@ export default function BlogDetailPage() {
       if (!mounted) return
       setPost(p)
       await incrementBlogViews(String(id))
-      const [likedInit, cnt, cmts, me] = await Promise.all([
+      const [likedInit, cnt, cmts, me, uid] = await Promise.all([
         hasLikedBlog(String(id)),
         getBlogCounts(String(id)),
         listBlogComments(String(id)),
@@ -45,12 +48,19 @@ export default function BlogDetailPage() {
             const { data } = await supabase.from('profiles').select('avatar_url').eq('id', uid).maybeSingle()
             return (data as any)?.avatar_url || null
           } catch { return null }
+        })(),
+        (async () => {
+          try {
+            const { getUserId } = await import('@/lib/supabase')
+            return await getUserId()
+          } catch { return null }
         })()
       ])
       setLiked(likedInit)
       setCounts(cnt)
       setComments(cmts as any[])
       setMyAvatar(me)
+      if (p && uid && p.user_id === uid) setCanEdit(true)
     })()
     return () => { mounted = false }
   }, [slug, id])
@@ -58,7 +68,8 @@ export default function BlogDetailPage() {
   if (!post) return <div className="min-h-[40vh]" />
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen relative">
+      <AnimatedBackground zIndexClass="-z-10" />
       {/* 헤더 - PC만 표시 */}
       <div className="hidden md:block max-w-4xl mx-auto px-4 py-4">
         <Button 
@@ -68,7 +79,7 @@ export default function BlogDetailPage() {
         >
           <Link href={`/${slug}/dashboard?tab=home${pageId ? `&pageId=${pageId}` : ''}`} className="inline-flex items-center gap-2">
             <ArrowLeft className="w-4 h-4" />
-            커뮤니티로 돌아가기
+            목록으로 돌아가기
           </Link>
         </Button>
       </div>
@@ -95,39 +106,18 @@ export default function BlogDetailPage() {
       </div>
 
       {/* 메인 콘텐츠 */}
-      <div className="max-w-4xl mx-auto px-4 py-10 pt-20 md:pt-12">
-        {/* 커버/타이틀 섹션 */}
-        <div className="bg-slate-50 p-0 md:p-0 relative">
-          {/* 통계 (우측 상단) */}
-          <div className="absolute -top-10 right-0 md:top-0 md:right-0 md:translate-y-0 flex items-center gap-2">
-            <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-slate-50 border border-slate-100">
-              <Eye className="w-3 h-3 text-slate-600" />
-              <span className="text-xs font-medium text-slate-700">{counts.views}</span>
-            </div>
-            <button 
-              className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full border transition-all duration-200 ${
-                liked 
-                  ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100' 
-                  : 'bg-slate-50 border-slate-100 text-slate-700 hover:bg-slate-100'
-              }`}
-              onClick={async ()=>{ 
-                try { 
-                  const t = await toggleBlogLike(String(id)); 
-                  setLiked(t.liked); 
-                  const c = await getBlogCounts(String(id)); 
-                  setCounts(c) 
-                } catch (e) { 
-                  console.error(e) 
-                } 
-              }}
-            >
-              <Heart className={`w-3 h-3 ${liked ? 'fill-current' : ''}`} />
-              <span className="text-xs font-medium">{counts.likes}</span>
-            </button>
-          </div>
+      <div className="relative z-10 max-w-4xl mx-auto px-4 py-10 pt-20 md:pt-12">
+        {/* 커버/타이틀 + 본문 */}
+        <div className="relative">
+          {/* 타이틀 - 중앙 정렬 */}
+          <h1 className="text-[22px] md:text-[34px] font-extrabold tracking-[-0.02em] text-slate-900 leading-tight text-center mb-4">
+            {post.title}
+          </h1>
 
-          {/* 작성자 정보 */}
-          <div className="flex items-center gap-4 mb-6 pr-24">
+          {/* 메타: 좌측 작성자, 우측 조회수 + 설정 */}
+          <div className="flex items-center justify-between gap-4 mb-6">
+            {/* 작성자 */}
+            <div className="flex items-center gap-4">
             <Avatar className="w-12 h-12 ring-2 ring-slate-100 shadow-sm">
               <AvatarImage 
                 src={post.author?.avatar_url ? getAvatarUrl(post.author.avatar_url, post.author.updated_at) : undefined} 
@@ -155,19 +145,37 @@ export default function BlogDetailPage() {
                 })}
               </div>
             </div>
+            </div>
+            {/* 우측: 조회수 + 설정 */}
+            <div className="flex items-center gap-2 relative">
+              <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/70 backdrop-blur border border-slate-200">
+                <Eye className="w-3.5 h-3.5 text-slate-600" />
+                <span className="text-xs font-medium text-slate-700">{counts.views}</span>
+              </div>
+              {canEdit && (
+                <div className="relative">
+                  <button
+                    className="h-8 w-8 rounded-md border border-slate-200 hover:bg-slate-50 cursor-pointer inline-flex items-center justify-center"
+                    onClick={() => setMenuOpen(v => !v)}
+                    aria-label="설정"
+                  >
+                    <Settings className="w-4 h-4 text-slate-700" />
+                  </button>
+                  {menuOpen && (
+                    <div className="absolute right-0 mt-2 w-28 bg-white border border-slate-200 rounded-md shadow-md z-10">
+                      <button className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 cursor-pointer" onClick={() => { setMenuOpen(false); location.href = `/${slug}/blog/edit/${id}?pageId=${pageId}` }}>수정</button>
+                      <button className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 cursor-pointer" onClick={async () => { setMenuOpen(false); if (!confirm('정말 삭제하시겠습니까?')) return; try { await deleteBlogPost(String(id)); location.href = `/${slug}/dashboard?tab=home${pageId ? `&pageId=${pageId}` : ''}` } catch(e) { console.error(e) } }}>삭제</button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* 제목 */}
-          <h1 className="text-[28px] md:text-[40px] font-extrabold tracking-[-0.02em] text-slate-900 leading-tight">
-            {post.title}
-          </h1>
-        </div>
+          {/* 구분선 */}
+          <div className="my-6 border-t border-slate-200" />
 
-        {/* 구분선 */}
-        <div className="my-8 border-t border-black/80" />
-
-        {/* 본문 */}
-        <div className="bg-slate-50 p-0 mb-8">
+          {/* 본문 */}
           <article className="prose prose-slate max-w-none prose-headings:text-slate-900 prose-p:text-slate-800 prose-li:text-slate-800">
             <div
               className="prose-img:rounded-2xl prose-img:shadow-md"
@@ -178,16 +186,43 @@ export default function BlogDetailPage() {
         </div>
 
         {/* 구분선 */}
-        <div className="my-8 border-t border-black/80" />
+        <div className="my-8 border-t border-slate-200" />
 
-        {/* 댓글 섹션 */}
-        <div className="bg-slate-50 p-0">
-          <h2 className="text-[18px] font-semibold text-slate-900 mb-6 flex items-center gap-2">
+        {/* 좋아요 + 댓글 아이콘 라인 */}
+        <div className="flex items-center gap-4 mb-6">
+          <button 
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm transition-all duration-200 cursor-pointer ${
+              liked 
+                ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100' 
+                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+            }`}
+            onClick={async ()=>{ 
+              try { 
+                const t = await toggleBlogLike(String(id)); 
+                setLiked(t.liked); 
+                const c = await getBlogCounts(String(id)); 
+                setCounts(c) 
+              } catch (e) { 
+                console.error(e) 
+              } 
+            }}
+          >
+            <Heart className={`w-5 h-5 ${liked ? 'fill-current' : ''}`} />
+            <span className="text-sm font-medium">{counts.likes}</span>
+          </button>
+          <button
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm transition-all duration-200 cursor-pointer bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+            onClick={() => {
+              const el = document.getElementById('comment-input')
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            }}
+          >
             <MessageCircle className="w-5 h-5" />
-            댓글 {comments.length}개
-          </h2>
+            <span className="text-sm font-medium">{comments.length}</span>
+          </button>
+        </div>
           
-          {/* 댓글 입력 */}
+        {/* 댓글 입력 */}
           <div className="flex items-start gap-4 mb-8 p-4 bg-slate-50 rounded-xl border border-slate-200">
             <Avatar className="w-10 h-10 shrink-0">
               <AvatarImage src={myAvatar || undefined} alt="My avatar" />
@@ -197,6 +232,7 @@ export default function BlogDetailPage() {
             </Avatar>
             <div className="flex-1 flex gap-3">
               <Input 
+                id="comment-input"
                 placeholder="댓글을 입력하세요..." 
                 value={commentText} 
                 onChange={(e)=>setCommentText(e.target.value)}
@@ -230,7 +266,7 @@ export default function BlogDetailPage() {
                 <p className="text-slate-500">첫 댓글을 남겨보세요.</p>
               </div>
             ) : comments.map((c) => (
-              <div key={c.id} className="bg-slate-50 rounded-lg p-4">
+              <div key={c.id} className="bg-white rounded-lg p-4 border border-slate-200">
                 <div className="flex items-start gap-4">
                   <Avatar className="w-10 h-10 shrink-0 ring-2 ring-white shadow-sm">
                     <AvatarImage src={c.author?.avatar_url || undefined} alt={c.author?.username||'user'} />
@@ -320,11 +356,10 @@ export default function BlogDetailPage() {
                   </div>
                 </div>
                 {/* 각 댓글 하단 구분선 */}
-                <div className="mt-6 mb-2 border-b border-black/80" />
+                <div className="mt-6 mb-2 border-b border-slate-200" />
               </div>
             ))}
           </div>
-        </div>
       </div>
     </div>
   )

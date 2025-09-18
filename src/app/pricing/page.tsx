@@ -12,7 +12,7 @@ export default function PricingPage() {
       <AnimatedBackground zIndexClass="-z-0" />
 
       <div className="relative z-10 mx-auto max-w-6xl px-4 py-16">
-        <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 text-center fade-in-down" style={{ animationDelay: '40ms' }}>가격 정책</h1>
+        <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 text-center fade-in-down" style={{ animationDelay: '40ms' }}>서비스 요금</h1>
         <p className="mt-3 text-slate-600 text-center fade-in-down" style={{ animationDelay: '110ms' }}>현재는 베타 서비스를 진행 중입니다.</p>
 
         {/* 월/연간 토글 (UI만) */}
