@@ -61,20 +61,7 @@ export default function ExplorePage() {
     return () => window.removeEventListener('resize', checkIsMobile)
   }, [])
 
-  // 커뮤니티 데이터 로드
-  useEffect(() => {
-    const controller = new AbortController()
-    ;(async () => {
-      try {
-        setLoading(true)
-        const data = await fetchExploreCommunities({ category: selectedCategory !== '전체' ? selectedCategory : undefined, signal: controller.signal })
-        setCommunities(data)
-      } catch (e:any) {
-        if (e?.name !== 'AbortError') console.error('커뮤니티 로드 오류:', e)
-      } finally { setLoading(false) }
-    })()
-    return () => controller.abort()
-  }, [])
+  // 초기 로드는 아래 디바운스된 이펙트에서 처리
 
   // 별도 /create 페이지로 분리됨
 
@@ -94,7 +81,7 @@ export default function ExplorePage() {
     }
   }
 
-  // 검색어나 카테고리 변경 시 데이터 다시 로드
+  // 검색어나 카테고리 변경 시 데이터 다시 로드 (초기 로드 포함)
   useEffect(() => {
     const controller = new AbortController()
     const timer = setTimeout(() => {
@@ -181,16 +168,18 @@ export default function ExplorePage() {
     let cancelled = false
     ;(async () => {
       try {
+        // 서버가 thumb_url을 내려주면 추가 요청 없이 사용
         const results = await Promise.all(
           communities.map(async (c) => {
+            const pre = (c as any)?.thumb_url || getVersionedUrl((c as any)?.image_url, (c as any)?.updated_at) || ''
+            if (pre) return [c.slug as string, pre] as const
             try {
-              const res = await fetch(`/api/community-images/${c.slug}?t=${Date.now()}`, { cache: 'no-store' })
+              const res = await fetch(`/api/community-images/${c.slug}`)
               const j = await res.json()
-              const url = j?.images?.[0]?.url || getVersionedUrl((c as any)?.image_url, (c as any)?.updated_at) || ''
+              const url = j?.images?.[0]?.url || pre || ''
               return [c.slug as string, url] as const
             } catch {
-              const fallback = getVersionedUrl((c as any)?.image_url, (c as any)?.updated_at) || ''
-              return [c.slug as string, fallback] as const
+              return [c.slug as string, pre] as const
             }
           })
         )
@@ -383,9 +372,9 @@ export default function ExplorePage() {
                         {/* 상단 대표 이미지 */}
                         <div className="w-full h-50 bg-slate-100">
                           {(() => {
-                            const topUrl = bannerMap[community.slug] || getVersionedUrl((community as any)?.image_url, (community as any)?.updated_at)
+                            const topUrl = bannerMap[community.slug] || (community as any)?.thumb_url || getVersionedUrl((community as any)?.image_url, (community as any)?.updated_at)
                             return topUrl ? (
-                              <img src={topUrl} alt="banner" className="w-full h-full object-cover" />
+                              <img src={topUrl} alt="banner" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                             ) : (
                               <div className="w-full h-full bg-gradient-to-b from-slate-100 to-slate-200" />
                             )

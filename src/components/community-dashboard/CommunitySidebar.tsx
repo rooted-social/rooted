@@ -5,6 +5,7 @@ import { Rss, Home as HomeIcon, Plus, GripVertical, ArrowUp, ArrowDown, Newspape
 import { getCommunityPages, createCommunityPage, deleteCommunityPage, saveCommunityPageOrder, renameCommunityPage, updateCommunityPageMeta } from "@/lib/communities"
 import { Settings } from "lucide-react"
 import { getReadableTextColor, withAlpha } from "@/utils/color"
+ 
 import { useCommunityContext } from "@/components/community-dashboard/CommunityContext"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -68,6 +69,9 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
   const mobileAsideRef = useRef<HTMLElement | null>(null)
   const [desktopScale, setDesktopScale] = useState<number>(1)
   const [mobileScale, setMobileScale] = useState<number>(1)
+  const [initialLoaded, setInitialLoaded] = useState<boolean>(false)
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
+  const lastRefreshRef = useRef<number>(0)
 
   useEffect(() => {
     const el = desktopAsideRef.current
@@ -99,27 +103,47 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
     return () => ro.disconnect()
   }, [mobileVisible])
 
-  const load = async () => {
+  const load = async (showSkeleton: boolean = false) => {
     try {
-      setLoading(true)
+      if (showSkeleton && !initialLoaded) {
+        setLoading(true)
+      } else {
+        setIsRefreshing(true)
+      }
       const list = await getCommunityPages(communityId)
       setPages(list.map(p => ({ id: p.id, title: p.title, group_id: (p as any).group_id ?? null, type: (p as any).type || 'page' })))
       const uid = user?.id || null
       const owner = ownerId || null
       setIsOwner(!!uid && !!owner && uid === owner)
     } finally {
-      setLoading(false)
+      if (showSkeleton && !initialLoaded) {
+        setLoading(false)
+      }
+      setIsRefreshing(false)
+      setInitialLoaded(true)
     }
   }
 
-  // 개발 모드 이중 실행 방지 및 커뮤니티 ID 변경 시에만 로드
-  const lastCommunityIdRef = (globalThis as any).__sidebarLastCommunityIdRef ?? { current: null as string | null }
-  ;(globalThis as any).__sidebarLastCommunityIdRef = lastCommunityIdRef
-  useEffect(() => { 
-    if (lastCommunityIdRef.current === communityId) return
-    lastCommunityIdRef.current = communityId
-    void load() 
+  // 커뮤니티 ID 변경, 페이지 가시성/포커스 복귀 시 재로딩
+  useEffect(() => {
+    void load(true)
   }, [communityId])
+  useEffect(() => {
+    const refresh = () => {
+      const now = Date.now()
+      if (now - lastRefreshRef.current < 5000) return
+      lastRefreshRef.current = now
+      void load(false)
+    }
+    const onFocus = () => { refresh() }
+    const onVisibility = () => { if (document.visibilityState === 'visible') { refresh() } }
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [])
 
   // 브랜드 컬러는 Context에서 제공됨
 
@@ -129,6 +153,9 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
     const owner = ownerId || null
     setIsOwner(!!uid && !!owner && uid === owner)
   }, [user?.id, ownerId])
+
+  // 사용자가 인증되었을 때(세션 준비 완료) 다시 로드
+  
 
   // isOpen prop 변경에 따라 모바일 오버레이 애니메이션 제어
   useEffect(() => {

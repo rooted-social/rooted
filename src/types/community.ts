@@ -8,6 +8,7 @@ export interface Community {
   category: string
   image_url?: string
   icon_url?: string
+  thumb_url?: string | null
   owner_id: string
   member_count: number
   created_at: string

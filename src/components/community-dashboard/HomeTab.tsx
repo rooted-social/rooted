@@ -14,7 +14,7 @@ import { toast } from "sonner"
 import type { CommunitySettings, Notice, Post } from "@/types/community"
 import { withAlpha } from "@/utils/color"
 import { useCommunityContext } from "@/components/community-dashboard/CommunityContext"
-import { supabase, getUserId } from "@/lib/supabase"
+// 클라이언트 직접 Supabase 조회 제거
 
 interface HomeTabProps { communityId: string; slug?: string }
 
@@ -24,6 +24,8 @@ export function HomeTab({ communityId, slug }: HomeTabProps) {
   // const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [canManage, setCanManage] = useState<boolean>(false)
+  const [upcomingEvents, setUpcomingEvents] = useState<{ id: string; title: string; start_at: string }[]>([])
+  const [recentActivity, setRecentActivity] = useState<{ id: string; kind: 'feed'|'blog'|'note'|'event'|'class'; title: string; created_at: string; href?: string; meta?: string }[]>([])
   // 홈 탭 내 통계 섹션은 별도 페이지로 이동됨
   const { brandColor: contextBrandColor } = useCommunityContext()
 
@@ -36,6 +38,9 @@ export function HomeTab({ communityId, slug }: HomeTabProps) {
         if (!isMounted) return
         setSettings(home.settings)
         setNotices(home.notices)
+        setCanManage(!!home.canManage)
+        setUpcomingEvents((home.upcomingEvents || []) as any)
+        setRecentActivity((home.recentActivity || []) as any)
       } finally {
         if (isMounted) setLoading(false)
       }
@@ -45,27 +50,7 @@ export function HomeTab({ communityId, slug }: HomeTabProps) {
     }
   }, [communityId])
 
-  // 관리자 권한 확인 (소유자 또는 admin 멤버)
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      try {
-        const uid = await getUserId()
-        if (!uid) { setCanManage(false); return }
-        const [{ data: comm }, { data: member }] = await Promise.all([
-          supabase.from('communities').select('owner_id').eq('id', communityId).single(),
-          supabase.from('community_members').select('role').eq('community_id', communityId).eq('user_id', uid).maybeSingle(),
-        ])
-        if (cancelled) return
-        const isOwnerNow = !!comm?.owner_id && comm.owner_id === uid
-        const isAdminNow = (member as any)?.role === 'admin'
-        setCanManage(isOwnerNow || isAdminNow)
-      } catch {
-        if (!cancelled) setCanManage(false)
-      }
-    })()
-    return () => { cancelled = true }
-  }, [communityId])
+  // 클라이언트 권한 재조회 제거 (서버에서 canManage를 내려줌)
 
   // 대시보드 내 브랜드 컬러를 전역 이벤트로 즉시 업데이트
   useEffect(() => {
@@ -92,7 +77,7 @@ export function HomeTab({ communityId, slug }: HomeTabProps) {
   }
 
   return (
-    <section className="grid gap-6 lg:grid-cols-3">
+    <section className="grid gap-6 lg:grid-cols-3 overflow-x-hidden">
       {/* 상단 전체 배너 */}
       {settings?.banner_url && (
         <div className="lg:col-span-3 -mt-2 md:mt-0">
@@ -107,7 +92,7 @@ export function HomeTab({ communityId, slug }: HomeTabProps) {
       )}
       {/* 좌측 메인 컨텐츠 */}
       {(() => { const brandColor = settings?.brand_color || contextBrandColor || undefined; return (
-      <div className="lg:col-span-2 space-y-6">
+      <div className="lg:col-span-2 space-y-6 min-w-0 max-w-full">
         {/* 1) Our Mission */}
         <div className="rounded-3xl shadow-sm bg-white/60 backdrop-blur-md border" style={{ borderColor: withAlpha(brandColor || '#0f172a', 0.18) }}>
           <div className="p-6">
@@ -133,15 +118,15 @@ export function HomeTab({ communityId, slug }: HomeTabProps) {
         />
 
         {/* 3) 최근 활동 */}
-        <RecentActivityCard communityId={communityId} slug={slug} brandColor={brandColor} />
+        <RecentActivityCard items={recentActivity} slug={slug} brandColor={brandColor} />
       </div>
       )})()}
 
       {/* 우측 사이드바 */}
       {(() => { const brandColor = settings?.brand_color || contextBrandColor || undefined; return (
-      <div className="space-y-6">
+      <div className="space-y-6 min-w-0 max-w-full">
         {/* 4) 다가오는 이벤트 */}
-        <UpcomingEventsCard communityId={communityId} brandColor={brandColor} />
+        <UpcomingEventsCard items={upcomingEvents.slice(0,5)} brandColor={brandColor} />
       </div>
       )})()}
     </section>
@@ -449,16 +434,7 @@ function NoticesSection({
   )
 }
 
-function UpcomingEventsCard({ communityId, brandColor }: { communityId: string; brandColor?: string }) {
-  const [items, setItems] = useState<{ id: string; title: string; start_at: string }[]>([])
-  useEffect(() => { (async () => {
-    try {
-      const { getCommunityEvents } = await import('@/lib/events')
-      const evts = await getCommunityEvents(communityId)
-      const upcoming = (evts || []).filter(e => new Date(e.start_at) > new Date()).slice(0, 5)
-      setItems(upcoming as any)
-    } catch {}
-  })() }, [communityId])
+function UpcomingEventsCard({ items, brandColor }: { items: { id: string; title: string; start_at: string }[]; brandColor?: string }) {
   return (
     <div className="rounded-3xl shadow-sm bg-white/60 backdrop-blur-md border" style={{ borderColor: withAlpha(brandColor || '#0f172a', 0.18) }}>
       <div className="p-6">
@@ -512,15 +488,14 @@ function UpcomingEventsCard({ communityId, brandColor }: { communityId: string; 
 }
 
 
-function RecentActivityCard({ communityId, slug, brandColor }: { communityId: string; slug?: string; brandColor?: string }) {
-  const [items, setItems] = useState<{ id: string; kind: 'feed'|'blog'|'note'|'event'|'class'; title: string; created_at: string; href?: string; meta?: string }[]>([])
-  useEffect(() => { (async () => {
-    try {
-      const { fetchRecentActivity } = await import('@/lib/dashboard')
-      const data = await fetchRecentActivity(communityId, slug)
-      setItems(data as any)
-    } catch {}
-  })() }, [communityId, slug])
+function RecentActivityCard({ items: rawItems, slug, brandColor }: { items: { id: string; kind: 'feed'|'blog'|'note'|'event'|'class'; title: string; created_at: string; href?: string; meta?: string }[]; slug?: string; brandColor?: string }) {
+  const items = (rawItems || []).map((it) => {
+    if (it.kind === 'feed') return { ...it, href: slug ? `/${slug}/dashboard?tab=home` : undefined }
+    if (it.kind === 'blog') return { ...it, href: slug ? `/${slug}/blog/${it.id}` : undefined }
+    if (it.kind === 'event') return { ...it, href: slug ? `/${slug}/dashboard?tab=calendar` : undefined }
+    if (it.kind === 'class') return { ...it, href: slug ? `/${slug}/classes/${it.id}` : undefined }
+    return it
+  })
 
   const Icon = ({ kind }: { kind: 'feed'|'blog'|'note'|'event'|'class' }) => {
     const iconColors = {

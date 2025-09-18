@@ -49,21 +49,21 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({ zIndexClass = '
     
     // 5개의 라인 색상: 동일한 검정색 계열로統일
     const colors = [
-      'rgba(0, 0, 0, 0.2)',
-      'rgba(0, 0, 0, 0.2)',
-      'rgba(0, 0, 0, 0.2)',
-      'rgba(0, 0, 0, 0.2)',
-      'rgba(0, 0, 0, 0.2)'
+      'rgba(0, 0, 0, 0.15)',
+      'rgba(0, 0, 0, 0.15)',
+      'rgba(0, 0, 0, 0.15)',
+      'rgba(0, 0, 0, 0.15)',
+      'rgba(0, 0, 0, 0.15)'
     ];
 
     // 물결 객체 초기화
     for (let i = 0; i < totalWaves; i++) {
-      const amplitude = Math.random() * 10 + 8; // 8-28 사이의 진폭 (더 강하게)
+      const amplitude = Math.random() * 5 + 8; // 8-28 사이의 진폭 (더 강하게)
       const period = Math.random() * 400 + 400; // 400-800 사이의 주기
       const phase = Math.random() * Math.PI * 2; // 초기 위상
       const lineWidth = Math.random() * 1.0 + 1.5; // 4.0-8.0 사이 선 두께 (훨씬 두께게)
       const yPosition = lineSpacing * (i + 1); // 균등한 간격으로 배치 (메모장 느낌)
-      const speed = (Math.random() * 0.02 + 0.008) * (Math.random() > 0.5 ? 1 : -1); // 속도와 방향
+      const speed = (Math.random() * 0.02 + 0.004) * (Math.random() > 0.5 ? 1 : -1); // 속도와 방향
       
       waves.push({
         amplitude,

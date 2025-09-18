@@ -12,6 +12,7 @@ import { deleteBlogPost } from "@/lib/blog"
 import { supabase, getUserId } from "@/lib/supabase"
 import { getCommunitySlugById, getCommunitySettings } from "@/lib/communities"
 import { getReadableTextColor } from "@/utils/color"
+import AnimatedBackground from "@/components/AnimatedBackground"
 import { Pencil, Trash2 } from "lucide-react"
 import { type BlogListItem as LibBlogListItem } from "@/lib/blog"
 import { fetchBlogList } from '@/lib/dashboard'
@@ -45,6 +46,8 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [isOwner, setIsOwner] = useState<boolean>(false)
   const [brandColor, setBrandColor] = useState<string | null>(null)
+  const [page, setPage] = useState<number>(1)
+  const perPage = 8
 
   useEffect(() => {
     let mounted = true
@@ -81,32 +84,47 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
     return () => { mounted = false }
   }, [pageId, communityId])
 
+  // 아이템 변화 시 현재 페이지가 범위를 넘지 않도록 보정
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(items.length / perPage))
+    if (page > totalPages) setPage(totalPages)
+  }, [items])
+
   return (
-    <div className="space-y-3">
+    <>
+      <AnimatedBackground zIndexClass="-z-10" />
+      <div className="space-y-3 relative z-10">
       {bannerUrl && (
         <div className="relative w-full h-40 overflow-hidden rounded-xl border">
           <Image src={bannerUrl} alt={title} fill className="object-cover" />
         </div>
       )}
-      <div className="flex items-start justify-between">
-        <SectionTitle title={title} description={description} />
+      <div className="text-center mt-2">
+        <h1 className="text-[28px] md:text-[36px] font-extrabold tracking-[-0.02em] text-slate-900 leading-tight">
+          {title}
+        </h1>
+        {description && (
+          <p className="mt-2 text-sm md:text-base text-slate-600 max-w-2xl mx-auto">{description}</p>
+        )}
         {slug && (
-          <Button asChild size="lg" className="whitespace-nowrap cursor-pointer rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border-0 font-semibold px-7 py-5"
-            style={brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor) } : undefined}
-          >
-            <Link href={`/${slug}/blog/new?pageId=${pageId}`} className="inline-flex items-center gap-2">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              새 글 작성하기
-            </Link>
-          </Button>
+          <div className="mt-3 px-4 md:px-0 md:pr-[5%] flex justify-end">
+            <Button asChild size="sm" className="h-auto whitespace-nowrap cursor-pointer rounded-xl md:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border-0 font-semibold px-3 py-2 text-sm md:px-6 md:py-3 md:text-base"
+              style={brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor) } : undefined}
+            >
+              <Link href={`/${slug}/blog/new?pageId=${pageId}`} className="inline-flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                새 글 작성하기
+              </Link>
+            </Button>
+          </div>
         )}
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8">
-          {Array.from({ length: 6 }).map((_, i) => (
+        <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fit,minmax(250px,330px))] justify-center md:justify-start justify-items-center md:justify-items-stretch gap-5 w-full max-w-[1400px] md:max-w-none mx-auto md:mx-0 px-[2%] md:px-0">
+          {Array.from({ length: perPage }).map((_, i) => (
             <div key={i} className="h-80 rounded-2xl bg-white animate-pulse shadow-sm border border-slate-200 overflow-hidden">
               {/* 썸네일 스켈레톤 */}
               <div className="w-full aspect-[16/9] bg-slate-100" />
@@ -140,8 +158,8 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
           <h3 className="text-lg font-semibold text-slate-900">첫 번째 게시글을 작성해보세요!</h3>
           <p className="mt-1 text-sm text-slate-600">블로그의 첫 글을 등록해 커뮤니티와 소식을 공유해보세요.</p>
           {slug && (
-            <Button asChild className="mt-4 rounded-2xl shadow-lg"
-              size="lg"
+            <Button asChild className="mt-4 h-auto rounded-xl md:rounded-2xl shadow-lg px-3 py-2 text-sm md:px-6 md:py-3 md:text-base"
+              size="sm"
               style={brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor) } : undefined}
             >
               <Link href={`/${slug}/blog/new?pageId=${pageId}`} className="inline-flex items-center gap-2">
@@ -152,12 +170,13 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8">
-          {items.map((post: any) => (
-            <Link key={post.id} href={`/${slug}/blog/${post.id}?pageId=${pageId}`} className="group" prefetch={false}>
-              <article className="h-full overflow-hidden rounded-2xl bg-white shadow-sm hover:shadow-lg transition-all duration-300 group-hover:scale-[1.01] border border-slate-200 relative">
+        <>
+        <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fit,minmax(250px,330px))] justify-center md:justify-start justify-items-center md:justify-items-stretch gap-5 w-full max-w-[1400px] md:max-w-none mx-auto md:mx-0 px-[3%] md:px-0">
+          {items.slice((page-1)*perPage, page*perPage).map((post: any) => (
+            <Link key={post.id} href={`/${slug}/blog/${post.id}?pageId=${pageId}`} className="group block w-full" prefetch={false}>
+              <article className="w-full h-[400px] md:h-auto min-w-0 overflow-hidden rounded-2xl bg-white shadow-sm hover:shadow-lg transition-all duration-300 group-hover:scale-[1.01] border border-slate-200 relative">
                 {/* 썸네일 영역 */}
-                <div className="relative w-full aspect-[16/9] overflow-hidden bg-slate-50">
+                <div className="relative w-full h-[220px] md:h-auto md:aspect-[16/9] overflow-hidden bg-slate-50">
                   {post.thumbnail_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img 
@@ -180,10 +199,11 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
                 </div>
 
                 {/* 콘텐츠 영역 */}
-                <div className="p-5 space-y-4">
-                  {/* 작성자 프로필 */}
-                  <div className="flex items-center gap-3">
-                    <Avatar className="w-8 h-8">
+                <div className="p-5 md:p-5 px-6 py-6 space-y-4 min-h-[180px] md:min-h-[140px]">
+                  {/* 작성자 프로필 + 날짜 (고정 높이) */}
+                  <div className="flex items-center justify-between h-8">
+                    <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+                      <Avatar className="w-8 h-8">
                       <AvatarImage 
                         src={post.author?.avatar_url ? getAvatarUrl(post.author.avatar_url, post.author.updated_at) : undefined} 
                         alt={post.author?.username || post.author?.full_name || 'User'} 
@@ -196,16 +216,16 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
                             '?'
                         }
                       </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium text-slate-700 truncate">
+                      </Avatar>
+                      <div className="text-sm font-medium text-slate-700 truncate max-w-[52%]">
                         {post.author?.full_name || post.author?.username || 'Anonymous'}
                       </div>
                     </div>
+                    <span className="text-[11px] text-slate-500 truncate max-w-[40%] text-right ml-2">{formatDate(post.created_at)}</span>
                   </div>
                   
                   {/* 제목 */}
-                  <h3 className="text-lg font-semibold text-slate-900 leading-tight line-clamp-2 group-hover:text-slate-700 transition-colors duration-200">
+                  <h3 className="text-[17px] md:text-lg font-semibold text-slate-900 leading-snug line-clamp-2 group-hover:text-slate-700 transition-colors duration-200 min-h-[46px]">
                     {post.title}
                   </h3>
                   
@@ -236,6 +256,34 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
             </Link>
           ))}
         </div>
+        {items.length > perPage && (
+          <div className="flex items-center justify-center gap-4 pt-6">
+            <Button 
+              size="sm" 
+              variant="outline" 
+              disabled={page===1} 
+              onClick={() => setPage(p => Math.max(1, p-1))}
+              className="rounded-2xl px-6 py-2 border-slate-200 hover:bg-slate-50 disabled:opacity-40 cursor-pointer"
+            >
+              이전
+            </Button>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full">{page}</span>
+              <span className="text-slate-400">/</span>
+              <span className="text-sm text-slate-500">{Math.max(1, Math.ceil(items.length / perPage))}</span>
+            </div>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              disabled={page >= Math.ceil(items.length / perPage)} 
+              onClick={() => setPage(p => Math.min(Math.max(1, Math.ceil(items.length / perPage)), p+1))}
+              className="rounded-2xl px-6 py-2 border-slate-200 hover:bg-slate-50 disabled:opacity-40 cursor-pointer"
+            >
+              다음
+            </Button>
+          </div>
+        )}
+        </>
       )}
       <Dialog open={!!confirmId} onOpenChange={(o)=>{ if(!o) setConfirmId(null) }}>
         <DialogContent>
@@ -249,13 +297,14 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </>
   )
 }
 
 function StatsRow({ counts, createdAt }: { counts: { views: number; likes: number; comments: number }; createdAt: string }) {
   return (
-    <div className="flex items-center justify-between">
+    <div className="relative flex items-center justify-between">
       <div className="flex items-center gap-4">
         <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-50 border border-slate-100 hover:bg-slate-100 transition-colors duration-200">
           <svg className="w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -276,9 +325,6 @@ function StatsRow({ counts, createdAt }: { counts: { views: number; likes: numbe
           </svg>
           <span className="text-xs font-medium text-blue-700">{counts.comments}</span>
         </div>
-      </div>
-      <div className="px-3 py-1.5 rounded-full bg-slate-50 border border-slate-100">
-        <span className="text-xs font-medium text-slate-600">{formatDate(createdAt)}</span>
       </div>
     </div>
   )

@@ -108,7 +108,7 @@ export function Header() {
                     href="/pricing"
                     className={`px-3 py-1 rounded-lg transition-colors duration-200 ${isActive('/pricing') ? 'bg-black text-white shadow-sm' : 'text-slate-900 hover:bg-white/60 hover:text-black'}`}
                   >
-                    가격 정책
+                    요금제
                   </Link>
                 </li>
               </ul>
@@ -299,7 +299,7 @@ export function Header() {
             <li>
               <Link href="/pricing" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-5 py-4 text-slate-800 font-semibold">
                 <CreditCard className="w-5 h-5 text-slate-500" />
-                가격 정책
+                요금제
               </Link>
             </li>
           </ul>

@@ -59,3 +59,26 @@ export async function processBlogImage(buffer: Buffer) {
   return { buffer: webp, contentType: "image/webp", ext: ".webp" }
 }
 
+export async function processBlogImageVariants(buffer: Buffer) {
+  const pipeline = sharp(buffer).rotate()
+  const [sm, md, lg] = await Promise.all([
+    pipeline.clone().resize({ width: 400, fit: "inside" }).webp({ quality: 80 }).toBuffer(),
+    pipeline.clone().resize({ width: 800, fit: "inside" }).webp({ quality: 80 }).toBuffer(),
+    pipeline.clone().resize({ width: 1200, fit: "inside" }).webp({ quality: 80 }).toBuffer(),
+  ])
+  return {
+    sm: { buffer: sm, contentType: "image/webp", ext: ".webp" },
+    md: { buffer: md, contentType: "image/webp", ext: ".webp" },
+    lg: { buffer: lg, contentType: "image/webp", ext: ".webp" },
+  }
+}
+
+export async function processBlogThumbnail(buffer: Buffer) {
+  const webp = await sharp(buffer)
+    .rotate()
+    .resize({ width: 1200, height: 750, fit: "cover", position: "centre" })
+    .webp({ quality: 80 })
+    .toBuffer()
+  return { buffer: webp, contentType: "image/webp", ext: ".webp" }
+}
+

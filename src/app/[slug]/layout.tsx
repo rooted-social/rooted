@@ -208,7 +208,14 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
         />
       )}
       {/* 대시보드 영역은 가드 완료 후 렌더 */}
-      {(!isCommunityDashboardPage || guardChecked) && children}
+      {(!isCommunityDashboardPage || guardChecked) && (
+        // 대시보드 홈(/dashboard)은 자체적으로 pt/pb 적용되어 있음
+        // 그 외 커뮤니티 내부 탭(/classes, /calendar, /members, /settings, /stats, /blog 등)은
+        // 고정 모바일 헤더/바텀 내비게이션으로 인한 잘림 방지를 위해 모바일에서만 여백을 추가
+        isCommunityDashboardPage && !pathname?.includes('/dashboard')
+          ? (<div className="md:pt-0 pt-15 pb-20">{children}</div>)
+          : children
+      )}
     </div>
   )
 }

@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { useAuthData } from "@/components/auth/AuthProvider"
 import HeroConnections from "@/components/HeroConnections"
-import { getCommunities } from "@/lib/communities"
+import { fetchExploreCommunities } from "@/lib/dashboard"
 import { getVersionedUrl } from "@/lib/utils"
 import type { Community } from "@/types/community"
 import { Flame, Users, FileText, Megaphone, CalendarDays, GraduationCap, BarChart3 } from "lucide-react"
@@ -26,8 +26,8 @@ export default function HomePage() {
   useEffect(() => {
     ;(async () => {
       try {
-        const data = await getCommunities({})
-        setCommunities(data.slice(0, 10))
+        const data = await fetchExploreCommunities()
+        setCommunities((data as any[]).slice(0, 10) as any)
       } catch {
         setCommunities([])
       }
@@ -42,14 +42,15 @@ export default function HomePage() {
       try {
         const results = await Promise.all(
           communities.map(async (c) => {
+            const pre = (c as any)?.thumb_url || getVersionedUrl((c as any)?.image_url, (c as any)?.updated_at) || ''
+            if (pre) return [c.slug as string, pre] as const
             try {
-              const res = await fetch(`/api/community-images/${c.slug}?t=${Date.now()}`, { cache: 'no-store' })
+              const res = await fetch(`/api/community-images/${c.slug}`)
               const j = await res.json()
-              const url = j?.images?.[0]?.url || getVersionedUrl((c as any)?.image_url, (c as any)?.updated_at) || ''
+              const url = j?.images?.[0]?.url || pre || ''
               return [c.slug as string, url] as const
             } catch {
-              const fallback = getVersionedUrl((c as any)?.image_url, (c as any)?.updated_at) || ''
-              return [c.slug as string, fallback] as const
+              return [c.slug as string, pre] as const
             }
           })
         )
@@ -205,9 +206,9 @@ export default function HomePage() {
                       {/* 상단 대표 이미지 */}
                       <div className="w-full h-50 bg-slate-100">
                         {(() => {
-                          const topUrl = bannerMap[c.slug] || getVersionedUrl((c as any)?.image_url, (c as any)?.updated_at)
+                          const topUrl = bannerMap[c.slug] || (c as any)?.thumb_url || getVersionedUrl((c as any)?.image_url, (c as any)?.updated_at)
                           return topUrl ? (
-                            <img src={topUrl} alt="banner" className="w-full h-full object-cover" />
+                            <img src={topUrl} alt="banner" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full bg-gradient-to-b from-slate-100 to-slate-200" />
                           )
