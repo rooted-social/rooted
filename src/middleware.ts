@@ -12,7 +12,7 @@ export async function middleware(req: NextRequest) {
   const url = new URL(req.url)
   if (url.pathname.startsWith('/api/admin/')) {
     try {
-      const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.ip || 'unknown'
+      const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip')?.trim() || 'unknown'
       const key = `rl:${ip}`
       const store = (global as any).__RL || ((global as any).__RL = new Map<string, { count: number; ts: number }>())
       const now = Date.now()
