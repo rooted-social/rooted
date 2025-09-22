@@ -8,6 +8,28 @@ const protectedPaths = [
 ]
 
 export async function middleware(req: NextRequest) {
+  // 간단한 admin API rate limit (IP 기준 10req/10s)
+  const url = new URL(req.url)
+  if (url.pathname.startsWith('/api/admin/')) {
+    try {
+      const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip')?.trim() || 'unknown'
+      const key = `rl:${ip}`
+      const store = (global as any).__RL || ((global as any).__RL = new Map<string, { count: number; ts: number }>())
+      const now = Date.now()
+      const slotMs = 10_000
+      const limit = 10
+      const cur = store.get(key)
+      if (!cur || now - cur.ts > slotMs) {
+        store.set(key, { count: 1, ts: now })
+      } else {
+        cur.count += 1
+        if (cur.count > limit) {
+          return new NextResponse(JSON.stringify({ error: 'rate_limited' }), { status: 429, headers: { 'content-type': 'application/json' } })
+        }
+        store.set(key, cur)
+      }
+    } catch {}
+  }
   const { pathname } = req.nextUrl
   // API/Next 내부 자원은 미들웨어 대상에서 제외
   if (pathname.startsWith('/api') || pathname.startsWith('/_next') || pathname === '/favicon.ico') {

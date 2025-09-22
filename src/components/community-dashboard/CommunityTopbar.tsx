@@ -9,6 +9,8 @@ import { useAuthData } from "@/components/auth/AuthProvider"
 import { useCommunityBySlug } from "@/hooks/useCommunity"
 import { getCommunitySettings } from "@/lib/communities"
 import { getReadableTextColor, withAlpha } from "@/utils/color"
+import { useRouter } from "next/navigation"
+import { supabase } from "@/lib/supabase"
 
 type ViewKey = "home" | "settings" | "classes" | "calendar" | "members"
 
@@ -24,9 +26,11 @@ interface CommunityTopbarProps {
 export function CommunityTopbar({ slug, name, active, onChangeAction, imageUrl, onToggleSidebar }: CommunityTopbarProps) {
   const { user, profile, myCommunities, unreadCount } = useAuthData()
   const [showCommunityDropdown, setShowCommunityDropdown] = useState(false)
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false)
   const [isOwner, setIsOwner] = useState<boolean>(false)
   const communityQ = useCommunityBySlug(slug)
   const [brandColor, setBrandColor] = useState<string | null>(null)
+  const router = useRouter()
 
   useEffect(() => {
     const ownerId = (communityQ.data as any)?.owner_id || null
@@ -81,6 +85,9 @@ export function CommunityTopbar({ slug, name, active, onChangeAction, imageUrl, 
     <>
       {/* PC Tab Navigation - 커뮤니티 대시보드 탭 네비게이션 */}
       <div className="hidden md:block bg-white border-b border-slate-200 relative z-50">
+        {(showCommunityDropdown || showProfileDropdown) && (
+          <div className="fixed inset-0 z-40" onClick={() => { setShowCommunityDropdown(false); setShowProfileDropdown(false) }} aria-hidden />
+        )}
         <div className="flex items-center justify-between h-17 px-6">
           <div className="flex items-center gap-3">
             <button
@@ -172,9 +179,10 @@ export function CommunityTopbar({ slug, name, active, onChangeAction, imageUrl, 
               )}
             </Link>
 
+            {/* My 루트 드롭다운 (PC) */}
             <div className="relative">
               <button
-                onClick={() => setShowCommunityDropdown(!showCommunityDropdown)}
+                onClick={() => { setShowCommunityDropdown(v => !v); setShowProfileDropdown(false) }}
                 className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full hover:bg-slate-50 transition-colors cursor-pointer"
                 aria-haspopup="menu"
                 aria-expanded={showCommunityDropdown}
@@ -222,15 +230,46 @@ export function CommunityTopbar({ slug, name, active, onChangeAction, imageUrl, 
               )}
             </div>
 
-            <Link href="/dashboard" className="flex items-center gap-2 p-1 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer" title="내 프로필">
-              <Avatar className="w-8 h-8">
-                <AvatarImage src={getAvatarUrl(profile?.avatar_url, profile?.updated_at)} alt="프로필 이미지" />
-                <AvatarFallback className="text-xs">
-                  {profile?.username?.[0]?.toUpperCase() || profile?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || '?'}
-                </AvatarFallback>
-              </Avatar>
-              <span className="hidden sm:block text-sm font-medium text-slate-800 max-w-[160px] truncate">{profile?.full_name || user?.email || '사용자'}</span>
-            </Link>
+            <div className="relative">
+              <button
+                onClick={() => { setShowProfileDropdown(v => !v); setShowCommunityDropdown(false) }}
+                className="flex items-center gap-2 p-1 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+                aria-haspopup="menu"
+                aria-expanded={showProfileDropdown}
+                title="내 프로필"
+              >
+                <Avatar className="w-8 h-8">
+                  <AvatarImage src={getAvatarUrl(profile?.avatar_url, profile?.updated_at)} alt="프로필 이미지" />
+                  <AvatarFallback className="text-xs">
+                    {profile?.username?.[0]?.toUpperCase() || profile?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || '?'}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="hidden sm:block text-sm font-medium text-slate-800 max-w-[160px] truncate">{profile?.full_name || user?.email || '사용자'}</span>
+              </button>
+              {showProfileDropdown && (
+                <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-lg z-40">
+                  <div className="p-2">
+                    <button
+                      className="w-full px-3 py-2 rounded-lg hover:bg-slate-50 text-sm text-center cursor-pointer"
+                      onClick={() => { setShowProfileDropdown(false); router.push('/dashboard') }}
+                    >
+                      프로필 페이지 이동
+                    </button>
+                    <button
+                      className="w-full px-3 py-2 rounded-lg hover:bg-red-50 text-sm text-center text-red-600 cursor-pointer"
+                      onClick={async () => {
+                        try { await supabase.auth.signOut() } catch {}
+                        try { await fetch('/api/auth/clear', { method: 'POST' }) } catch {}
+                        setShowProfileDropdown(false)
+                        router.push('/login')
+                      }}
+                    >
+                      로그아웃
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -323,7 +362,7 @@ export function CommunityTopbar({ slug, name, active, onChangeAction, imageUrl, 
                               className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors"
                               onClick={() => setShowCommunityDropdown(false)}
                             >
-                              <div className="w-8 h-8 rounded-md overflow-hidden bg-slate-100">
+                              <div className="w-8 h-8 rounded-md overflow-hidden bg-white border border-slate-200">
                                 {(community.communities as any)?.icon_url || community.communities?.image_url ? (
                                   <img src={(community.communities as any).icon_url || (community.communities as any).image_url} alt="icon" className="w-full h-full object-cover" />
                                 ) : (

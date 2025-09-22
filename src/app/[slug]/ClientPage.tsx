@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import Image from 'next/image'
+import NextImage from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AnimatedBackground } from '@/components/AnimatedBackground'
@@ -84,6 +84,10 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
         else { setIsMember(true); setIsPending(false) }
       }
       // 통계는 비동기로 로드 (초기 렌더 차단 X)
+      // 초기 페인트를 빠르게: 메인 히어로 이미지는 미리 로딩 우선
+      if (typeof window !== 'undefined' && (initial.images || []).length > 0) {
+        try { const preload = new window.Image(); preload.src = (initial.images[0] as any).url } catch {}
+      }
       void fetchDashboardStats(initial.community.id).then((s) => setStats(s as any)).catch(() => {})
       setLoading(false)
       return
@@ -147,7 +151,8 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
   const handleJoinToggle = async () => {
     if (!user) {
       alert('로그인이 필요합니다.')
-      router.push('/login')
+      const next = encodeURIComponent(`/${community?.slug || slug}`)
+      router.push(`/login?next=${next}`)
       return
     }
     if (!community) return
@@ -175,7 +180,7 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
   if (loading) {
     return (
       <div className="min-h-screen relative overflow-hidden">
-        <AnimatedBackground />
+        {/* 초기 페인트 단순화: 배경 애니메이션 생략하여 TTI, FCP 개선 */}
         <div className="absolute inset-0 flex items-center justify-center z-10">
           <div className="flex items-center gap-3 rounded-2xl bg-white/80 backdrop-blur px-4 py-3 border border-slate-200 shadow-sm">
             <Loader2 className="w-5 h-5 animate-spin text-slate-700" />
@@ -205,6 +210,7 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
+      {/* 배경 애니메이션은 메인 컨텐츠 페인트 후 브라우저 아이들 시간에 마운트 */}
       <AnimatedBackground />
       <main className="relative px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 pt-3 md:pt-15 pb-24 z-10">
         <div className="w-full max-w-6xl mx-auto">
@@ -217,7 +223,7 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
             <div className="flex items-center gap-3 sm:gap-4">
             <div className={`${(community.icon_url || community.image_url) ? 'bg-transparent' : 'bg-slate-600'} w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0`}>
               {community.icon_url || community.image_url ? (
-                <Image src={(community.icon_url || community.image_url) as string} alt={community.name} width={56} height={56} className="object-cover rounded-xl" />
+                <NextImage src={(community.icon_url || community.image_url) as string} alt={community.name} width={56} height={56} className="object-cover rounded-xl" />
                 ) : (
                   <span className="text-white font-bold text-lg sm:text-xl">{community.name[0]}</span>
                 )}
@@ -245,7 +251,7 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
                       className="relative aspect-[16/9] w-full overflow-hidden rounded-xl cursor-pointer hover:opacity-95 transition-opacity"
                       onClick={() => setImageModal({ open: true, url: images[mainIdx]?.url })}
                     >
-                      <Image src={images[mainIdx]?.url} alt="community-main" fill className="object-cover" sizes="(max-width: 1024px) 100vw, 66vw" />
+                      <NextImage src={images[mainIdx]?.url} alt="community-main" fill className="object-cover" sizes="(max-width: 1024px) 100vw, 66vw" priority />
                       {images.length > 1 && (
                         <>
                           <button
@@ -272,7 +278,7 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
                           onClick={() => setMainIdx(images.findIndex(x => x.key === img.key))} 
                           className="relative aspect-[4/3] w-full overflow-hidden rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400 cursor-pointer hover:scale-105 hover:shadow-md transition-all duration-200"
                         >
-                          <Image src={img.url} alt={`community-thumb-${i}`} fill className="object-cover" sizes="(max-width: 1024px) 20vw, 12vw" />
+                          <NextImage src={img.url} alt={`community-thumb-${i}`} fill className="object-cover" sizes="(max-width: 1024px) 20vw, 12vw" />
                         </button>
                       ))}
                     </div>
@@ -286,16 +292,20 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
                 <CardContent className="space-y-4 sm:space-y-6 pb-3 sm:pb-5">
                   {/* 리더 소개 */}
                   <div className="pt-4 sm:pt-5 pb-2">
-                    <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
+                  <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
+                    <div className="relative">
                       <Avatar className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0">
                         <AvatarImage src={community!.profiles.avatar_url || ''} alt={community!.profiles.full_name || community!.profiles.username} />
                         <AvatarFallback className="bg-slate-200 text-slate-600 font-semibold text-sm">{(community!.profiles.full_name || community!.profiles.username)[0]}</AvatarFallback>
                       </Avatar>
-                      <div className="min-w-0">
-                        <div className="text-base sm:text-lg font-semibold text-slate-900 truncate">{community!.profiles.full_name}</div>
+                      <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-yellow-500 grid place-items-center shadow-md">
+                        <Crown className="w-3.5 h-3.5 text-white" />
                       </div>
                     </div>
-                    <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-2 inline-flex items-center"><Crown className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2 text-yellow-500" />리더 소개</h3>
+                    <div className="min-w-0">
+                      <div className="text-base sm:text-lg font-semibold text-slate-900 truncate">{community!.profiles.full_name}</div>
+                    </div>
+                  </div>
                     {community!.profiles.bio && (
                       <p className="text-slate-700 text-sm sm:text-base leading-relaxed">{community!.profiles.bio}</p>
                     )}
@@ -305,7 +315,7 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
 
                   {/* 커뮤니티 소개 */}
                   <div>
-                    <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-2 inline-flex items-center"><Info className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2 text-slate-700" />커뮤니티 소개</h3>
+                    <h3 className="text-sm sm:text-base font-bold text-slate-900 mb-2 inline-flex items-center"><Info className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2 text-slate-700" />커뮤니티 소개</h3>
                     <p className="text-sm sm:text-base leading-6 text-slate-800">
                       {(community!.description || '').slice(0, 100)}
                     </p>
@@ -400,7 +410,7 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
           <div className="relative flex items-center justify-center">
             {imageModal.url && (
               <div className="relative">
-                <Image 
+                <NextImage 
                   src={imageModal.url} 
                   alt="확대된 이미지" 
                   width={1000}

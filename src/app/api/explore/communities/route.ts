@@ -6,13 +6,26 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const search = searchParams.get('search')
   const category = searchParams.get('category')
+  const limitParam = searchParams.get('limit')
+  const sort = searchParams.get('sort') // 'popular' | 'newest'
 
   const supabase = createServerClient()
 
   try {
-    let q = supabase.from('communities').select('*').order('created_at', { ascending: false })
+    let q = supabase.from('communities').select('*').eq('is_disabled', false)
+    // 정렬: 인기순(member_count desc) 또는 최신순(created_at desc)
+    if (sort === 'popular') {
+      // member_count 내림차순, null은 뒤로
+      q = q.order('member_count', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false })
+    } else {
+      q = q.order('created_at', { ascending: false })
+    }
     if (category && category !== '전체') q = q.eq('category', category)
     if (search) q = q.or(`name.ilike.%${search}%,description.ilike.%${search}%`)
+    if (limitParam) {
+      const l = Math.max(1, Math.min(100, Number(limitParam) || 0))
+      if (l) q = q.limit(l)
+    }
     const { data, error } = await q
     if (error) throw error
 
@@ -49,7 +62,8 @@ export async function GET(req: NextRequest) {
       status: 200,
       headers: {
         'content-type': 'application/json',
-        'Cache-Control': 'public, max-age=60, s-maxage=60',
+        // CDN 캐시 강화: 인기 섹션은 60초간 캐시, ISR 유사 효과
+        'Cache-Control': 'public, max-age=60, s-maxage=120',
       },
     })
   } catch (e: any) {

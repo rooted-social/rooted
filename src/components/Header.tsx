@@ -6,14 +6,17 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuthData } from './auth/AuthProvider'
 import { getAvatarUrl } from "@/lib/utils"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
+import { supabase } from "@/lib/supabase"
 import { Bell, LogIn, Menu, ChevronDown, Compass, Sparkles, CreditCard } from "lucide-react"
 
 export function Header() {
   const pathname = usePathname()
+  const router = useRouter()
   const { user, profile, unreadCount, loading, myCommunities } = useAuthData()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [showCommunityDropdown, setShowCommunityDropdown] = useState(false)
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false)
   const desktopDropdownRef = useRef<HTMLDivElement | null>(null)
 
   const firstSegment = pathname?.split('/').filter(Boolean)[0] || ''
@@ -38,10 +41,10 @@ export function Header() {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white md:bg-transparent">
       {/* 외부 클릭으로 데스크탑 드롭다운 닫기 */}
-      {showCommunityDropdown && (
+      {(showCommunityDropdown || showProfileDropdown) && (
         <div
           className="hidden md:block fixed inset-0 z-40"
-          onClick={() => setShowCommunityDropdown(false)}
+          onClick={() => { setShowCommunityDropdown(false); setShowProfileDropdown(false) }}
           aria-hidden
         />
       )}
@@ -58,24 +61,37 @@ export function Header() {
             </span>
           </Link>
 
-          {/* 모바일: 메뉴 아이콘(좌측) + 로고 */}
-          <div className="md:hidden flex items-center gap-2">
-            <button
-              onClick={() => setMobileOpen(v => !v)}
-              className="w-9 h-9 grid place-items-center text-slate-900 active:scale-[0.98]"
-              aria-label="모바일 메뉴"
-            >
-              <Menu className="w-6 h-6" />
-            </button>
-          </div>
+          {/* 모바일: 좌측 영역 */}
+          {isCommunityRootPage ? (
+            // 커뮤니티 상세 페이지에서는 메뉴 버튼 제거, Rooted 아이콘만 배치
+            <div className="md:hidden flex items-center">
+              <Link href="/" className="flex items-center">
+                <img src="/logos/logo_icon.png" alt="Rooted" className="w-7 h-7" />
+              </Link>
+            </div>
+          ) : (
+            <div className="md:hidden flex items-center gap-2">
+              <button
+                onClick={() => setMobileOpen(v => !v)}
+                className="w-9 h-9 grid place-items-center text-slate-900 active:scale-[0.98]"
+                aria-label="모바일 메뉴"
+              >
+                <Menu className="w-6 h-6" />
+              </button>
+            </div>
+          )}
 
-          {/* 모바일 중앙 로고 */}
-          <div className="md:hidden flex items-center justify-center">
-            <Link href="/" className="flex items-center">
-              <img src="/logos/logo_icon.png" alt="Rooted" className="w-7 h-7" />
-              <img src="/logos/logo_main.png" alt="Rooted" className="h-5 ml-1" />
-            </Link>
-          </div>
+          {/* 모바일 중앙 로고 (커뮤니티 상세 페이지에서는 제거하고, 그 자리를 스페이서로 유지) */}
+          {!isCommunityRootPage ? (
+            <div className="md:hidden flex items-center justify-center">
+              <Link href="/" className="flex items-center">
+                <img src="/logos/logo_icon.png" alt="Rooted" className="w-7 h-7" />
+                <img src="/logos/logo_main.png" alt="Rooted" className="h-5 ml-1" />
+              </Link>
+            </div>
+          ) : (
+            <div className="md:hidden" />
+          )}
 
           {/* 중앙: 메뉴 (커뮤니티 상세 루트 페이지에서는 데스크탑에서 숨김) */}
           {!isCommunityRootPage && (
@@ -133,7 +149,7 @@ export function Header() {
               {user && (
                 <>
                   <button
-                    onClick={() => setShowCommunityDropdown(v => !v)}
+                    onClick={() => { setShowCommunityDropdown(v => !v); setShowProfileDropdown(false) }}
                     className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full hover:bg-white/50 transition-colors cursor-pointer"
                     aria-haspopup="menu"
                     aria-expanded={showCommunityDropdown}
@@ -185,7 +201,13 @@ export function Header() {
               {loading ? (
                 <div className="w-8 h-8 rounded-full bg-slate-200 animate-pulse" />
               ) : user ? (
-                <Link href="/dashboard" className="flex items-center gap-2 px-1.5 py-1 rounded-full hover:bg-white/50 transition-colors">
+                <button
+                  onClick={() => { setShowProfileDropdown(v => !v); setShowCommunityDropdown(false) }}
+                  className="flex items-center gap-2 px-1.5 py-1 rounded-full hover:bg-white/50 transition-colors cursor-pointer"
+                  aria-haspopup="menu"
+                  aria-expanded={showProfileDropdown}
+                  title="프로필 옵션"
+                >
                   <Avatar className="w-8 h-8">
                     <AvatarImage src={getAvatarUrl(profile?.avatar_url, profile?.updated_at)} alt="프로필 이미지" />
                     <AvatarFallback className="text-xs">
@@ -193,18 +215,41 @@ export function Header() {
                     </AvatarFallback>
                   </Avatar>
                   <span className="hidden sm:block text-sm text-slate-900 max-w-[160px] truncate">{profile?.full_name || '사용자'}</span>
-                </Link>
+                </button>
               ) : (
-                <Link href="/login" className="inline-flex items-center gap-2 px-3 py-2 rounded-full hover:bg-white/50 transition-colors text-slate-900">
+                <Link href={`/login?next=${encodeURIComponent(typeof window !== 'undefined' ? window.location.pathname : '/')}`} className="inline-flex items-center gap-2 px-3 py-2 rounded-full hover:bg-white/50 transition-colors text-slate-900">
                   <LogIn className="w-4 h-4" />
                   <span className="text-sm">로그인</span>
                 </Link>
               )}
+              {showProfileDropdown && (
+                <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-lg z-50">
+                  <div className="p-2">
+                    <button
+                      className="w-full px-3 py-2 rounded-lg hover:bg-slate-50 text-sm text-center cursor-pointer"
+                      onClick={() => { setShowProfileDropdown(false); router.push('/dashboard') }}
+                    >
+                      프로필 페이지 이동
+                    </button>
+                    <button
+                      className="w-full px-3 py-2 rounded-lg hover:bg-red-50 text-sm text-center text-red-600 cursor-pointer"
+                      onClick={async () => {
+                        try { await supabase.auth.signOut() } catch {}
+                        try { await fetch('/api/auth/clear', { method: 'POST' }) } catch {}
+                        setShowProfileDropdown(false)
+                        router.push('/login')
+                      }}
+                    >
+                      로그아웃
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* 모바일 우측: 알림 + 아바타/로그인 (아바타 클릭 시 내 커뮤니티 목록) */}
-          <div className="md:hidden flex items-center gap-2 justify-end">
+          {/* 모바일 우측: 알림 + 아바타/로그인 (항상 우측 정렬 유지) */}
+          <div className="md:hidden flex items-center gap-2 justify-end ml-auto">
             {user && (
               <Link href="/notifications" className="w-9 h-9 grid place-items-center text-slate-900">
                 <Bell className="w-6 h-6" />
@@ -216,7 +261,7 @@ export function Header() {
               <>
                 <button
                   onClick={() => setShowCommunityDropdown(v => !v)}
-                  className="w-9 h-9 rounded-full overflow-hidden border border-slate-200 active:scale-[0.98]"
+                  className="w-9 h-9 grid place-items-center text-slate-900"
                   aria-haspopup="menu"
                   aria-expanded={showCommunityDropdown}
                   title="내 커뮤니티"
@@ -272,7 +317,7 @@ export function Header() {
                 )}
               </>
             ) : (
-              <Link href="/login" className="w-9 h-9 grid place-items-center text-slate-900">
+              <Link href={`/login?next=${encodeURIComponent(typeof window !== 'undefined' ? window.location.pathname : '/')}`} className="w-9 h-9 grid place-items-center text-slate-900">
                 <LogIn className="w-5 h-5" />
               </Link>
             )}

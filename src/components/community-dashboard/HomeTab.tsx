@@ -4,21 +4,23 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { updateNotice, deleteNotice, createNotice } from "@/lib/communities"
 import { fetchHomeData } from '@/lib/dashboard'
-import { Target, FileText, BookOpen, Newspaper, CalendarClock, Rss, StickyNote, Calendar, Bell, Activity, Settings, Edit3, Trash2, MoreVertical, SquarePen } from "lucide-react"
+import { Target, FileText, BookOpen, Newspaper, CalendarClock, Rss, StickyNote, Calendar, Bell, Activity, Settings, Edit3, Trash2, MoreVertical, SquarePen, MapPin } from "lucide-react"
 import { toast } from "sonner"
+import { getAuthToken, getUserId } from '@/lib/supabase'
 import type { CommunitySettings, Notice, Post } from "@/types/community"
 import { withAlpha } from "@/utils/color"
 import { useCommunityContext } from "@/components/community-dashboard/CommunityContext"
 // 클라이언트 직접 Supabase 조회 제거
 
-interface HomeTabProps { communityId: string; slug?: string }
+interface HomeTabProps { communityId: string; slug?: string; initial?: { settings?: any; notices?: any[]; canManage?: boolean; upcomingEvents?: any[]; recentActivity?: any[] } }
 
-export function HomeTab({ communityId, slug }: HomeTabProps) {
+export function HomeTab({ communityId, slug, initial }: HomeTabProps) {
   const [settings, setSettings] = useState<CommunitySettings | null>(null)
   const [notices, setNotices] = useState<Notice[]>([])
   // const [posts, setPosts] = useState<Post[]>([])
@@ -30,6 +32,15 @@ export function HomeTab({ communityId, slug }: HomeTabProps) {
   const { brandColor: contextBrandColor } = useCommunityContext()
 
   useEffect(() => {
+    if (initial && (initial.settings || initial.notices)) {
+      setSettings((initial.settings || null) as any)
+      setNotices((initial.notices || []) as any)
+      setCanManage(!!initial.canManage)
+      setUpcomingEvents(((initial.upcomingEvents || []) as any).slice(0,5))
+      setRecentActivity((initial.recentActivity || []) as any)
+      setLoading(false)
+      return
+    }
     let isMounted = true
     ;(async () => {
       try {
@@ -80,7 +91,7 @@ export function HomeTab({ communityId, slug }: HomeTabProps) {
     <section className="grid gap-6 lg:grid-cols-3 overflow-x-hidden">
       {/* 상단 전체 배너 */}
       {settings?.banner_url && (
-        <div className="lg:col-span-3 -mt-2 md:mt-0">
+        <div className="lg:col-span-3 -mt-0 md:mt-0">
           <div className="relative w-full overflow-hidden rounded-3xl border border-slate-200/50 shadow-sm">
             <img
               src={settings.banner_url}
@@ -118,13 +129,17 @@ export function HomeTab({ communityId, slug }: HomeTabProps) {
         />
 
         {/* 3) 최근 활동 */}
+        {/* 모바일: 다가오는 이벤트를 최근 활동 위로 노출 */}
+        <div className="lg:hidden">
+          <UpcomingEventsCard items={upcomingEvents.slice(0,5)} brandColor={brandColor} />
+        </div>
         <RecentActivityCard items={recentActivity} slug={slug} brandColor={brandColor} />
       </div>
       )})()}
 
       {/* 우측 사이드바 */}
       {(() => { const brandColor = settings?.brand_color || contextBrandColor || undefined; return (
-      <div className="space-y-6 min-w-0 max-w-full">
+      <div className="space-y-6 min-w-0 max-w-full hidden lg:block">
         {/* 4) 다가오는 이벤트 */}
         <UpcomingEventsCard items={upcomingEvents.slice(0,5)} brandColor={brandColor} />
       </div>
@@ -435,6 +450,40 @@ function NoticesSection({
 }
 
 function UpcomingEventsCard({ items, brandColor }: { items: { id: string; title: string; start_at: string }[]; brandColor?: string }) {
+  const [selected, setSelected] = useState<{ id: string; title: string; start_at: string } | null>(null)
+  const [open, setOpen] = useState(false)
+  const [isAttending, setIsAttending] = useState(false)
+  const [attendees, setAttendees] = useState<{ id: string; avatar_url?: string; name?: string }[]>([])
+  const [loadingAttendees, setLoadingAttendees] = useState(false)
+
+  useEffect(() => {
+    if (!open || !selected) return
+    let aborted = false
+    const load = async () => {
+      setLoadingAttendees(true)
+      try {
+        const [token, uid] = await Promise.all([getAuthToken(), getUserId()])
+        const res = await fetch(`/api/events/attendees?eventId=${encodeURIComponent(selected.id)}`, {
+          headers: token ? { authorization: `Bearer ${token}` } : undefined,
+          cache: 'no-store',
+        })
+        if (!res.ok) throw new Error('failed')
+        const list = await res.json()
+        if (!aborted) {
+          setAttendees(list || [])
+          if (uid) setIsAttending((list || []).some((m: any) => m?.id === uid))
+          else setIsAttending(false)
+        }
+      } catch {
+        if (!aborted) setAttendees([])
+      } finally {
+        if (!aborted) setLoadingAttendees(false)
+      }
+    }
+    void load()
+    return () => { aborted = true }
+  }, [open, selected])
+
   return (
     <div className="rounded-3xl shadow-sm bg-white/60 backdrop-blur-md border" style={{ borderColor: withAlpha(brandColor || '#0f172a', 0.18) }}>
       <div className="p-6">
@@ -456,11 +505,12 @@ function UpcomingEventsCard({ items, brandColor }: { items: { id: string; title:
             items.map(ev => (
               <div
                 key={ev.id}
-                className="rounded-2xl p-4 border transition-all hover:shadow-sm hover:scale-[1.02]"
+                className="rounded-2xl p-4 border transition-all hover:shadow-sm hover:scale-[1.02] cursor-pointer"
                 style={{
                   backgroundColor: withAlpha(brandColor || '#0f172a', 0.08),
                   borderColor: withAlpha(brandColor || '#0f172a', 0.22),
                 }}
+                onClick={() => { setSelected(ev); setOpen(true); }}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3">
@@ -483,6 +533,102 @@ function UpcomingEventsCard({ items, brandColor }: { items: { id: string; title:
           )}
         </div>
       </div>
+
+      {/* 이벤트 상세 모달 */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold text-center">{selected?.title || '이벤트'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 pt-1">
+            {/* 이벤트 항목 */}
+            <div className="space-y-3">
+              <div className="text-sm font-medium text-slate-900 text-center">이벤트 정보</div>
+              <div className="space-y-2">
+                <div className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center border shadow-sm" style={{ backgroundColor: withAlpha(brandColor || '#0f172a', 0.08), borderColor: withAlpha(brandColor || '#0f172a', 0.25) }}>
+                    <CalendarClock className="w-4 h-4" style={{ color: brandColor || '#0f172a' }} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[11px] uppercase tracking-wide text-slate-500">일시</div>
+                    <div className="text-sm font-medium text-slate-800">{selected ? new Date(selected.start_at).toLocaleString('ko-KR') : '-'}</div>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center border shadow-sm" style={{ backgroundColor: withAlpha(brandColor || '#0f172a', 0.08), borderColor: withAlpha(brandColor || '#0f172a', 0.25) }}>
+                    <MapPin className="w-4 h-4" style={{ color: brandColor || '#0f172a' }} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[11px] uppercase tracking-wide text-slate-500">장소</div>
+                    <div className="text-sm font-medium text-slate-800">미정</div>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center border shadow-sm" style={{ backgroundColor: withAlpha(brandColor || '#0f172a', 0.08), borderColor: withAlpha(brandColor || '#0f172a', 0.25) }}>
+                    <FileText className="w-4 h-4" style={{ color: brandColor || '#0f172a' }} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[11px] uppercase tracking-wide text-slate-500">설명</div>
+                    <div className="text-sm font-medium text-slate-800">추가 정보가 없습니다.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 참여 예정 멤버 */}
+            <div className="space-y-2">
+              <div className="text-sm font-medium text-slate-900">참여 예정 멤버</div>
+              <div className="flex items-center gap-2">
+                <div className="flex -space-x-2">
+                  {attendees.slice(0, 5).map((m) => (
+                    <Avatar key={m.id} className="w-8 h-8 border-2 border-white">
+                      <AvatarImage src={m.avatar_url || ''} alt={m.name || 'attendee'} />
+                      <AvatarFallback className="text-xs">{(m.name || 'U').slice(0,1)}</AvatarFallback>
+                    </Avatar>
+                  ))}
+                </div>
+                <span className="text-xs text-slate-500">{loadingAttendees ? '로딩 중...' : `총 ${attendees.length}명 참여 예정`}</span>
+              </div>
+            </div>
+
+            {/* 참석하기 토글 */}
+            <div className="flex items-center justify-end pt-2">
+              <Button
+                onClick={async () => {
+                  if (!selected) return
+                  try {
+                    const token = await getAuthToken()
+                    const res = await fetch('/api/events/attend', {
+                      method: 'POST',
+                      headers: {
+                        'content-type': 'application/json',
+                        ...(token ? { authorization: `Bearer ${token}` } : {}),
+                      },
+                      body: JSON.stringify({ eventId: selected.id, attend: !isAttending }),
+                    })
+                    if (!res.ok) throw new Error('failed')
+                    setIsAttending((prev) => !prev)
+                    // 성공 후 목록 재조회
+                    try {
+                      const res2 = await fetch(`/api/events/attendees?eventId=${encodeURIComponent(selected.id)}`, {
+                        headers: token ? { authorization: `Bearer ${token}` } : undefined,
+                        cache: 'no-store',
+                      })
+                      if (res2.ok) setAttendees(await res2.json())
+                    } catch {}
+                  } catch {
+                    toast.error('처리에 실패했습니다.')
+                  }
+                }}
+                className={`cursor-pointer ${isAttending ? '' : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'}`}
+                variant={isAttending ? 'default' : 'ghost'}
+              >
+                {isAttending ? '참여 완료!' : '참여하기'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

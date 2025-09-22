@@ -26,11 +26,12 @@ interface CommunitySidebarProps {
   hideDesktop?: boolean
   communityName?: string
   communityIconUrl?: string | null
+  initialPages?: { id: string; title: string; group_id?: string | null; type?: 'feed' | 'blog' | 'page' }[]
 }
 
 type PageItem = { id: string; title: string; group_id: string | null; type?: 'feed' | 'blog' | 'page' }
 
-export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, onSelectFeed, onSelectPage, isOpen = false, onClose, hideDesktop = false, communityName, communityIconUrl }: CommunitySidebarProps) {
+export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, onSelectFeed, onSelectPage, isOpen = false, onClose, hideDesktop = false, communityName, communityIconUrl, initialPages }: CommunitySidebarProps) {
   const { user } = useAuthData()
   const { brandColor } = useCommunityContext()
   const [pages, setPages] = useState<PageItem[]>([])
@@ -126,6 +127,13 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
 
   // 커뮤니티 ID 변경, 페이지 가시성/포커스 복귀 시 재로딩
   useEffect(() => {
+    if (!initialLoaded && Array.isArray(initialPages) && initialPages.length > 0) {
+      // 서버에서 전달된 초기 페이지를 먼저 반영해 초기 렌더를 빠르게 함
+      setPages(initialPages.map(p => ({ id: p.id, title: p.title, group_id: (p as any).group_id ?? null, type: (p as any).type || 'page' })))
+      setLoading(false)
+      setInitialLoaded(true)
+      return
+    }
     void load(true)
   }, [communityId])
   useEffect(() => {
