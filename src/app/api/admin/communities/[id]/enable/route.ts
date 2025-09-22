@@ -4,10 +4,11 @@ import { createServerClient } from '@/lib/supabase-server'
 
 export const dynamic = 'force-dynamic'
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, context: any) {
+  const { params } = context || {}
   const guard = await requireSuperAdminOr404JSON()
   if (!guard.ok) return guard.response
-  const { id } = params
+  const { id } = params as { id: string }
   const supabase = createServerClient()
   const { error } = await supabase.from('communities').update({ is_disabled: false, disabled_reason: null }).eq('id', id)
   if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500 })
