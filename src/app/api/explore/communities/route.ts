@@ -15,8 +15,8 @@ export async function GET(req: NextRequest) {
     let q = supabase.from('communities').select('*').eq('is_disabled', false)
     // 정렬: 인기순(member_count desc) 또는 최신순(created_at desc)
     if (sort === 'popular') {
-      // member_count가 없을 수 있어 nullsLast 옵션 적용
-      q = q.order('member_count', { ascending: false, nullsLast: true }).order('created_at', { ascending: false })
+      // member_count 내림차순, null은 뒤로
+      q = q.order('member_count', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false })
     } else {
       q = q.order('created_at', { ascending: false })
     }
