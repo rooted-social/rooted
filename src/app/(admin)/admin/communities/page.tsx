@@ -5,11 +5,12 @@ import CommunityActions from '@/components/admin/communities/CommunityActions'
 
 export const dynamic = 'force-dynamic'
 
-export default async function AdminCommunitiesPage({ searchParams }: { searchParams?: { q?: string; status?: string; page?: string } }) {
+export default async function AdminCommunitiesPage({ searchParams }: { searchParams?: Promise<{ q?: string; status?: string; page?: string }> }) {
   await assertSuperAdminOrNotFound()
-  const q = searchParams?.q?.trim() || ''
-  const status = searchParams?.status || 'all'
-  const page = Number(searchParams?.page || '1')
+  const sp = (await searchParams) || {}
+  const q = sp.q?.trim() || ''
+  const status = sp.status || 'all'
+  const page = Number(sp.page || '1')
   const pageSize = 20
   const offset = (page - 1) * pageSize
 
