@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useAuthData } from "@/components/auth/AuthProvider"
 import HeroConnections from "@/components/HeroConnections"
 import { fetchExploreCommunities } from "@/lib/dashboard"
+import Image from "next/image"
 import { getVersionedUrl } from "@/lib/utils"
 import type { Community } from "@/types/community"
 import { Flame, Users, FileText, Megaphone, CalendarDays, GraduationCap, BarChart3 } from "lucide-react"
@@ -26,41 +27,31 @@ export default function HomePage() {
   useEffect(() => {
     ;(async () => {
       try {
-        const data = await fetchExploreCommunities()
-        setCommunities((data as any[]).slice(0, 10) as any)
+        const res = await fetch('/api/featured', { cache: 'force-cache', next: { revalidate: 60 } })
+        if (res.ok) {
+          const featured = await res.json()
+          if (Array.isArray(featured) && featured.length > 0) {
+            setCommunities(featured)
+            return
+          }
+        }
+        const data = await fetchExploreCommunities({ limit: 10, sort: 'popular' })
+        setCommunities((data as any[]) as any)
       } catch {
         setCommunities([])
       }
     })()
   }, [])
 
-  // 커뮤니티별 대표 이미지(첫 번째) 로드
+  // 커뮤니티별 대표 이미지 매핑 간소화 (서버 제공 thumb_url 우선)
   useEffect(() => {
     if (!communities || communities.length === 0) return
-    let cancelled = false
-    ;(async () => {
-      try {
-        const results = await Promise.all(
-          communities.map(async (c) => {
-            const pre = (c as any)?.thumb_url || getVersionedUrl((c as any)?.image_url, (c as any)?.updated_at) || ''
-            if (pre) return [c.slug as string, pre] as const
-            try {
-              const res = await fetch(`/api/community-images/${c.slug}`)
-              const j = await res.json()
-              const url = j?.images?.[0]?.url || pre || ''
-              return [c.slug as string, url] as const
-            } catch {
-              return [c.slug as string, pre] as const
-            }
-          })
-        )
-        if (cancelled) return
-        const map: Record<string, string> = {}
-        results.forEach(([slug, url]) => { if (url) map[slug] = url })
-        setBannerMap(map)
-      } catch {}
-    })()
-    return () => { cancelled = true }
+    const map: Record<string, string> = {}
+    for (const c of communities) {
+      const url = (c as any)?.thumb_url || getVersionedUrl((c as any)?.image_url, (c as any)?.updated_at) || ''
+      if (url) map[c.slug as string] = url
+    }
+    setBannerMap(map)
   }, [communities])
 
   // 자동 스크롤 효과
@@ -176,8 +167,7 @@ export default function HomePage() {
       <main className="relative bg-white rounded-t-4xl -mt-12 z-10 px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 pt-10 pb-28">
         <div className="w-full">
           {/* Featured communities */}
-          {communities.length > 0 && (
-            <section className="mt-6 sm:mt-8 md:mt-12 lg:mt-16 w-full">
+          <section className="mt-6 sm:mt-8 md:mt-12 lg:mt-16 w-full">
               <h2 className="text-2xl font-semibold mb-4 flex items-center justify-center gap-2">
                 <Flame className="w-5 h-5 text-amber-500" />
                 지금 인기 있는 루트
@@ -196,49 +186,66 @@ export default function HomePage() {
                     WebkitOverflowScrolling: 'touch'
                   }}
                 >
-                  {/* 커뮤니티 카드들을 2번 복제해서 무한 스크롤 효과 */}
-                  {[...communities, ...communities].map((c, index) => (
-                    <Card
-                      key={`${c.id}-${index}`}
-                      className="w-[350px] flex-shrink-0 cursor-pointer border border-slate-300 bg-white rounded-xl hover:border-slate-400 hover:shadow-lg shadow-sm transition-all duration-200 overflow-hidden p-0"
-                      onClick={() => !isDragging && router.push(`/${c.slug}`)}
-                    >
-                      {/* 상단 대표 이미지 */}
-                      <div className="w-full h-50 bg-slate-100">
-                        {(() => {
-                          const topUrl = bannerMap[c.slug] || (c as any)?.thumb_url || getVersionedUrl((c as any)?.image_url, (c as any)?.updated_at)
-                          return topUrl ? (
-                            <img src={topUrl} alt="banner" loading="lazy" decoding="async" className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full bg-gradient-to-b from-slate-100 to-slate-200" />
-                          )
-                        })()}
-                      </div>
-
-                      {/* 본문 */}
-                      <div className="px-4 py-3">
-                        <div className="flex items-start gap-3">
-                          <div className="w-8 h-8 rounded-md overflow-hidden bg-slate-100 text-slate-600 flex items-center justify-center border border-slate-300">
-                            {(c as any)?.icon_url || (c as any)?.image_url ? (
-                              <img src={((c as any).icon_url || (c as any).image_url) as any} alt="icon" className="w-full h-full object-cover" />
+                  {communities.length > 0 ? (
+                    [...communities, ...communities].map((c, index) => (
+                      <Card
+                        key={`${c.id}-${index}`}
+                        className="w-[350px] flex-shrink-0 cursor-pointer border border-slate-300 bg-white rounded-xl hover:border-slate-400 hover:shadow-lg shadow-sm transition-all duration-200 overflow-hidden p-0"
+                        onClick={() => !isDragging && router.push(`/${c.slug}`)}
+                      >
+                        {/* 상단 대표 이미지 */}
+                        <div className="w-full h-50 bg-slate-100 relative">
+                          {(() => {
+                            const topUrl = bannerMap[c.slug] || (c as any)?.thumb_url || getVersionedUrl((c as any)?.image_url, (c as any)?.updated_at)
+                            return topUrl ? (
+                              <Image src={topUrl} alt="banner" fill className="object-cover" sizes="350px" priority={index < 2} />
                             ) : (
-                              <span className="font-semibold text-sm">{c.name[0]}</span>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <CardTitle className="text-base font-semibold text-slate-900 leading-tight truncate">{c.name}</CardTitle>
-                            <CardDescription className="text-sm text-slate-600 line-clamp-2 mt-1">{c.description}</CardDescription>
-                          </div>
+                              <div className="w-full h-full bg-gradient-to-b from-slate-100 to-slate-200" />
+                            )
+                          })()}
                         </div>
 
-                        {/* 하단 정보: 멤버수 • 카테고리 */}
-                        <div className="mt-3 flex items-center justify-between text-xs text-slate-600">
-                          <span>멤버 {c.member_count}명</span>
-                          <span className="flex items-center gap-1"><span className="text-slate-400">•</span>{c.category}</span>
+                        {/* 본문 */}
+                        <div className="px-4 py-3">
+                          <div className="flex items-start gap-3">
+                            <div className="w-8 h-8 rounded-md overflow-hidden bg-slate-100 text-slate-600 flex items-center justify-center border border-slate-300">
+                              {(c as any)?.icon_url || (c as any)?.image_url ? (
+                                <img src={((c as any).icon_url || (c as any).image_url) as any} alt="icon" className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="font-semibold text-sm">{c.name[0]}</span>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <CardTitle className="text-base font-semibold text-slate-900 leading-tight truncate">{c.name}</CardTitle>
+                              <CardDescription className="text-sm text-slate-600 line-clamp-2 mt-1">{c.description}</CardDescription>
+                            </div>
+                          </div>
+
+                          {/* 하단 정보: 멤버수 • 카테고리 */}
+                          <div className="mt-3 flex items-center justify-between text-xs text-slate-600">
+                            <span>멤버 {c.member_count}명</span>
+                            <span className="flex items-center gap-1"><span className="text-slate-400">•</span>{c.category}</span>
+                          </div>
+                        </div>
+                      </Card>
+                    ))
+                  ) : (
+                    Array.from({ length: 6 }).map((_, idx) => (
+                      <div key={`skeleton-${idx}`} className="w-[350px] flex-shrink-0 border border-slate-200 bg-white rounded-xl overflow-hidden">
+                        <div className="w-full h-50 bg-slate-100 animate-pulse" />
+                        <div className="p-4 space-y-3">
+                          <div className="flex items-start gap-3">
+                            <div className="w-8 h-8 rounded-md bg-slate-200 animate-pulse" />
+                            <div className="flex-1 min-w-0">
+                              <div className="h-4 w-1/2 bg-slate-200 rounded animate-pulse" />
+                              <div className="mt-2 h-3 w-3/4 bg-slate-200 rounded animate-pulse" />
+                            </div>
+                          </div>
+                          <div className="h-3 w-2/3 bg-slate-200 rounded animate-pulse" />
                         </div>
                       </div>
-                    </Card>
-                  ))}
+                    ))
+                  )}
                 </div>
                 
                 {/* 그라데이션 fade 효과 */}
@@ -246,7 +253,6 @@ export default function HomePage() {
                 <div className="absolute top-0 right-0 w-8 h-full bg-gradient-to-l from-white to-transparent pointer-events-none z-10" />
               </div>
             </section>
-          )}
         </div>
       </main>
     </div>

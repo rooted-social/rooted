@@ -113,8 +113,14 @@ export async function fetchNotesList(pageId: string) {
 
 // Explore communities fetcher (API 사용)
 const exploreCache = new Map<string, { ts: number; data: any[] }>()
-export async function fetchExploreCommunities(opts?: { search?: string; category?: string; signal?: AbortSignal }) {
-  const url = `/api/explore/communities${opts?.search || opts?.category ? `?${new URLSearchParams({ ...(opts?.search ? { search: opts.search } : {}), ...(opts?.category ? { category: opts.category } : {}) }).toString()}` : ''}`
+export async function fetchExploreCommunities(opts?: { search?: string; category?: string; limit?: number; sort?: 'popular' | 'newest'; signal?: AbortSignal }) {
+  const params = new URLSearchParams()
+  if (opts?.search) params.set('search', opts.search)
+  if (opts?.category) params.set('category', opts.category)
+  if (opts?.limit != null) params.set('limit', String(Math.max(1, Math.min(100, opts.limit))))
+  if (opts?.sort) params.set('sort', opts.sort)
+  const qs = params.toString()
+  const url = `/api/explore/communities${qs ? `?${qs}` : ''}`
   const now = Date.now()
   const cached = exploreCache.get(url)
   if (cached && now - cached.ts < 60_000) return cached.data

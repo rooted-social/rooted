@@ -106,8 +106,8 @@ export async function GET(req: NextRequest) {
       status: 200,
       headers: {
         'content-type': 'application/json',
-        // 60초 캐시 (브라우저/에지)
-        'Cache-Control': 'public, max-age=60, s-maxage=60',
+        // 리드 페이지는 영업용: 약간 더 공격적인 엣지 캐시
+        'Cache-Control': 'public, max-age=60, s-maxage=180',
       },
     })
   } catch (e: any) {

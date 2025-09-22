@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import AnimatedBackground from "@/components/AnimatedBackground"
 import { Mail, Lock } from "lucide-react"
 
@@ -17,6 +17,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -32,7 +33,9 @@ export default function LoginPage() {
         toast.error(error.message)
       } else {
         toast.success("로그인 성공!")
-        router.push("/")
+        // 토큰 동기화는 onAuthStateChange에서만 수행하여 중복 호출 제거
+        const next = searchParams?.get('next')
+        router.push(next || "/")
       }
     } catch {
       toast.error("로그인 중 오류가 발생했습니다.")
@@ -49,7 +52,7 @@ export default function LoginPage() {
         provider: "kakao",
         options: {
           // 프로덕션/프리뷰/로컬 모두 동작하도록 콜백 전용 경로로 통일
-          redirectTo: baseUrl ? `${baseUrl}/auth/callback` : undefined,
+          redirectTo: baseUrl ? `${baseUrl}/auth/callback${(() => { const next = searchParams?.get('next'); return next ? `?next=${encodeURIComponent(next)}` : '' })()}` : undefined,
           // 이메일 수집 활성화됨: 이메일 포함 범위로 요청
           scopes: "account_email profile_nickname profile_image",
         },

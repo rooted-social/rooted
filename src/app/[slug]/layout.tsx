@@ -185,7 +185,7 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
               setIsMobileSidebarOpen(prev => !prev)
               return
             }
-            // 대시보드면 바로 토글 이벤트 디스패치
+            // 대시보드 홈은 페이지 내부 사이드바 토글 이벤트로 제어
             const event = new CustomEvent('toggle-community-sidebar')
             window.dispatchEvent(event)
           }}

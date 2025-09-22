@@ -1,10 +1,13 @@
 "use client"
 
-import { createContext, useContext, useEffect, useMemo, useRef } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { User } from '@supabase/supabase-js'
 import type { Profile } from '@/types/auth'
 import { supabase, setAuthCacheFromSession } from '@/lib/supabase'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { useRouter } from 'next/navigation'
 import { ensureProfile } from '@/lib/profiles'
 import { getUserCommunities } from '@/lib/communities'
 import { getUnreadCount } from '@/lib/notifications'
@@ -21,6 +24,8 @@ const AuthContext = createContext<AuthData | null>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient()
+  const router = useRouter()
+  const [suspendInfo, setSuspendInfo] = useState<{ until: string | null; reason: string | null } | null>(null)
 
   const sessionQ = useQuery({
     queryKey: ['auth', 'session'],
@@ -72,6 +77,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const sub = supabase.auth.onAuthStateChange((_event, session) => {
       // 인증 상태 변화 시 캐시 갱신
       setAuthCacheFromSession(session)
+      // SSR 가드용 쿠키 동기화
+      const access_token = session?.access_token
+      const refresh_token = session?.refresh_token
+      if (access_token && refresh_token) {
+        fetch('/api/auth/sync', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ access_token, refresh_token }),
+        }).catch(() => {})
+      }
       queryClient.invalidateQueries({ queryKey: ['auth'] })
       queryClient.invalidateQueries({ queryKey: ['communities', 'mine'] })
       queryClient.invalidateQueries({ queryKey: ['notifications'] })
@@ -88,6 +103,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => { if (typeof window !== 'undefined') window.removeEventListener('unread-updated', onUnread) }
   }, [queryClient])
 
+  useEffect(() => {
+    const p = profileQ.data as any
+    if (p && p.is_suspended) {
+      setSuspendInfo({ until: p.suspended_until || null, reason: p.suspended_reason || null })
+    } else {
+      setSuspendInfo(null)
+    }
+  }, [profileQ.data])
+
   const value: AuthData = useMemo(() => ({
     user: user || null,
     profile: (profileQ.data as Profile | null) || null,
@@ -99,6 +123,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider value={value}>
       {children}
+      {suspendInfo && (
+        <Dialog open>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>계정이 일시정지되었습니다</DialogTitle>
+              <DialogDescription>
+                해당 계정은 관리자에 의해 {suspendInfo.until ? new Date(suspendInfo.until).toLocaleString() : '추후 공지 시까지'} 사용이 일시정지 되었습니다.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="rounded-md border bg-red-50 p-3 text-sm text-red-800">
+              사유: {suspendInfo.reason || '사유가 제공되지 않았습니다.'}
+            </div>
+            <DialogFooter>
+              <Button
+                className="cursor-pointer"
+                onClick={async () => {
+                  try { await supabase.auth.signOut() } catch {}
+                  try { await fetch('/api/auth/clear', { method: 'POST' }) } catch {}
+                  router.push('/login')
+                }}
+              >
+                확인
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </AuthContext.Provider>
   )
 }
