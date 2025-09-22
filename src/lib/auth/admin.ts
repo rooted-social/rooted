@@ -20,8 +20,10 @@ export async function assertSuperAdminOrNotFound() {
   const supabase = createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   const superId = process.env.SUPER_ADMIN_USER_ID
-  const cookieStore = cookies()
-  const sbToken = cookieStore.get('sb-access-token')?.value
+  // Next 15에서 cookies()가 Promise로 노출되는 환경을 대비 (양쪽 호환)
+  const cookieMaybePromise = cookies() as any
+  const cookieStore = (typeof cookieMaybePromise?.get === 'function') ? cookieMaybePromise : await cookieMaybePromise
+  const sbToken = cookieStore?.get?.('sb-access-token')?.value
   const cookieSub = decodeJwtSub(sbToken)
   const authUserId = user?.id || cookieSub
   const isSuper = !!authUserId && !!superId && authUserId === superId
@@ -34,8 +36,10 @@ export async function requireSuperAdminOr404JSON() {
   const supabase = createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   const superId = process.env.SUPER_ADMIN_USER_ID
-  const cookieStore = cookies()
-  const sbToken = cookieStore.get('sb-access-token')?.value
+  // Next 15에서 cookies()가 Promise로 노출되는 환경을 대비 (양쪽 호환)
+  const cookieMaybePromise = cookies() as any
+  const cookieStore = (typeof cookieMaybePromise?.get === 'function') ? cookieMaybePromise : await cookieMaybePromise
+  const sbToken = cookieStore?.get?.('sb-access-token')?.value
   const cookieSub = decodeJwtSub(sbToken)
   const authUserId = user?.id || cookieSub
   const isSuper = !!authUserId && !!superId && authUserId === superId
