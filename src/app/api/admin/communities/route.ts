@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   const pageSize = Math.min(Number(searchParams.get('pageSize') || '20'), 100)
   const offset = (page - 1) * pageSize
 
-  const supabase = createServerClient()
+  const supabase = await createServerClient()
   let query = supabase.from('communities').select('id, name, owner_id, is_disabled, created_at', { count: 'exact' })
   if (q) query = query.ilike('name', `%${q}%`)
   if (status === 'active') query = query.eq('is_disabled', false)

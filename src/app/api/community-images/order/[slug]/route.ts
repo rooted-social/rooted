@@ -28,7 +28,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ slug: 
     if (owner instanceof NextResponse) return owner as any
     const { keys, mainKey } = await req.json()
     if (!Array.isArray(keys) || keys.length === 0) return new Response(JSON.stringify({ error: 'invalid body' }), { status: 400 })
-    const supa = createServerClient()
+    const supa = await createServerClient()
     // position을 키 순서대로 0..n 으로 업데이트
     for (let i = 0; i < keys.length; i++) {
       await supa.from('community_images').update({ position: i }).eq('slug', slug).eq('key', keys[i])
