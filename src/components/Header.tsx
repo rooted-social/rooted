@@ -34,15 +34,13 @@ export function Header() {
   // 커뮤니티 상세 루트 페이지(/[slug])에서는 중앙 메뉴 캡슐을 비표시 (데스크탑 전용)
   const isCommunityRootPage = firstSegment && !topLevelRoutes.has(firstSegment) && !isCommunityDashboardPage
 
-  if (isAuthRoute || isCommunityDashboardPage) return null
-
   const isActive = (href: string) => pathname === href
   // 특정 페이지에서는 캡슐을 화이트 톤으로 전환
   const useWhiteCapsule = pathname === '/explore' || pathname === '/features' || pathname === '/pricing' || pathname === '/dashboard' || pathname === '/create' || pathname === '/notifications' || isCommunityRootPage
   const gradientBg = 'linear-gradient(135deg, #f8fafc 0%, #e5e7eb 20%, #cbd5e1 50%, #f1f5f9 75%, #d1d5db 100%)'
   const capsuleStyle = useWhiteCapsule ? { backgroundColor: '#ffffff' } : { background: gradientBg }
 
-  // 스크롤 방향에 따라 헤더를 부드럽게 숨김/표시
+  // 스크롤 방향에 따라 헤더를 부드럽게 숨김/표시 (Hooks는 조건부 호출 금지 - early return 이전에 선언)
   useEffect(() => {
     const onScroll = () => {
       const y = window.scrollY || 0
@@ -65,6 +63,8 @@ export function Header() {
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [showCommunityDropdown, showProfileDropdown, mobileOpen])
+
+  if (isAuthRoute || isCommunityDashboardPage) return null
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white md:bg-transparent transition-transform duration-300" style={{ transform: hideOnScroll ? 'translateY(-100%)' : 'translateY(0)' }}>
