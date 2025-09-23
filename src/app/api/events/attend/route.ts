@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
 
   const authHeader = req.headers.get('authorization') || ''
   const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : undefined
-  const supabase = createServerClientWithAuth(bearer)
+  const supabase = await createServerClientWithAuth(bearer)
 
   const { data: { user } } = await supabase.auth.getUser()
   const uid = user?.id

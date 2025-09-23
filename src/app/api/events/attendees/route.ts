@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
 
   const authHeader = req.headers.get('authorization') || ''
   const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : undefined
-  const supabase = createServerClientWithAuth(bearer)
+  const supabase = await createServerClientWithAuth(bearer)
 
   try {
     // 이벤트 소속 커뮤니티 확인 및 권한 체크 (멤버만 열람)
