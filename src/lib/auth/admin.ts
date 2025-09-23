@@ -17,7 +17,7 @@ function decodeJwtSub(token: string | undefined | null): string | null {
 
 // 서버 컴포넌트/라우트 핸들러에서 호출하여 슈퍼 어드민만 통과시키는 가드
 export async function assertSuperAdminOrNotFound() {
-  const supabase = createServerClient()
+  const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   const superId = process.env.SUPER_ADMIN_USER_ID
   // Next 15에서 cookies()가 Promise로 노출되는 환경을 대비 (양쪽 호환)
@@ -33,7 +33,7 @@ export async function assertSuperAdminOrNotFound() {
 
 // API 라우트에서 사용할 404 JSON 가드
 export async function requireSuperAdminOr404JSON() {
-  const supabase = createServerClient()
+  const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   const superId = process.env.SUPER_ADMIN_USER_ID
   // Next 15에서 cookies()가 Promise로 노출되는 환경을 대비 (양쪽 호환)

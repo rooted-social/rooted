@@ -2,16 +2,16 @@
 
 import { useEffect, useRef, useState } from "react"
 import Image from "next/image"
-import { Card, CardContent } from "@/components/ui/card"
+// Card components were not used; remove to reduce bundle size
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { listClassCategories, createClassCategory, updateClassCategory, deleteClassCategory, listClasses, createClass, updateClass, ClassCategory, ClassItem, deleteClass, toggleClassCompletion } from "@/lib/classes"
+import { createClassCategory, updateClassCategory, deleteClassCategory, createClass, updateClass, ClassCategory, ClassItem, deleteClass, toggleClassCompletion, getClassesOverview } from "@/lib/classes"
 import { getAvatarUrl } from "@/lib/profiles"
-import { PlusCircle, Pencil, Trash2, AlertTriangle, Calendar, User, Eye, Settings } from "lucide-react"
-import { supabase } from "@/lib/supabase"
+import { PlusCircle, Pencil, Trash2, AlertTriangle, Calendar, User, Eye, Settings, Plus } from "lucide-react"
+// supabase import not used in this component
 import Link from "next/link"
 import { toast } from "sonner"
 import { normalizeClassThumbnailUrl } from "@/lib/r2"
@@ -32,6 +32,7 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
   const [categories, setCategories] = useState<ClassCategory[]>([])
   const [activeCat, setActiveCat] = useState<string | null>(null)
   const [items, setItems] = useState<ClassItem[]>([])
+  const [query, setQuery] = useState<string>("")
   const [openCreate, setOpenCreate] = useState(false)
   const [openCategoryManage, setOpenCategoryManage] = useState(false)
   const [newCat, setNewCat] = useState("")
@@ -63,10 +64,7 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
   const editDialogRef = useRef<HTMLDivElement | null>(null)
 
   const load = async () => {
-    const [cats, cls] = await Promise.all([
-      listClassCategories(communityId),
-      listClasses(communityId, activeCat || undefined, user?.id)
-    ])
+    const { categories: cats, classes: cls } = await getClassesOverview(communityId, { categoryId: activeCat || undefined, userId: user?.id || null })
     setCategories(cats)
     setItems(cls)
   }
@@ -245,28 +243,29 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
 
   return (
     <>
-      <AnimatedBackground />
-      <div className="space-y-6 relative z-10">
-        {/* 상단 액션 바 */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <h2 className="text-xl font-semibold text-slate-900">카테고리</h2>
-            {isOwner && (
-              <button 
-                onClick={() => setOpenCategoryManage(true)}
-                className="p-2 rounded-lg transition-colors duration-200"
-                style={brandColor ? { backgroundColor: withAlpha(brandColor, 0.08), border: `1px solid ${withAlpha(brandColor, 0.25)}` } : undefined}
-                title="카테고리 관리"
-              >
-                <Settings className="w-4 h-4" style={{ color: brandColor || '#0f172a' }} />
-              </button>
-            )}
-          </div>
+      {/* Animated background is heavy on mobile; hide on small screens for perf */}
+      <div className="hidden md:block" aria-hidden>
+        <AnimatedBackground />
+      </div>
+      <div className="space-y-6 relative z-10 max-w-6xl mx-auto px-4 md:px-6 lg:px-8">
+        {/* 헤드: 타이틀 중앙 + 생성 버튼 우측(절대 배치) */}
+        <div className="relative mb-2">
+          <h1 className="text-2xl md:text-3xl font-extrabold tracking-[-0.02em] text-slate-900 text-center">Welcome to the Classroom!</h1>
           {isOwner && (
           <Dialog open={openCreate} onOpenChange={setOpenCreate}>
-            <DialogTrigger asChild>
-              <Button className="cursor-pointer" size="lg" style={brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor) } : undefined}><PlusCircle className="w-4 h-4 mr-2"/>클래스 추가</Button>
-            </DialogTrigger>
+             {/* Desktop button: absolute on the right (styled) */}
+             <DialogTrigger asChild>
+               <Button
+                 className="hidden md:flex items-center gap-2 cursor-pointer absolute right-0 top-1/2 -translate-y-1/2 rounded-2xl px-5 py-3 text-base shadow-lg hover:brightness-95"
+                 size="lg"
+                 style={brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor) } : undefined}
+               >
+                 <span className="w-6 h-6 rounded-full border-2 border-white/90 grid place-items-center">
+                   <Plus className="w-3.5 h-3.5 text-white" />
+                 </span>
+                 <span className="font-semibold">클래스 추가</span>
+               </Button>
+             </DialogTrigger>
             <DialogContent
               className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto"
               onInteractOutside={(e) => e.preventDefault()}
@@ -364,11 +363,33 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
             </DialogContent>
           </Dialog>
           )}
+          {/* Mobile button: appear under the title */}
+          {isOwner && (
+            <div className="md:hidden mt-3 flex justify-center">
+              <Button onClick={() => setOpenCreate(true)} className="cursor-pointer" size="sm" style={brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor) } : undefined}>
+                <PlusCircle className="w-4 h-4 mr-2"/>
+                클래스 추가
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* 검색바 */}
+        <div className="max-w-3xl mx-auto w-full">
+          <div className="relative">
+            <Input
+              value={query}
+              onChange={(e)=>setQuery(e.target.value)}
+              placeholder="클래스 제목, 설명, 작성자로 검색해보세요..."
+              className="h-12 rounded-2xl pl-4 pr-4 shadow-sm border-slate-200"
+            />
+          </div>
         </div>
 
         {/* 카테고리 필터 */}
         <div className="relative">
-          <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-1 px-1">
+          {/* 모바일: 가로 스크롤, 데스크톱: 중앙 정렬 */}
+          <div className="flex gap-2 pb-2 items-center overflow-x-auto whitespace-nowrap scrollbar-hide px-1 md:overflow-visible md:flex-wrap md:justify-center">
             <button 
               onClick={() => setActiveCat(null)} 
               className={`flex-shrink-0 px-4 py-2 rounded-full border text-sm font-medium transition-all duration-200 ${
@@ -394,12 +415,21 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
                 {category.name}
               </button>
             ))}
+            {isOwner && (
+              <button 
+                onClick={() => setOpenCategoryManage(true)}
+                className="ml-2 p-2 rounded-lg transition-colors duration-200 flex-shrink-0"
+                style={brandColor ? { backgroundColor: withAlpha(brandColor, 0.08), border: `1px solid ${withAlpha(brandColor, 0.25)}` } : undefined}
+                title="카테고리 관리"
+              >
+                <Settings className="w-4 h-4" style={{ color: brandColor || '#0f172a' }} />
+              </button>
+            )}
           </div>
-          {/* 가로 스크롤 그라디언트 효과 */}
-          <div className="absolute right-0 top-0 bottom-2 w-8 bg-gradient-to-l from-white to-transparent pointer-events-none"></div>
+          {/* 좌우 여백만 유지 - 스크롤 그라디언트 제거 */}
         </div>
 
-        {/* 카드 그리드: 모바일 1열, 태블릿 2열, 데스크톱 3-4열 */}
+        {/* 카드 그리드: explore 스타일 - 동일 크기 카드 */}
         {items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 px-4">
             <div className="w-24 h-24 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center mb-6 shadow-lg">
@@ -424,10 +454,21 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6 xl:gap-8">
-            {items.map(cls => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6 md:gap-7 xl:gap-8">
+            {items
+              .filter(cls => {
+                const q = query.trim().toLowerCase()
+                if (!q) return true
+                const author = (cls.author?.full_name || cls.author?.username || '').toLowerCase()
+                return (
+                  cls.title.toLowerCase().includes(q) ||
+                  (cls.description || '').toLowerCase().includes(q) ||
+                  author.includes(q)
+                )
+              })
+              .map((cls, idx) => (
               <Link key={cls.id} href={`./classes/${cls.id}`} className="group" prefetch={false}>
-                <article className="h-full overflow-hidden rounded-3xl bg-gradient-to-br from-slate-50 to-white shadow-sm hover:shadow-xl transition-all duration-500 group-hover:scale-[1.02] border border-slate-200/60 relative">
+                <article className="h-full overflow-hidden rounded-3xl bg-gradient-to-br from-slate-50 to-white shadow-sm hover:shadow-xl transition-all duration-300 group-hover:scale-[1.01] border border-slate-200/60 relative">
                   {/* 썸네일 영역 */}
                   <div className="relative w-full aspect-[16/9] overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200">
                     {cls.thumbnail_url ? (
@@ -436,8 +477,8 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
                         alt={cls.title}
                         fill
                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1536px) 33vw, 25vw"
-                        className="object-cover transition-transform duration-500 group-hover:scale-110"
-                        priority={false}
+                        className="object-cover transition-transform duration-300 group-hover:scale-105"
+                        priority={idx < 3}
                       />
                     ) : (
                       <div className="absolute inset-0 flex items-center justify-center text-slate-500">

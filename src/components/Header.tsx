@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuthData } from './auth/AuthProvider'
 import { getAvatarUrl } from "@/lib/utils"
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import { Bell, LogIn, Menu, ChevronDown, Compass, Sparkles, CreditCard } from "lucide-react"
@@ -18,6 +19,9 @@ export function Header() {
   const [showCommunityDropdown, setShowCommunityDropdown] = useState(false)
   const [showProfileDropdown, setShowProfileDropdown] = useState(false)
   const desktopDropdownRef = useRef<HTMLDivElement | null>(null)
+  const [hideOnScroll, setHideOnScroll] = useState(false)
+  const lastYRef = useRef(0)
+  const tickingRef = useRef(false)
 
   const firstSegment = pathname?.split('/').filter(Boolean)[0] || ''
   const topLevelRoutes = new Set(['', 'explore', 'features', 'pricing', 'create', 'login', 'signup', 'dashboard', 'messages', 'notifications', 'api'])
@@ -38,8 +42,32 @@ export function Header() {
   const gradientBg = 'linear-gradient(135deg, #f8fafc 0%, #e5e7eb 20%, #cbd5e1 50%, #f1f5f9 75%, #d1d5db 100%)'
   const capsuleStyle = useWhiteCapsule ? { backgroundColor: '#ffffff' } : { background: gradientBg }
 
+  // 스크롤 방향에 따라 헤더를 부드럽게 숨김/표시
+  useEffect(() => {
+    const onScroll = () => {
+      const y = window.scrollY || 0
+      const last = lastYRef.current
+      if (tickingRef.current) return
+      tickingRef.current = true
+      requestAnimationFrame(() => {
+        const delta = y - last
+        const threshold = 8
+        if ((showCommunityDropdown || showProfileDropdown || mobileOpen)) {
+          setHideOnScroll(false)
+        } else {
+          if (delta > threshold && y > 60) setHideOnScroll(true)
+          else if (delta < -threshold) setHideOnScroll(false)
+        }
+        lastYRef.current = y
+        tickingRef.current = false
+      })
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [showCommunityDropdown, showProfileDropdown, mobileOpen])
+
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white md:bg-transparent">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white md:bg-transparent transition-transform duration-300" style={{ transform: hideOnScroll ? 'translateY(-100%)' : 'translateY(0)' }}>
       {/* 외부 클릭으로 데스크탑 드롭다운 닫기 */}
       {(showCommunityDropdown || showProfileDropdown) && (
         <div
@@ -56,8 +84,10 @@ export function Header() {
               className="inline-flex items-center gap-2 rounded-xl border px-6 py-3 h-12 transition-transform duration-200 hover:-translate-y-0.5 shadow-[0_0_14px_rgba(148,163,184,0.28)] hover:shadow-[0_0_20px_rgba(148,163,184,0.4)] border-slate-300"
               style={capsuleStyle}
             >
-              <img src="/logos/logo_icon.png" alt="Rooted 아이콘" className="w-7 h-7" />
-              <img src="/logos/logo_main.png" alt="Rooted" className="h-5" />
+              <Image src="/logos/logo_icon.png" alt="Rooted 아이콘" width={28} height={28} className="w-7 h-7" priority />
+              <span className="relative" style={{ width: 80, height: 20 }}>
+                <Image src="/logos/logo_main.png" alt="Rooted" fill priority sizes="100px" className="object-contain" />
+              </span>
             </span>
           </Link>
 
@@ -66,7 +96,7 @@ export function Header() {
             // 커뮤니티 상세 페이지에서는 메뉴 버튼 제거, Rooted 아이콘만 배치
             <div className="md:hidden flex items-center">
               <Link href="/" className="flex items-center">
-                <img src="/logos/logo_icon.png" alt="Rooted" className="w-7 h-7" />
+                <Image src="/logos/logo_icon.png" alt="Rooted" width={28} height={28} className="w-7 h-7" priority />
               </Link>
             </div>
           ) : (
@@ -85,8 +115,10 @@ export function Header() {
           {!isCommunityRootPage ? (
             <div className="md:hidden flex items-center justify-center">
               <Link href="/" className="flex items-center">
-                <img src="/logos/logo_icon.png" alt="Rooted" className="w-7 h-7" />
-                <img src="/logos/logo_main.png" alt="Rooted" className="h-5 ml-1" />
+                <Image src="/logos/logo_icon.png" alt="Rooted" width={28} height={28} className="w-7 h-7" priority />
+                <span className="relative ml-1" style={{ width: 100, height: 20 }}>
+                  <Image src="/logos/logo_main.png" alt="Rooted" fill priority sizes="100px" className="object-contain" />
+                </span>
               </Link>
             </div>
           ) : (
@@ -97,14 +129,14 @@ export function Header() {
           {!isCommunityRootPage && (
           <nav className="hidden md:flex items-center">
             <div
-              className="px-6 py-3 rounded-xl text-slate-900 border border-slate-300 shadow-[0_0_14px_rgba(148,163,184,0.28)] hover:shadow-[0_0_20px_rgba(148,163,184,0.4)]"
+              className="h-12 px-6 rounded-xl text-slate-900 border border-slate-300 shadow-[0_0_14px_rgba(148,163,184,0.28)] hover:shadow-[0_0_20px_rgba(148,163,184,0.4)] flex items-center"
               style={capsuleStyle}
             >
               <ul className="flex items-center gap-3 text-base">
                 <li>
                   <Link
                     href="/explore"
-                    className={`px-3 py-1 rounded-lg transition-colors duration-200 ${isActive('/explore') ? 'bg-black text-white shadow-sm' : 'text-slate-900 hover:bg-white/60 hover:text-black'}`}
+                    className={`px-3 py-1 rounded-lg inline-block transition-colors duration-200 transform transition-transform ${isActive('/explore') ? 'text-slate-900 font-bold scale-[1.04]' : 'text-slate-700 hover:text-slate-900'} hover:scale-102`}
                   >
                     루트 둘러보기
                   </Link>
@@ -113,16 +145,16 @@ export function Header() {
                 <li>
                   <Link
                     href="/features"
-                    className={`px-3 py-1 rounded-lg transition-colors duration-200 ${isActive('/features') ? 'bg-black text-white shadow-sm' : 'text-slate-900 hover:bg-white/60 hover:text-black'}`}
+                    className={`px-3 py-1 rounded-lg inline-block transition-colors duration-200 transform transition-transform ${isActive('/features') ? 'text-slate-900 font-bold scale-[1.04]' : 'text-slate-700 hover:text-slate-900'} hover:scale-102`}
                   >
-                    서비스 소개
+                    서비스
                   </Link>
                 </li>
                 <li aria-hidden className="h-5 w-px bg-slate-300/70" />
                 <li>
                   <Link
                     href="/pricing"
-                    className={`px-3 py-1 rounded-lg transition-colors duration-200 ${isActive('/pricing') ? 'bg-black text-white shadow-sm' : 'text-slate-900 hover:bg-white/60 hover:text-black'}`}
+                    className={`px-3 py-1 rounded-lg inline-block transition-colors duration-200 transform transition-transform ${isActive('/pricing') ? 'text-slate-900 font-bold scale-[1.04]' : 'text-slate-700 hover:text-slate-900'} hover:scale-102`}
                   >
                     요금제
                   </Link>
@@ -135,7 +167,7 @@ export function Header() {
           {/* 우측: 알림+루트+프로필 통합 캡슐 */}
           <div className="hidden md:flex items-center">
             <div
-              className="relative inline-flex items-center gap-2 rounded-xl border border-slate-300 px-3 py-2 shadow-[0_0_14px_rgba(148,163,184,0.28)] hover:shadow-[0_0_20px_rgba(148,163,184,0.4)]"
+              className="relative inline-flex items-center gap-2 rounded-xl border border-slate-300 px-3 h-12 shadow-[0_0_14px_rgba(148,163,184,0.28)] hover:shadow-[0_0_20px_rgba(148,163,184,0.4)]"
               style={capsuleStyle}
               ref={desktopDropdownRef}
             >
@@ -172,7 +204,7 @@ export function Header() {
                             >
                               <div className="w-8 h-8 rounded-md overflow-hidden bg-slate-100">
                                 {(community.communities as any)?.icon_url || community.communities?.image_url ? (
-                                  <img src={(community.communities as any).icon_url || (community.communities as any).image_url} alt="icon" className="w-full h-full object-cover" />
+                                  <Image src={(community.communities as any).icon_url || (community.communities as any).image_url} alt="icon" width={32} height={32} className="object-cover" />
                                 ) : (
                                   <div className="w-full h-full bg-slate-900 text-white flex items-center justify-center">
                                     <span className="text-xs font-medium">{community.communities?.name?.[0]}</span>
@@ -285,7 +317,7 @@ export function Header() {
                           >
                             <div className="w-8 h-8 rounded-md overflow-hidden bg-slate-100">
                               {(community.communities as any)?.icon_url || community.communities?.image_url ? (
-                                <img src={(community.communities as any).icon_url || (community.communities as any).image_url} alt="icon" className="w-full h-full object-cover" />
+                                <Image src={(community.communities as any).icon_url || (community.communities as any).image_url} alt="icon" width={32} height={32} className="object-cover" />
                               ) : (
                                 <div className="w-full h-full bg-slate-900 text-white flex items-center justify-center">
                                   <span className="text-xs font-medium">{community.communities?.name?.[0]}</span>

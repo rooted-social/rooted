@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
     return new Response(JSON.stringify({ error: 'pageId is required' }), { status: 400 })
   }
 
-  const supabase = createServerClient()
+  const supabase = await createServerClient()
 
   try {
     // 노트 카테고리와 아이템을 한 번에 로드

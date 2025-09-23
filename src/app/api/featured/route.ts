@@ -5,7 +5,7 @@ import { buildPublicR2UrlForBucket, COMMUNITY_IMAGE_BUCKET } from '@/lib/r2'
 export const dynamic = 'force-dynamic'
 
 export async function GET(_req: NextRequest) {
-  const supabase = createServerClient()
+  const supabase = await createServerClient()
   try {
     const { data: rows, error } = await supabase
       .from('featured_communities')

@@ -14,7 +14,7 @@ export default async function AdminCommunitiesPage({ searchParams }: { searchPar
   const pageSize = 20
   const offset = (page - 1) * pageSize
 
-  const supabase = createServerClient()
+  const supabase = await createServerClient()
   let query = supabase.from('communities').select('id, name, slug, owner_id, is_disabled, member_count, created_at', { count: 'exact' })
   if (q) query = query.ilike('name', `%${q}%`)
   if (status === 'active') query = query.eq('is_disabled', false)
@@ -30,6 +30,23 @@ export default async function AdminCommunitiesPage({ searchParams }: { searchPar
       .select('id, full_name, username')
       .in('id', ownerIds as any)
     ownerMap = Object.fromEntries((owners || []).map((o: any) => [o.id, { full_name: o.full_name, username: o.username }]))
+  }
+
+  // 실제 멤버 수(오너/보류 제외)를 커뮤니티별로 계산 (페이지당 최대 20개라 병렬 카운트 수행)
+  const communityIds = (rows || []).map((r: any) => r.id)
+  let memberCountMap: Record<string, number> = {}
+  if (communityIds.length > 0) {
+    const results = await Promise.all(
+      communityIds.map(async (id) => {
+        const { count: cnt } = await supabase
+          .from('community_members')
+          .select('*', { count: 'exact', head: true })
+          .eq('community_id', id)
+          .or('role.is.null,role.neq.pending')
+        return [id, cnt || 0] as const
+      })
+    )
+    memberCountMap = Object.fromEntries(results)
   }
 
   return (
@@ -61,7 +78,7 @@ export default async function AdminCommunitiesPage({ searchParams }: { searchPar
               <tr key={c.id} className="border-b">
                 <td className="px-2 py-2">{c.name}{c.slug ? ` (/${c.slug})` : ''}</td>
                 <td className="px-2 py-2">{(() => { const o = ownerMap[c.owner_id]; return o ? `${o.full_name || o.username || '-' } (${c.owner_id})` : c.owner_id })()}</td>
-                <td className="px-2 py-2">{c.member_count ?? '-'}</td>
+                <td className="px-2 py-2">{memberCountMap[c.id] ?? c.member_count ?? '-'}</td>
                 <td className="px-2 py-2">
                   {c.is_disabled ? <span className="rounded bg-red-100 px-2 py-1 text-xs text-red-700">Disabled</span> : <span className="rounded bg-green-100 px-2 py-1 text-xs text-green-700">Active</span>}
                 </td>

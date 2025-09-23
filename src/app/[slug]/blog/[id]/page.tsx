@@ -5,14 +5,15 @@ import { useParams, useSearchParams } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import { getCommunity } from "@/lib/communities"
-import { getBlogPostById, incrementBlogViews, toggleBlogLike, hasLikedBlog, getBlogCounts, addBlogComment, listBlogComments, updateBlogComment, deleteBlogComment, deleteBlogPost } from "@/lib/blog"
+import { incrementBlogViews, toggleBlogLike, addBlogComment, updateBlogComment, deleteBlogComment, deleteBlogPost } from "@/lib/blog"
+import { getAuthToken } from "@/lib/supabase"
 import { Input } from "@/components/ui/input"
 import { Button as UIButton } from "@/components/ui/button"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { getAvatarUrl } from "@/lib/profiles"
 import { CalendarDays, Heart, MessageCircle, Eye, ArrowLeft, Settings } from "lucide-react"
-import { AnimatedBackground } from "@/components/AnimatedBackground"
+// Animated background 제거
 
 export default function BlogDetailPage() {
   const params = useParams<{ slug: string; id: string }>()
@@ -29,38 +30,36 @@ export default function BlogDetailPage() {
   const [myAvatar, setMyAvatar] = useState<string | null>(null)
   const [canEdit, setCanEdit] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const refetchDetail = async () => {
+    try {
+      const token = await getAuthToken().catch(() => null)
+      const res = await fetch(`/api/blog/detail?id=${encodeURIComponent(String(id))}`, { headers: token ? { authorization: `Bearer ${token}` } : undefined })
+      if (!res.ok) return
+      const data = await res.json()
+      setCounts(data.counts || { views: 0, likes: 0, comments: 0 })
+      setComments(data.comments || [])
+      setLiked(!!data.liked)
+    } catch {}
+  }
   useEffect(() => {
     let mounted = true
     ;(async () => {
-      const p = await getBlogPostById(String(id))
-      if (!mounted) return
-      setPost(p)
-      await incrementBlogViews(String(id))
-      const [likedInit, cnt, cmts, me, uid] = await Promise.all([
-        hasLikedBlog(String(id)),
-        getBlogCounts(String(id)),
-        listBlogComments(String(id)),
-        (async () => {
-          try {
-            const { getUserId, supabase } = await import('@/lib/supabase')
-            const uid = await getUserId()
-            if (!uid) return null
-            const { data } = await supabase.from('profiles').select('avatar_url').eq('id', uid).maybeSingle()
-            return (data as any)?.avatar_url || null
-          } catch { return null }
-        })(),
-        (async () => {
-          try {
-            const { getUserId } = await import('@/lib/supabase')
-            return await getUserId()
-          } catch { return null }
-        })()
-      ])
-      setLiked(likedInit)
-      setCounts(cnt)
-      setComments(cmts as any[])
-      setMyAvatar(me)
-      if (p && uid && p.user_id === uid) setCanEdit(true)
+      try {
+        const token = await getAuthToken().catch(() => null)
+        const res = await fetch(`/api/blog/detail?id=${encodeURIComponent(String(id))}`, { headers: token ? { authorization: `Bearer ${token}` } : undefined })
+        if (!res.ok) throw new Error('failed to load blog detail')
+        const data = await res.json()
+        if (!mounted) return
+        setPost(data.post)
+        setCounts(data.counts)
+        setLiked(!!data.liked)
+        setComments(data.comments || [])
+        setCanEdit(!!data.isOwner)
+        // 내 아바타는 이미 data.comments에 포함되는 경우가 많지만, 별도로 가져오지 않고 유지
+        await incrementBlogViews(String(id))
+      } catch (e) {
+        console.error(e)
+      }
     })()
     return () => { mounted = false }
   }, [slug, id])
@@ -69,7 +68,6 @@ export default function BlogDetailPage() {
 
   return (
     <div className="min-h-screen relative">
-      <AnimatedBackground zIndexClass="-z-10" />
       {/* 헤더 - PC만 표시 */}
       <div className="hidden md:block max-w-4xl mx-auto px-4 py-4">
         <Button 
@@ -179,7 +177,7 @@ export default function BlogDetailPage() {
           <article className="prose prose-slate max-w-none prose-headings:text-slate-900 prose-p:text-slate-800 prose-li:text-slate-800">
             <div
               className="prose-img:rounded-2xl prose-img:shadow-md"
-              style={{ wordBreak: 'break-word' }}
+              style={{ wordBreak: 'break-word', lineHeight: 1.95 }}
               dangerouslySetInnerHTML={{ __html: (post.content || '').replace(/<img /g, '<img style=\"max-width:100%;height:auto;\" ') }}
             />
           </article>
@@ -200,8 +198,7 @@ export default function BlogDetailPage() {
               try { 
                 const t = await toggleBlogLike(String(id)); 
                 setLiked(t.liked); 
-                const c = await getBlogCounts(String(id)); 
-                setCounts(c) 
+                await refetchDetail()
               } catch (e) { 
                 console.error(e) 
               } 
@@ -245,9 +242,7 @@ export default function BlogDetailPage() {
                     if(!commentText.trim()) return
                     await addBlogComment(String(id), commentText.trim())
                     setCommentText("")
-                    const [cnt, cmts] = await Promise.all([getBlogCounts(String(id)), listBlogComments(String(id))])
-                    setCounts(cnt)
-                    setComments(cmts as any[])
+                    await refetchDetail()
                   } catch (e) {
                     console.error(e)
                   }
@@ -300,8 +295,7 @@ export default function BlogDetailPage() {
                                 if(!editingText.trim()) return; 
                                 const resId = await updateBlogComment(c.id, editingText.trim()); 
                                 if(!resId) throw new Error('update failed'); 
-                                const cmts = await listBlogComments(String(id)); 
-                                setComments(cmts as any[]); 
+                                await refetchDetail()
                                 setEditingId(null); 
                                 setEditingText("") 
                               } catch (e) { 
@@ -340,9 +334,7 @@ export default function BlogDetailPage() {
                                 if(!confirm('댓글을 삭제할까요?')) return; 
                                 const ok = await deleteBlogComment(c.id); 
                                 if(!ok) throw new Error('delete failed'); 
-                                const [cnt, cmts] = await Promise.all([getBlogCounts(String(id)), listBlogComments(String(id))]); 
-                                setCounts(cnt); 
-                                setComments(cmts as any[]) 
+                                await refetchDetail()
                               } catch (e) { 
                                 console.error(e) 
                               } 

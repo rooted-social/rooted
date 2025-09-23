@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
 
   const authHeader = req.headers.get('authorization') || ''
   const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : undefined
-  const supabase = createServerClientWithAuth(bearer)
+  const supabase = await createServerClientWithAuth(bearer)
 
   try {
     // 멤버십 체크: 쿠키 또는 Authorization 헤더 기반 사용자
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
 
 // 일괄 정렬 저장 (브라우저 → 서버 1회 요청)
 export async function POST(req: NextRequest) {
-  const supabase = createServerClient()
+  const supabase = await createServerClient()
   try {
     const body = await req.json().catch(() => null)
     const communityId: string | undefined = body?.communityId

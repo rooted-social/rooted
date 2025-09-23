@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from "react"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { useAuthData } from "@/components/auth/AuthProvider"
@@ -17,6 +18,7 @@ import { Community } from "@/types/community"
 import { useRouter } from "next/navigation"
 import { COMMUNITY_CATEGORIES, DEFAULT_EXPLORE_CATEGORY } from '@/lib/constants'
 import { getVersionedUrl } from '@/lib/utils'
+import { toast } from "sonner"
 
 export default function ExplorePage() {
   const router = useRouter()
@@ -99,7 +101,12 @@ export default function ExplorePage() {
     e.preventDefault()
     
     if (!formData.name.trim() || !formData.description.trim() || !formData.slug.trim()) {
-      alert("모든 필드를 입력해주세요.")
+      toast.error("모든 필드를 입력해주세요.")
+      return
+    }
+
+    if (formData.slug.length < 3 || formData.slug.length > 32) {
+      toast.error("URL은 3~32자 사이여야 합니다.")
       return
     }
 
@@ -121,11 +128,11 @@ export default function ExplorePage() {
       // 커뮤니티 목록 새로고침
       loadCommunities()
       
-      alert("커뮤니티가 성공적으로 생성되었습니다!")
+      toast.success("커뮤니티가 성공적으로 생성되었습니다!")
       // 완료 후 스테이트 초기화
     } catch (error) {
       console.error("커뮤니티 생성 오류:", error)
-      alert("커뮤니티 생성에 실패했습니다. 다시 시도해주세요.")
+      toast.error("커뮤니티 생성에 실패했습니다. 다시 시도해주세요.")
     } finally {
       setIsCreating(false)
     }
@@ -143,7 +150,7 @@ export default function ExplorePage() {
   const generateSlug = (name: string) => {
     return name
       .toLowerCase()
-      .replace(/[^a-z0-9가-힣]/g, '-')
+      .replace(/[^a-z0-9]/g, '-')
       .replace(/-+/g, '-')
       .replace(/^-|-$/g, '')
   }
@@ -272,8 +279,10 @@ export default function ExplorePage() {
                       type="text"
                       placeholder="community-url"
                       value={formData.slug}
-                      onChange={(e) => updateFormData('slug', e.target.value)}
+                      onChange={(e) => updateFormData('slug', generateSlug(e.target.value))}
                       pattern="[a-z0-9-]+"
+                      minLength={3}
+                      maxLength={32}
                       required
                       disabled={isCreating}
                     />
@@ -370,11 +379,11 @@ export default function ExplorePage() {
                         onClick={() => router.push(`/${community.slug}`)}
                       >
                         {/* 상단 대표 이미지 */}
-                        <div className="w-full h-50 bg-slate-100">
+                        <div className="w-full h-50 bg-slate-100 relative">
                           {(() => {
                             const topUrl = bannerMap[community.slug] || (community as any)?.thumb_url || getVersionedUrl((community as any)?.image_url, (community as any)?.updated_at)
                             return topUrl ? (
-                              <img src={topUrl} alt="banner" loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                              <Image src={topUrl} alt="banner" fill priority={false} sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 350px" className="object-cover" />
                             ) : (
                               <div className="w-full h-full bg-gradient-to-b from-slate-100 to-slate-200" />
                             )
@@ -386,7 +395,7 @@ export default function ExplorePage() {
                           <div className="flex items-start gap-3">
                             <div className="w-8 h-8 rounded-md overflow-hidden bg-slate-100 text-slate-600 flex items-center justify-center border border-slate-300">
                               {(community as any)?.icon_url || (community as any)?.image_url ? (
-                                <img src={(community as any).icon_url || (community as any).image_url as any} alt="icon" className="w-full h-full object-cover" />
+                                <Image src={(community as any).icon_url || (community as any).image_url as any} alt="icon" width={32} height={32} className="object-cover" />
                               ) : (
                                 <span className="font-semibold text-sm">{community.name[0]}</span>
                               )}
@@ -399,7 +408,7 @@ export default function ExplorePage() {
 
                           {/* 하단 정보: 멤버수 • 카테고리 */}
                           <div className="mt-3 flex items-center justify-between text-xs text-slate-600">
-                            <span>멤버 {community.member_count}명</span>
+                            <span>멤버 {Math.max(0, (community as any).member_count ? Number((community as any).member_count) - 1 : 0)}명</span>
                             <span className="flex items-center gap-1"><span className="text-slate-400">•</span>{community.category}</span>
                           </div>
                         </div>

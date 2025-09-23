@@ -7,8 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { getCommunityEvents, createCommunityEvent, updateCommunityEvent, deleteCommunityEvent } from "@/lib/events"
-import { supabase } from "@/lib/supabase"
+import { getCommunityEvents, createCommunityEvent, updateCommunityEvent, deleteCommunityEvent, getCalendarOverview } from "@/lib/events"
 import { Calendar as CalendarIcon, MapPin, Clock, ChevronLeft, ChevronRight, Settings, ListChecks } from "lucide-react"
 import { getCommunitySettings } from "@/lib/communities"
 import { getReadableTextColor } from "@/utils/color"
@@ -55,8 +54,10 @@ export default function CalendarPage({ communityId }: { communityId: string }) {
   const load = async () => {
     setLoading(true)
     try {
-      const list = await getCommunityEvents(communityId)
+      const { events: list, isOwner, brandColor } = await getCalendarOverview(communityId)
       setEvents(list as any)
+      setIsOwner(isOwner)
+      setBrandColor(brandColor)
     } finally {
       setLoading(false)
     }
@@ -64,31 +65,9 @@ export default function CalendarPage({ communityId }: { communityId: string }) {
 
   useEffect(() => { void load() }, [communityId])
 
-  useEffect(() => {
-    let mounted = true
-    ;(async () => {
-      try {
-        const { data: comm } = await supabase
-          .from('communities')
-          .select('owner_id')
-          .eq('id', communityId)
-          .maybeSingle()
-        if (!mounted) return
-        const ownerId = (comm as any)?.owner_id || null
-        setIsOwner(!!user?.id && !!ownerId && user.id === ownerId)
-      } catch { if (mounted) setIsOwner(false) }
-    })()
-    return () => { mounted = false }
-  }, [communityId, user])
+  // 오너 판별은 overview에서 함께 처리
 
-  useEffect(() => {
-    ;(async () => {
-      try {
-        const s = await getCommunitySettings(communityId)
-        setBrandColor((s as any)?.brand_color || null)
-      } catch {}
-    })()
-  }, [communityId])
+  // 브랜드 컬러는 overview에서 함께 처리
 
   const onCreate = async () => {
     const start_at = new Date(`${form.date}T${form.start}:00`).toISOString()

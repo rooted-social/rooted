@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -65,9 +66,9 @@ export default function LoginClient() {
       <AnimatedBackground />
       <div className="relative z-10 min-h-screen flex flex-col items-center justify-center p-4">
         <div className="mb-2 flex flex-col items-center">
-          <img src="/logos/logo_icon.png" alt="Rooted icon" className="h-10 w-10 object-contain mb-1" />
+          <Image src="/logos/logo_icon.png" alt="Rooted icon" width={40} height={40} className="object-contain mb-1" priority />
           <Link href="/" className="block transform transition-transform duration-300 ease-out hover:scale-105">
-            <img src="/logos/logo_main.png" alt="Rooted" className="h-10 object-contain mx-auto cursor-pointer" />
+            <Image src="/logos/logo_main.png" alt="Rooted" width={160} height={40} className="object-contain mx-auto cursor-pointer" priority />
           </Link>
         </div>
         <p className="text-xs text-slate-600 mb-6">커뮤니티의 시작과 성장, 루티드!</p>

@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   const guard = await requireSuperAdminOr404JSON()
   if (!guard.ok) return guard.response
-  const supabase = createServerClient()
+  const supabase = await createServerClient()
   const { data, error } = await supabase.from('admin_kpis').select('*').maybeSingle()
   if (error) {
     return new Response(JSON.stringify({ error: error.message }), { status: 500 })

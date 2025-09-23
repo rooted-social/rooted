@@ -3,16 +3,15 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import NextImage from 'next/image'
+import dynamic from 'next/dynamic'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { AnimatedBackground } from '@/components/AnimatedBackground'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Users, Crown, ArrowLeft, UserPlus, Check, BarChart3, Info, X, Loader2, Clock } from 'lucide-react'
+import { Users, Crown, ArrowLeft, UserPlus, Check, Info, X, Loader2, Clock } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { joinCommunity, leaveCommunity } from '@/lib/communities'
-import { fetchDashboardStats } from '@/lib/dashboard'
-import { supabase } from '@/lib/supabase'
 import { useAuthData } from '@/components/auth/AuthProvider'
+import { toast } from 'sonner'
 
 interface CommunityWithOwner {
   id: string
@@ -36,6 +35,9 @@ interface CommunityWithOwner {
   }
 }
 
+// AnimatedBackground를 동적 로드하여 초기 페인트 후 마운트 (Lazy Mount)
+const AnimatedBackground = dynamic(() => import('@/components/AnimatedBackground').then(m => m.AnimatedBackground), { ssr: false })
+
 type GalleryItem = { key: string; url: string }
 
 export default function ClientCommunityPage({ initial }: { initial?: any }) {
@@ -54,6 +56,7 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
   const [mainIdx, setMainIdx] = useState<number>(0)
   const [stats, setStats] = useState<{ memberCount: number; postCount: number; commentCount: number; classCount: number }>({ memberCount: 0, postCount: 0, commentCount: 0, classCount: 0 })
   const [imageModal, setImageModal] = useState<{ open: boolean; url: string }>({ open: false, url: '' })
+  const [mountBg, setMountBg] = useState(false)
 
   const getCategoryColor = (category: string) => {
     const colorMap: { [key: string]: string } = {
@@ -83,12 +86,11 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
         if (role === 'pending') { setIsPending(true); setIsMember(false) }
         else { setIsMember(true); setIsPending(false) }
       }
-      // 통계는 비동기로 로드 (초기 렌더 차단 X)
       // 초기 페인트를 빠르게: 메인 히어로 이미지는 미리 로딩 우선
       if (typeof window !== 'undefined' && (initial.images || []).length > 0) {
         try { const preload = new window.Image(); preload.src = (initial.images[0] as any).url } catch {}
       }
-      void fetchDashboardStats(initial.community.id).then((s) => setStats(s as any)).catch(() => {})
+      if ((initial as any)?.stats) setStats((initial as any).stats)
       setLoading(false)
       return
     }
@@ -96,18 +98,35 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
     void loadCommunityData()
   }, [initial])
 
+  // AnimatedBackground를 아이들 타이밍에 지연 마운트하여 초기 페인트 방해 최소화
+  useEffect(() => {
+    const cb = () => setMountBg(true)
+    if (typeof (window as any).requestIdleCallback === 'function') {
+      ;(window as any).requestIdleCallback(cb)
+    } else {
+      const t = setTimeout(cb, 200)
+      return () => clearTimeout(t)
+    }
+  }, [])
+
   const loadCommunityData = async () => {
     try {
       setLoading(true)
-      const res = await fetch(`/api/community/detail?slug=${encodeURIComponent(slug)}`, { cache: 'no-store' })
+      const headers: Record<string, string> = {}
+      if (user?.id) headers['x-user-id'] = user.id
+      const res = await fetch(`/api/community/detail?slug=${encodeURIComponent(slug)}`, { cache: 'no-store', headers })
       if (!res.ok) throw new Error('failed')
       const body = await res.json()
       setCommunity(body.community)
       setServices(body.services)
       setImages((body.images || []).slice(0, 10))
       setMainIdx(0)
-      // 통계는 별도 비동기
-      void fetchDashboardStats(body.community.id).then((s) => setStats(s as any)).catch(() => {})
+      if (body?.stats) setStats(body.stats)
+      const role = (body?.membership as any)?.role
+      if (role) {
+        if (role === 'pending') { setIsPending(true); setIsMember(false) }
+        else { setIsMember(true); setIsPending(false) }
+      } else { setIsMember(false); setIsPending(false) }
     } catch (error) {
       console.error('커뮤니티 로드 오류:', error)
     } finally {
@@ -115,42 +134,45 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
     }
   }
 
+  // 클라 Supabase 질의 제거: membership은 initial 또는 detail 응답으로 판단
   const lastCheckRef = useRef<string | null>(null)
   useEffect(() => {
-    if (community && user) {
+    if (!community) return
+    if (initial?.membership && user) {
       const key = `${community.id}:${user.id}`
       if (lastCheckRef.current === key) return
       lastCheckRef.current = key
-      void checkMembership(user.id)
+      const role = (initial.membership as any)?.role
+      if (role === 'pending') { setIsPending(true); setIsMember(false) }
+      else if (role) { setIsMember(true); setIsPending(false) }
+      else { setIsMember(false); setIsPending(false) }
     }
-  }, [community, user])
+  }, [community, initial, user])
 
-  const checkMembership = async (userId: string) => {
-    if (!community) return
-    try {
-      const { data } = await supabase
-        .from('community_members')
-        .select('id, role')
-        .eq('community_id', community.id)
-        .eq('user_id', userId)
-        .single()
-      if (data) {
-        const role = (data as any).role
+  // 사용자 로그인/변경 시 membership을 최신 응답으로 동기화
+  useEffect(() => {
+    if (!community?.id || !user?.id) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/community/detail?slug=${encodeURIComponent(slug)}`, { cache: 'no-store', headers: { 'x-user-id': user.id } })
+        if (!res.ok) return
+        const body = await res.json()
+        if (cancelled) return
+        const role = (body?.membership as any)?.role
         if (role === 'pending') { setIsPending(true); setIsMember(false) }
-        else { setIsMember(true); setIsPending(false) }
-      } else {
-        setIsMember(false)
-        setIsPending(false)
-      }
-    } catch {
-      setIsMember(false)
-      setIsPending(false)
-    }
-  }
+        else if (role) { setIsMember(true); setIsPending(false) }
+        else { setIsMember(false); setIsPending(false) }
+      } catch {}
+    })()
+    return () => { cancelled = true }
+  }, [user?.id, community?.id, slug])
+
+  // checkMembership 제거 (API에서 제공)
 
   const handleJoinToggle = async () => {
     if (!user) {
-      alert('로그인이 필요합니다.')
+      toast.error('로그인이 필요합니다.')
       const next = encodeURIComponent(`/${community?.slug || slug}`)
       router.push(`/login?next=${next}`)
       return
@@ -164,14 +186,25 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
         await leaveCommunity(community.id)
         setIsPending(false)
         setIsMember(false)
+        toast.success('가입 신청이 취소되었습니다.')
       } else {
         const res = await joinCommunity(community.id)
         const willBePending = (community.join_policy === 'approval') || ((res as any)?.role === 'pending')
         if (willBePending) { setIsPending(true); setIsMember(false) }
-        else { setIsMember(true); setIsPending(false); setCommunity(prev => prev ? { ...prev, member_count: prev.member_count + 1 } : null) }
+        else {
+          setIsMember(true); setIsPending(false); setCommunity(prev => prev ? { ...prev, member_count: prev.member_count + 1 } : null)
+          toast.success('커뮤니티에 가입되었습니다.')
+        }
       }
     } catch (error: any) {
-      alert(error.message || '오류가 발생했습니다.')
+      const msg = (error?.message || '').toString()
+      if (msg.includes('이미 가입') || msg.toLowerCase().includes('already')) {
+        setIsMember(true); setIsPending(false)
+        toast.success('이미 가입된 커뮤니티입니다. 이동합니다.')
+        if (community?.slug) router.push(`/${community.slug}/dashboard`)
+      } else {
+        toast.error(msg || '오류가 발생했습니다.')
+      }
     } finally {
       setIsJoining(false)
     }
@@ -211,7 +244,7 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
   return (
     <div className="min-h-screen relative overflow-hidden">
       {/* 배경 애니메이션은 메인 컨텐츠 페인트 후 브라우저 아이들 시간에 마운트 */}
-      <AnimatedBackground />
+      {mountBg && <AnimatedBackground />}
       <main className="relative px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 pt-3 md:pt-15 pb-24 z-10">
         <div className="w-full max-w-6xl mx-auto">
           <Button variant="ghost" className="mb-4 cursor-pointer text-sm sm:text-base hidden" onClick={() => router.push('/explore')}>
@@ -325,20 +358,11 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
 
                   {/* 커뮤니티 현황 */}
                   <div>
-                    <h3 className="text-sm sm:text-base font-semibold text-slate-900 mb-2 inline-flex items-center"><BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2 text-indigo-600" />커뮤니티 현황</h3>
-                    <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                      <div className="text-center p-3 sm:p-4 rounded-xl border border-slate-200 bg-white">
-                        <div className="text-xl sm:text-2xl font-bold text-slate-900 mb-0.5">{stats.memberCount.toLocaleString()}</div>
-                        <div className="text-[11px] sm:text-xs tracking-wide uppercase text-slate-500">멤버</div>
-                      </div>
-                      <div className="text-center p-3 sm:p-4 rounded-xl border border-slate-200 bg-white">
-                        <div className="text-xl sm:text-2xl font-bold text-slate-900 mb-0.5">{stats.postCount.toLocaleString()}</div>
-                        <div className="text-[11px] sm:text-xs tracking-wide uppercase text-slate-500">게시글</div>
-                      </div>
-                      <div className="text-center p-3 sm:p-4 rounded-xl border border-slate-200 bg-white">
-                        <div className="text-xl sm:text-2xl font-bold text-slate-900 mb-0.5">{stats.classCount.toLocaleString()}</div>
-                        <div className="text-[11px] sm:text-xs tracking-wide uppercase text-slate-500">클래스</div>
-                      </div>
+                    <h3 className="text-sm sm:text-base font-semibold text-slate-900 mb-2 inline-flex items-center"><Users className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2 text-indigo-600" />커뮤니티 현황</h3>
+                    <div className="p-3 sm:p-4 rounded-xl border border-slate-200 bg-white text-center">
+                      <span className="text-sm sm:text-base text-slate-800">
+                        총 <span className="font-bold text-slate-900">{stats.memberCount.toLocaleString()}</span>명의 멤버가 함께하고 있어요!
+                      </span>
                     </div>
                   </div>
 

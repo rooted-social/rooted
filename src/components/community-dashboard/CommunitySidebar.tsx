@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
  
 import { useAuthData } from "@/components/auth/AuthProvider"
+import { getAuthToken } from "@/lib/supabase"
 
 interface CommunitySidebarProps {
   communityId: string
@@ -44,6 +45,9 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
   const [confirmTarget, setConfirmTarget] = useState<{ type: 'page'; id: string; title?: string } | null>(null)
   const [dragOverItemId, setDragOverItemId] = useState<string | null>(null)
   const [isOwner, setIsOwner] = useState<boolean>(false)
+  // 최근 7일 내 신규 글 표시 맵
+  const [newPageMap, setNewPageMap] = useState<Record<string, boolean>>({})
+  const [hasNewFeed, setHasNewFeed] = useState<boolean>(false)
   // 모바일 오버레이 열고 닫힘 애니메이션 상태
   const [mobileVisible, setMobileVisible] = useState<boolean>(false)
   const [mobileAnimateIn, setMobileAnimateIn] = useState<boolean>(false)
@@ -103,6 +107,41 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
     ro.observe(el)
     return () => ro.disconnect()
   }, [mobileVisible])
+
+  // 최근 7일 내 신규 글 여부 계산을 단일 API로 축소
+  useEffect(() => {
+    let aborted = false
+    const check = async () => {
+      try {
+        const blogIds = pages.filter(p => p.type === 'blog').map(p => p.id)
+        let token: string | null = null
+        try { token = await getAuthToken() } catch {}
+        const headers = token ? { authorization: `Bearer ${token}` } : undefined
+        const url = `/api/community/new-flags?communityId=${encodeURIComponent(communityId)}${blogIds.length ? `&pageIds=${encodeURIComponent(blogIds.join(','))}` : ''}`
+        const res = await fetch(url, { headers, cache: 'no-store' })
+        if (!res.ok) { if (!aborted) { setNewPageMap({}); setHasNewFeed(false) }; return }
+        const data = await res.json()
+        if (aborted) return
+        // 7일 기준 판단
+        const threshold = Date.now() - 7 * 24 * 60 * 60 * 1000
+        const feedOk = data?.feedLatestAt ? new Date(data.feedLatestAt).getTime() >= threshold : false
+        const pageMapRaw = data?.pageLatestMap || {}
+        const map: Record<string, boolean> = {}
+        for (const p of pages) {
+          if (p.type === 'blog') {
+            const ts = pageMapRaw[p.id]
+            map[p.id] = ts ? new Date(ts).getTime() >= threshold : false
+          }
+        }
+        setHasNewFeed(!!feedOk)
+        setNewPageMap(map)
+      } catch { if (!aborted) { setNewPageMap({}); setHasNewFeed(false) } }
+    }
+    if (pages && pages.length > 0) void check(); else { setNewPageMap({}); setHasNewFeed(false) }
+    return () => { aborted = true }
+  }, [pages, communityId])
+
+  // 전역 피드 N 여부는 위 통합 호출에서 함께 계산됨
 
   const load = async (showSkeleton: boolean = false) => {
     try {
@@ -273,6 +312,9 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
           >
             <span className="inline-block w-2 h-2 bg-current rounded-full mr-3 opacity-60"></span>
             {p.title}
+            {newPageMap[p.id] && (
+              <span className="ml-2 inline-flex items-center justify-center w-4 h-4 rounded-full bg-red-500 text-white text-[10px] leading-none font-bold">N</span>
+            )}
           </button>
           {isOwner && reorderMode && (
             <button className="h-8 w-8 rounded-lg hover:bg-slate-100/80 text-slate-400 hover:text-slate-600 transition-all duration-200 transform hover:scale-110 cursor-pointer" onClick={(e) => { e.stopPropagation(); setMenu({ type: 'page', id: p.id }) }} title="설정">
@@ -354,6 +396,9 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
               active.type === 'feed' ? (brandColor ? 'text-white' : 'text-white') : 'text-slate-500 group-hover:text-slate-700'
             }`} />
             <span className="truncate">피드</span>
+            {hasNewFeed && (
+              <span className="ml-2 inline-flex items-center justify-center w-4 h-4 rounded-full bg-red-500 text-white text-[10px] leading-none font-bold">N</span>
+            )}
           </button>
 
           <div className="my-4 border-t border-slate-200/60" />
@@ -484,6 +529,9 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
               >
                 <Rss className="w-5 h-5" style={active.type === 'feed' && brandColor ? { color: brandColor } : undefined} />
                 <span className="font-medium">피드</span>
+                {hasNewFeed && (
+                  <span className="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full bg-red-500 text-white text-[10px] leading-none font-bold">N</span>
+                )}
               </button>
               </div>
 
@@ -548,6 +596,9 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
                           <>
                             <span className="inline-block w-1.5 h-1.5 bg-current rounded-full mr-3 opacity-60"></span>
                             {p.title}
+                            {newPageMap[p.id] && (
+                              <span className="ml-2 inline-flex items-center justify-center w-4 h-4 rounded-full bg-red-500 text-white text-[10px] leading-none font-bold">N</span>
+                            )}
                           </>
                         </button>
                       </div>
@@ -592,7 +643,7 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
               <div className="grid grid-cols-2 gap-2">
                 {([
                   { key: 'feed', label: '피드' },
-                  { key: 'blog', label: '블로그' },
+                  { key: 'blog', label: '포스트' },
                 ] as const).map(opt => (
                   <button
                     key={opt.key}
@@ -631,7 +682,7 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
                       <Newspaper className="w-4 h-4 text-indigo-600" />
                     </div>
                     <div className="flex-1 space-y-1">
-                      <p className="text-sm font-medium text-slate-900">블로그 · 깊이 있는 글</p>
+                      <p className="text-sm font-medium text-slate-900">포스트 · 깊이 있는 글</p>
                       <p className="text-xs text-slate-600">이미지와 본문 중심의 글 형식으로 장문 콘텐츠에 적합합니다.</p>
                       <div className="mt-2 grid grid-cols-3 gap-1.5">
                         <div className="col-span-1 h-12 rounded-lg bg-white border border-slate-200" />

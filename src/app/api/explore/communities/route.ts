@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   const limitParam = searchParams.get('limit')
   const sort = searchParams.get('sort') // 'popular' | 'newest'
 
-  const supabase = createServerClient()
+  const supabase = await createServerClient()
 
   try {
     let q = supabase.from('communities').select('*').eq('is_disabled', false)

@@ -6,7 +6,7 @@ import { normalizeProfileAvatarUrl } from "@/lib/r2"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { getCommunityMembers, getPendingCommunityMembers, removeCommunityMember } from "@/lib/communities"
+import { getCommunityMembers, getPendingCommunityMembers, removeCommunityMember, getMembersOverview } from "@/lib/communities"
 import { MoreHorizontal, Check, X, Search } from "lucide-react"
 import { supabase, getUserId } from "@/lib/supabase"
 
@@ -38,28 +38,11 @@ export function MembersTab({ communityId, ownerId }: MembersTabProps) {
   const load = async () => {
     setLoading(true)
     try {
-      const [uid] = await Promise.all([
-        getUserId(),
-      ])
-      const owner = ownerId || null
-      setCurrentUserId(uid || null)
-      const isOwnerNow = !!uid && !!owner && uid === owner
-      setIsOwner(isOwnerNow)
-
-      if (isOwnerNow) {
-        const [p, m] = await Promise.all([
-          getPendingCommunityMembers(communityId),
-          getCommunityMembers(communityId),
-        ])
-        setPending(p)
-        const sorted = [...m].sort((a,b)=> (b.is_owner?1:0) - (a.is_owner?1:0))
-        setMembers(sorted)
-      } else {
-        const m = await getCommunityMembers(communityId)
-        setPending([])
-        const sorted = [...m].sort((a,b)=> (b.is_owner?1:0) - (a.is_owner?1:0))
-        setMembers(sorted)
-      }
+      const { members: m, pending: p, isOwner: o } = await getMembersOverview(communityId)
+      setIsOwner(o)
+      setPending(o ? p : [])
+      const sorted = [...m].sort((a,b)=> (b.is_owner?1:0) - (a.is_owner?1:0))
+      setMembers(sorted)
     } finally {
       setLoading(false)
     }

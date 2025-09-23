@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Image from "next/image"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -93,11 +94,16 @@ export function HomeTab({ communityId, slug, initial }: HomeTabProps) {
       {settings?.banner_url && (
         <div className="lg:col-span-3 -mt-0 md:mt-0">
           <div className="relative w-full overflow-hidden rounded-3xl border border-slate-200/50 shadow-sm">
-            <img
-              src={settings.banner_url}
-              alt="커뮤니티 배너"
-              className="w-full h-40 md:h-56 lg:h-60 object-cover"
-            />
+            <div className="relative w-full h-40 md:h-56 lg:h-60">
+              <Image
+                src={settings.banner_url}
+                alt="커뮤니티 배너"
+                fill
+                sizes="100vw"
+                className="object-cover"
+                priority
+              />
+            </div>
           </div>
         </div>
       )}
@@ -434,7 +440,7 @@ function NoticesSection({
           </DialogHeader>
           <div className="space-y-4 pt-2">
             {viewNotice?.created_at && (
-              <div className="text-xs text-slate-500">{new Date(viewNotice.created_at).toLocaleString('ko-KR')}</div>
+              <div className="text-xs text-slate-500">{new Date(viewNotice.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}</div>
             )}
             <div className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed">
               {viewNotice?.content}
@@ -518,11 +524,12 @@ function UpcomingEventsCard({ items, brandColor }: { items: { id: string; title:
                     <div>
                       <div className="text-sm font-semibold text-slate-900 mb-1">{ev.title}</div>
                       <div className="text-xs font-medium" style={{ color: brandColor || '#0f172a' }}>
-                        {new Date(ev.start_at).toLocaleDateString('ko-KR', {
+                      {new Date(ev.start_at).toLocaleDateString('ko-KR', {
                           month: 'short',
                           day: 'numeric',
                           hour: '2-digit',
                           minute: '2-digit',
+                        timeZone: 'Asia/Seoul',
                         })}
                       </div>
                     </div>
@@ -551,7 +558,7 @@ function UpcomingEventsCard({ items, brandColor }: { items: { id: string; title:
                   </div>
                   <div className="min-w-0">
                     <div className="text-[11px] uppercase tracking-wide text-slate-500">일시</div>
-                    <div className="text-sm font-medium text-slate-800">{selected ? new Date(selected.start_at).toLocaleString('ko-KR') : '-'}</div>
+                    <div className="text-sm font-medium text-slate-800">{selected ? new Date(selected.start_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) : '-'}</div>
                   </div>
                 </div>
                 <div className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
@@ -692,20 +699,37 @@ function RecentActivityCard({ items: rawItems, slug, brandColor }: { items: { id
               <p className="text-slate-500 text-sm">최근 활동이 없습니다.</p>
             </div>
           ) : items.map(it => (
-            <a key={`${it.kind}:${it.id}`} href={it.href || '#'} className={`block rounded-2xl p-4 border border-slate-100 hover:shadow-sm transition-all hover:scale-[1.02] ${it.href ? 'cursor-pointer bg-gradient-to-r from-slate-50 to-white' : 'cursor-default bg-slate-50'}`}>
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3">
-                  <Icon kind={it.kind} />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-semibold text-slate-900 mb-1 line-clamp-2">{it.title}</div>
-                    {it.meta && <div className="text-xs text-slate-600 font-medium">{it.meta}</div>}
+            it.href ? (
+              <a key={`${it.kind}:${it.id}`} href={it.href} className={`block rounded-2xl p-4 border border-slate-100 hover:shadow-sm transition-all hover:scale-[1.02] cursor-pointer bg-gradient-to-r from-slate-50 to-white`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <Icon kind={it.kind} />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-semibold text-slate-900 mb-1 line-clamp-2">{it.title}</div>
+                      {it.meta && <div className="text-xs text-slate-600 font-medium">{it.meta}</div>}
+                    </div>
+                  </div>
+                  <div className="text-xs text-slate-500 shrink-0 mt-1">
+                    {new Date(it.created_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', timeZone: 'Asia/Seoul' })}
                   </div>
                 </div>
-                <div className="text-xs text-slate-500 shrink-0 mt-1">
-                  {new Date(it.created_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+              </a>
+            ) : (
+              <div key={`${it.kind}:${it.id}`} role="article" className={`block rounded-2xl p-4 border border-slate-100 hover:shadow-sm transition-all hover:scale-[1.02] cursor-default bg-slate-50`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <Icon kind={it.kind} />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-semibold text-slate-900 mb-1 line-clamp-2">{it.title}</div>
+                      {it.meta && <div className="text-xs text-slate-600 font-medium">{it.meta}</div>}
+                    </div>
+                  </div>
+                  <div className="text-xs text-slate-500 shrink-0 mt-1">
+                    {new Date(it.created_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', timeZone: 'Asia/Seoul' })}
+                  </div>
                 </div>
               </div>
-            </a>
+            )
           ))}
         </div>
       </div>

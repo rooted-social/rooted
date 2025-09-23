@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { supabase, getAuthToken } from '@/lib/supabase'
 
 export interface DashboardStats {
   memberCount: number
@@ -18,9 +18,9 @@ export async function fetchDashboardStats(communityId: string): Promise<Dashboar
   if (cached && now - cached.ts < 300_000) {
     return cached.data
   }
-  const { data: { session } } = await supabase.auth.getSession()
+  const token = await getAuthToken().catch(() => null)
   const res = await fetch(`/api/dashboard/stats?communityId=${encodeURIComponent(communityId)}` , {
-    headers: session?.access_token ? { authorization: `Bearer ${session.access_token}` } : undefined,
+    headers: token ? { authorization: `Bearer ${token}` } : undefined,
   })
   if (!res.ok) throw new Error('failed to fetch dashboard stats')
   const data = (await res.json()) as DashboardStats
@@ -37,8 +37,8 @@ export async function fetchRecentActivity(communityId: string, slug?: string): P
   const now = Date.now()
   const cached = recentCache.get(key)
   if (cached && now - cached.ts < 300_000) return cached.data
-  const { data: { session } } = await supabase.auth.getSession()
-  const res = await fetch(url, { headers: session?.access_token ? { authorization: `Bearer ${session.access_token}` } : undefined })
+  const token = await getAuthToken().catch(() => null)
+  const res = await fetch(url, { headers: token ? { authorization: `Bearer ${token}` } : undefined })
   if (!res.ok) throw new Error('failed to fetch recent activity')
   const data = (await res.json()) as RecentActivityItem[]
   recentCache.set(key, { ts: now, data })
@@ -58,9 +58,15 @@ export async function fetchFeed(communityId: string, opts?: { pageId?: string | 
     const cached = feedCache.get(baseUrl)
     if (cached && now - cached.ts < 120_000) return cached.data
   }
-  const { data: { session } } = await supabase.auth.getSession()
-  const res = await fetch(url, { cache: opts?.force ? 'no-store' : 'default', headers: session?.access_token ? { authorization: `Bearer ${session.access_token}` } : undefined })
-  if (!res.ok) throw new Error('failed to fetch feed')
+  const token = await getAuthToken().catch(() => null)
+  const res = await fetch(url, { cache: opts?.force ? 'no-store' : 'default', headers: token ? { authorization: `Bearer ${token}` } : undefined })
+  // 인증/권한 없는 경우에는 빈 결과를 반환하여 UI가 정상 렌더링되도록 처리
+  if (!res.ok) {
+    if (res.status === 401 || res.status === 403) {
+      return { posts: [], likeCounts: {}, commentCounts: {}, totalCount: 0 }
+    }
+    throw new Error('failed to fetch feed')
+  }
   const data = await res.json() as { posts: any[]; likeCounts: Record<string, number>; commentCounts: Record<string, number>; totalCount?: number }
   // 기본 URL 키로 캐시를 갱신해 동일 파라미터의 이후 요청이 최신을 보게 함
   feedCache.set(baseUrl, { ts: now, data })
@@ -73,8 +79,8 @@ export async function fetchHomeData(communityId: string) {
   const now = Date.now()
   const cached = homeCache.get(key)
   if (cached && now - cached.ts < 300_000) return cached.data
-  const { data: { session } } = await supabase.auth.getSession()
-  const res = await fetch(`/api/dashboard/home?communityId=${encodeURIComponent(communityId)}`, { headers: session?.access_token ? { authorization: `Bearer ${session.access_token}` } : undefined })
+  const token = await getAuthToken().catch(() => null)
+  const res = await fetch(`/api/dashboard/home?communityId=${encodeURIComponent(communityId)}`, { headers: token ? { authorization: `Bearer ${token}` } : undefined })
   if (!res.ok) throw new Error('failed to fetch home data')
   const data = await res.json() as { settings: any; notices: any[]; canManage?: boolean; upcomingEvents?: any[]; recentActivity?: any[] }
   homeCache.set(key, { ts: now, data })
@@ -84,16 +90,17 @@ export async function fetchHomeData(communityId: string) {
 // Blog list fetcher (API 집계 사용)
 const blogCache = new Map<string, { ts: number; data: any[] }>()
 export async function fetchBlogList(pageId: string) {
-  const key = `/api/blog/list?pageId=${encodeURIComponent(pageId)}`
+  // 통합 오버뷰로 교체: posts + slug + isOwner + brandColor
+  const key = `/api/blog/overview?pageId=${encodeURIComponent(pageId)}`
   const now = Date.now()
   const cached = blogCache.get(key)
   if (cached && now - cached.ts < 120_000) return cached.data
-  const { data: { session } } = await supabase.auth.getSession()
-  const res = await fetch(key, { headers: session?.access_token ? { authorization: `Bearer ${session.access_token}` } : undefined })
+  const token = await getAuthToken().catch(() => null)
+  const res = await fetch(key, { headers: token ? { authorization: `Bearer ${token}` } : undefined })
   if (!res.ok) throw new Error('failed to fetch blog list')
   const data = await res.json()
   blogCache.set(key, { ts: now, data })
-  return data as any[]
+  return data as any
 }
 
 // Notes list fetcher (API 집계 사용)
@@ -103,8 +110,8 @@ export async function fetchNotesList(pageId: string) {
   const now = Date.now()
   const cached = notesCache.get(key)
   if (cached && now - cached.ts < 120_000) return cached.data
-  const { data: { session } } = await supabase.auth.getSession()
-  const res = await fetch(key, { headers: session?.access_token ? { authorization: `Bearer ${session.access_token}` } : undefined })
+  const token = await getAuthToken().catch(() => null)
+  const res = await fetch(key, { headers: token ? { authorization: `Bearer ${token}` } : undefined })
   if (!res.ok) throw new Error('failed to fetch notes list')
   const data = await res.json()
   notesCache.set(key, { ts: now, data })

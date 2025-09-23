@@ -162,6 +162,30 @@ export async function getPendingCommunityMembers(communityId: string) {
   }
 }
 
+// 통합 멤버 오버뷰: 서버 API를 통해 members + pending + isOwner를 한 번에 가져오기
+import { getAuthToken } from '@/lib/supabase'
+export async function getMembersOverview(communityId: string, opts?: { force?: boolean }) {
+  const key = `members:${communityId}`
+  const now = Date.now()
+  ;(globalThis as any).__membersCache = (globalThis as any).__membersCache || new Map<string, { ts: number; data: any }>()
+  const cache: Map<string, { ts: number; data: any }> = (globalThis as any).__membersCache
+  if (!opts?.force) {
+    const cached = cache.get(key)
+    if (cached && now - cached.ts < 30_000) return cached.data
+  }
+  try {
+    const token = await getAuthToken().catch(() => null)
+    const res = await fetch(`/api/members/overview?communityId=${encodeURIComponent(communityId)}`, { headers: token ? { authorization: `Bearer ${token}` } : undefined })
+    if (!res.ok) return { members: [] as any[], pending: [] as any[], isOwner: false }
+    const data = await res.json()
+    const payload = { members: data?.members || [], pending: data?.pending || [], isOwner: !!data?.isOwner }
+    cache.set(key, { ts: now, data: payload })
+    return payload
+  } catch {
+    return { members: [] as any[], pending: [] as any[], isOwner: false }
+  }
+}
+
 export async function removeCommunityMember(communityId: string, userId: string) {
   try {
     const { error: rpcError } = await supabase.rpc('remove_member', {

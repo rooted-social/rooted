@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function AdminContentsPage() {
   await assertSuperAdminOrNotFound()
-  const supabase = createServerClient()
+  const supabase = await createServerClient()
   const { data: items } = await supabase
     .from('featured_communities')
     .select('id, position, community_id')

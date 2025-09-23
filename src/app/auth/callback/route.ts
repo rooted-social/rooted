@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   const next = searchParams.get('next') || '/'
   const redirectUrl = new URL(next, req.url)
 
-  const supabase = createServerClient()
+  const supabase = await createServerClient()
 
   try {
     if (code) {
