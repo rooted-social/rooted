@@ -1,4 +1,4 @@
-import { supabase, getUserId } from '@/lib/supabase'
+import { supabase, getUserId, getAuthToken } from '@/lib/supabase'
 import { CommunityPage, CommunityPageGroup } from '@/types/community'
 import { FIVE_MIN, pagesCache, pageGroupsCache, invalidatePagesCache } from './cache'
 
@@ -8,11 +8,11 @@ export async function getCommunityPages(communityId: string) {
     const now = Date.now()
     const cached = pagesCache.get(communityId)
     if (cached && now - cached.ts < FIVE_MIN) return cached.data as CommunityPage[]
-    const { data: { session } } = await supabase.auth.getSession()
+    const token = await getAuthToken().catch(() => null)
     const res = await fetch(`/api/community/pages?communityId=${encodeURIComponent(communityId)}`, {
       // 뒤로가기/복귀 시 최신 목록을 보장하기 위해 no-store 유지
       cache: 'no-store',
-      headers: session?.access_token ? { authorization: `Bearer ${session.access_token}` } : undefined,
+      headers: token ? { authorization: `Bearer ${token}` } : undefined,
     })
     if (!res.ok) throw new Error('failed')
     const data = (await res.json()) as CommunityPage[]
@@ -85,10 +85,10 @@ export async function updateCommunityPageMeta(id: string, payload: Partial<Pick<
 
 export async function saveCommunityPageOrder(communityId: string, orderedIds: string[]) {
   // 서버 라우트로 1회 요청
-  const { data: { session } } = await supabase.auth.getSession()
+  const token = await getAuthToken().catch(() => null)
   const res = await fetch('/api/community/pages', {
     method: 'POST',
-    headers: { 'content-type': 'application/json', ...(session?.access_token ? { authorization: `Bearer ${session.access_token}` } : {}) },
+    headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
     body: JSON.stringify({ communityId, orderedIds }),
   })
   if (!res.ok) throw new Error('failed')

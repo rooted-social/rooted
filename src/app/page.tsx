@@ -135,20 +135,22 @@ export default function HomePage() {
 
         {/* 콘텐츠 */}
         <div className="relative z-30 text-center px-6 max-w-3xl">
-          <h1 className="text-white text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight leading-[1.05] fade-in-down" style={{ animationDelay: '60ms' }}>
-            Your Community Platform
-          </h1>
-          <p className="mt-5 text-slate-100 text-base sm:text-lg fade-in-down" style={{ animationDelay: '140ms' }}>
-            멤버십, 이벤트, 클래스, 멤버 관리를 — 한 곳에서.
-          </p>
-          <div className="mt-8">
+          <div className="overflow-hidden">
+            <h1 className="text-white text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight leading-[1.05]">
+              <span className="block will-change-transform reveal-line" style={{ animationDelay: '40ms' }}>Your Community</span>
+              <span className="block will-change-transform reveal-line" style={{ animationDelay: '160ms' }}>Platform</span>
+            </h1>
+          </div>
+          <div className="mt-5 overflow-hidden">
+            <p className="text-slate-100 text-base sm:text-lg will-change-transform reveal-line" style={{ animationDelay: '280ms' }}>
+              멤버십, 이벤트, 클래스, 멤버 관리를 — 한 곳에서.
+            </p>
+          </div>
+          <div className="mt-8 overflow-visible relative z-[60]">
             <button
               onClick={() => router.push(user ? '/create' : '/login')}
-              className="px-6 py-3 rounded-full text-slate-900 font-semibold transition-transform transition-shadow duration-200 cursor-pointer hover:-translate-y-0.5 ring-1 ring-white/10 hover:ring-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 active:scale-[0.99] border border-slate-300 shadow-[0_0_18px_rgba(148,163,184,0.35)] hover:shadow-[0_0_26px_rgba(148,163,184,0.5)] fade-in-down"
-              style={{
-                animationDelay: '220ms',
-                background: 'linear-gradient(135deg, #f8fafc 0%, #e5e7eb 20%, #cbd5e1 50%, #f1f5f9 75%, #d1d5db 100%)'
-              }}
+              className="relative z-[60] px-6 sm:px-7 py-3 sm:py-3.5 rounded-full font-semibold cursor-pointer will-change-transform reveal-line transition-all duration-300 hover:-translate-y-0.5 active:scale-95 text-slate-900 bg-white/80 hover:bg-white/90 backdrop-blur-md border border-white/40 ring-1 ring-white/40 hover:ring-white/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 shadow-[0_8px_28px_rgba(255,255,255,0.18)] hover:shadow-[0_10px_36px_rgba(255,255,255,0.26)]"
+              style={{ animationDelay: '560ms' }}
             >
               나의 커뮤니티 생성하기
             </button>
@@ -160,11 +162,23 @@ export default function HomePage() {
           @keyframes spin { from { transform: translate(-50%, -50%) rotate(0deg); } to { transform: translate(-50%, -50%) rotate(360deg); } }
           @keyframes spin_120s_linear_infinite_reverse { }
           @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
+          @keyframes reveal {
+            0% { transform: translateY(120%); opacity: 0; }
+            60% { opacity: 1; }
+            100% { transform: translateY(0%); opacity: 1; }
+          }
+          .reveal-line {
+            animation: reveal 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+          }
         `}</style>
       </section>
 
       {/* Main Content */}
       <main className="relative bg-white rounded-t-4xl -mt-12 z-10 px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 pt-10 pb-28">
+        {/* 상단 외곽 글로우: 다음 섹션 존재감을 은은하게 강조 */}
+        <div aria-hidden className="pointer-events-none absolute -top-10 left-0 right-0 h-12 z-[-1]">
+          <div className="h-full w-full bg-gradient-to-t from-white/70 via-white/30 to-transparent blur-2xl" />
+        </div>
         <div className="w-full">
           {/* Featured communities */}
           <section className="mt-6 sm:mt-8 md:mt-12 lg:mt-16 w-full">
@@ -210,7 +224,7 @@ export default function HomePage() {
                           <div className="flex items-start gap-3">
                             <div className="w-8 h-8 rounded-md overflow-hidden bg-slate-100 text-slate-600 flex items-center justify-center border border-slate-300">
                               {(c as any)?.icon_url || (c as any)?.image_url ? (
-                                <img src={((c as any).icon_url || (c as any).image_url) as any} alt="icon" className="w-full h-full object-cover" />
+                                <Image src={((c as any).icon_url || (c as any).image_url) as any} alt="icon" width={32} height={32} className="object-cover" />
                               ) : (
                                 <span className="font-semibold text-sm">{c.name[0]}</span>
                               )}
@@ -223,7 +237,7 @@ export default function HomePage() {
 
                           {/* 하단 정보: 멤버수 • 카테고리 */}
                           <div className="mt-3 flex items-center justify-between text-xs text-slate-600">
-                            <span>멤버 {c.member_count}명</span>
+                            <span>멤버 {Math.max(0, (c as any).member_count ? Number((c as any).member_count) - 1 : 0)}명</span>
                             <span className="flex items-center gap-1"><span className="text-slate-400">•</span>{c.category}</span>
                           </div>
                         </div>

@@ -80,7 +80,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ slug: 
     const url = buildPublicR2UrlForBucket(bucket, key)
     // Supabase 테이블에 메타 저장 (있을 경우)
     try {
-      const supa = createServerClient()
+      const supa = await createServerClient()
       let commId = owner.communityId
       if (!commId) {
         const { data: comm } = await supa.from('communities').select('id').eq('slug', slug).maybeSingle()
@@ -130,7 +130,7 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ slug
     if (!key || !key.startsWith(`${slug}/`)) return new Response(JSON.stringify({ error: 'invalid key' }), { status: 400 })
     await r2Client.send(new DeleteObjectCommand({ Bucket: COMMUNITY_IMAGE_BUCKET, Key: key }))
     try {
-      const supa = createServerClient()
+      const supa = await createServerClient()
       await supa.from('community_images').delete().eq('key', key)
     } catch {}
     return new Response(JSON.stringify({ ok: true }), { status: 200 })

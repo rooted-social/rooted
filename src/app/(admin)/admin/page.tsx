@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function AdminOverviewPage() {
   await assertSuperAdminOrNotFound()
-  const supabase = createServerClient()
+  const supabase = await createServerClient()
   const { data } = await supabase.from('admin_kpis').select('*').maybeSingle()
   const kpis = data || { users_total: 0, communities_total: 0, reports_pending: 0 }
 

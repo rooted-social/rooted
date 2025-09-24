@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
     return new Response(JSON.stringify({ error: 'slug is required' }), { status: 400 })
   }
 
-  const supabase = createServerClient()
+  const supabase = await createServerClient()
 
   try {
     // 1) 슬러그로 커뮤니티 조회 (단일 쿼리)
@@ -22,8 +22,8 @@ export async function GET(req: NextRequest) {
       return new Response(JSON.stringify({ error: 'not found' }), { status: 404 })
     }
 
-    // 2) 나머지 의존 쿼리들을 병렬 실행
-    const [ownerProfileRes, servicesRes, imagesRows, membership] = await Promise.all([
+    // 2) 나머지 의존 쿼리들을 병렬 실행 (프로필/서비스/이미지/멤버십/통계)
+    const [ownerProfileRes, servicesRes, imagesRows, membership, stats] = await Promise.all([
       (async () => {
         try {
           const { data } = await supabase
@@ -79,6 +79,20 @@ export async function GET(req: NextRequest) {
           return null
         }
       })(),
+      (async () => {
+        // 통계 경량화: 멤버 수만 계산 (게시글/클래스/댓글 카운트 제거)
+        try {
+          const communityId = (community as any).id
+          const { count } = await supabase
+            .from('community_members')
+            .select('*', { count: 'exact', head: true })
+            .eq('community_id', communityId)
+            .or('role.is.null,role.neq.pending')
+          return { memberCount: count || 0 }
+        } catch {
+          return { memberCount: 0 }
+        }
+      })(),
     ])
 
     let images = (imagesRows || []).map((r: any) => ({ key: r.key as string, url: buildPublicR2UrlForBucket(COMMUNITY_IMAGE_BUCKET, r.key as string) }))
@@ -100,14 +114,15 @@ export async function GET(req: NextRequest) {
       services: servicesRes,
       images,
       membership,
+      stats,
     }
 
     return new Response(JSON.stringify(payload), {
       status: 200,
       headers: {
         'content-type': 'application/json',
-        // 리드 페이지는 영업용: 약간 더 공격적인 엣지 캐시
-        'Cache-Control': 'public, max-age=60, s-maxage=180',
+        // 캐시 정책 미세 조정: 에지 5분, 브라우저 60초, 변경 시 stale-while-revalidate
+        'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=600',
       },
     })
   } catch (e: any) {

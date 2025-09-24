@@ -1,4 +1,4 @@
-import { supabase, getUserId } from '@/lib/supabase'
+import { supabase, getUserId, getAuthToken } from '@/lib/supabase'
 
 export interface ClassCategory {
   id: string
@@ -41,8 +41,8 @@ export interface ClassEnrollment {
 
 export async function listClassCategories(communityId: string) {
   try {
-    const { data: { session } } = await supabase.auth.getSession()
-    const res = await fetch(`/api/classes/categories?communityId=${encodeURIComponent(communityId)}&t=${Date.now()}`, { cache: 'no-store', headers: session?.access_token ? { authorization: `Bearer ${session.access_token}` } : undefined })
+    const token = await getAuthToken().catch(() => null)
+    const res = await fetch(`/api/classes/categories?communityId=${encodeURIComponent(communityId)}&t=${Date.now()}`, { cache: 'no-store', headers: token ? { authorization: `Bearer ${token}` } : undefined })
     if (!res.ok) throw new Error('failed')
     const data = await res.json()
     return (data || []) as ClassCategory[]
@@ -80,15 +80,46 @@ export async function deleteClassCategory(id: string) {
 
 export async function listClasses(communityId: string, categoryId?: string | null, userId?: string) {
   try {
-    const { data: { session } } = await supabase.auth.getSession()
+    const token = await getAuthToken().catch(() => null)
     const url = `/api/classes/list?communityId=${encodeURIComponent(communityId)}${categoryId ? `&categoryId=${encodeURIComponent(categoryId)}` : ''}${userId ? `&userId=${encodeURIComponent(userId)}` : ''}`
-    const res = await fetch(url, { headers: session?.access_token ? { authorization: `Bearer ${session.access_token}` } : undefined })
-    if (!res.ok) throw new Error('failed')
+    const res = await fetch(url, { cache: 'no-store', headers: token ? { authorization: `Bearer ${token}` } : undefined })
+    if (!res.ok) {
+      // 어떤 오류든 목록은 빈 배열로 처리하여 UI가 크래시하지 않도록 함
+      return []
+    }
     const data = await res.json()
     return (data || []) as ClassItem[]
   } catch (error) {
-    console.error('listClasses error:', error)
+    // 조용히 폴백
     return []
+  }
+}
+
+// 통합 오버뷰: 카테고리 + 클래스 목록을 한 번에 가져오기
+const classesOverviewCache = new Map<string, { ts: number; data: { categories: ClassCategory[]; classes: ClassItem[] } }>()
+export async function getClassesOverview(communityId: string, params?: { categoryId?: string | null; userId?: string | null; force?: boolean }) {
+  const qp = new URLSearchParams({ communityId })
+  if (params?.categoryId) qp.set('categoryId', String(params.categoryId))
+  if (params?.userId) qp.set('userId', String(params.userId))
+  const key = qp.toString()
+  const now = Date.now()
+  if (!params?.force) {
+    const cached = classesOverviewCache.get(key)
+    if (cached && now - cached.ts < 60_000) return cached.data
+  }
+  try {
+    const token = await getAuthToken().catch(() => null)
+    const res = await fetch(`/api/classes/overview?${qp.toString()}`, { headers: token ? { authorization: `Bearer ${token}` } : undefined })
+    if (!res.ok) {
+      // 401/403 포함: 빈 배열로 안전 반환
+      return { categories: [], classes: [] as ClassItem[] }
+    }
+    const data = await res.json()
+    const payload = { categories: (data?.categories || []) as ClassCategory[], classes: (data?.classes || []) as ClassItem[] }
+    classesOverviewCache.set(key, { ts: now, data: payload })
+    return payload
+  } catch {
+    return { categories: [], classes: [] as ClassItem[] }
   }
 }
 

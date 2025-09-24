@@ -114,6 +114,11 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
         setLikedMap(map)
       } catch {}
       setCommentCountsMap(cMap)
+    } catch (err: any) {
+      // 서버 에러 등으로 피드 로드 실패 시 안전하게 빈 목록 표시
+      setPosts([])
+      setTotalCount(0)
+      toast.error(err?.message || '피드를 불러오지 못했습니다.')
     } finally {
       setLoading(false)
     }
@@ -313,7 +318,7 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
               <div className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-lg ring-2 ring-white/60" style={{ backgroundColor: withAlpha(contextBrandColor || '#0f172a', 0.18) }}>
                 <Sparkles className="w-5 h-5" style={{ color: contextBrandColor || '#0f172a' }} />
               </div>
-              <span className="font-bold text-xl tracking-tight text-black">What's on your mind?</span>
+              <span className="font-bold text-xl tracking-tight text-black">Hi, there!</span>
             </div>
           )}
           {/* 모바일 최적화된 작성 영역 */}

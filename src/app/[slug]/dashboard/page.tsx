@@ -3,7 +3,7 @@ import { createServerClient } from '@/lib/supabase-server'
 
 export default async function CommunityDashboardPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const supabase = createServerClient()
+  const supabase = await createServerClient()
   const { data: { session } } = await supabase.auth.getSession()
   const base = process.env.NEXT_PUBLIC_BASE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
 

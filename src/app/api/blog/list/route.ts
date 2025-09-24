@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
     return new Response(JSON.stringify({ error: 'pageId is required' }), { status: 400 })
   }
 
-  const supabase = createServerClient()
+  const supabase = await createServerClient()
 
   try {
     // 페이지가 속한 커뮤니티 식별 후 멤버십 체크 (쿠키 기반 사용자)

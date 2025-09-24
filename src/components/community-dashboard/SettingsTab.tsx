@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
 import { createNotice, getCommunitySettings, getNotices, upsertCommunitySettings, getCommunityServices, addCommunityService, removeCommunityService, updateCommunity, deleteCommunity } from "@/lib/communities"
+import { getAuthToken } from "@/lib/supabase"
 import { supabase } from "@/lib/supabase"
 import type { CommunitySettings, Notice } from "@/types/community"
 import { buildPublicR2UrlForBucket, COMMUNITY_BANNER_BUCKET } from "@/lib/r2"
@@ -71,21 +72,41 @@ export function SettingsTab({ communityId }: SettingsTabProps) {
   const [communityIconUrl, setCommunityIconUrl] = useState<string>("")
   const [isPublic, setIsPublic] = useState<boolean>(true)
   const [joinPolicy, setJoinPolicy] = useState<'free'|'approval'>('free')
+  // 기본 정보 초기값 스냅샷(변경 감지용)
+  const [basicInitial, setBasicInitial] = useState<{ name: string; slug: string; desc: string; category: string } | null>(null)
+  // 상세 설정(미션/브랜드 컬러) 초기값 스냅샷
+  const [settingsInitial, setSettingsInitial] = useState<{ mission: string; brand_color: string | null } | null>(null)
 
   useEffect(() => {
     let isMounted = true
     ;(async () => {
       setLoading(true)
       try {
-        const [s, ns, sv] = await Promise.all([
-          getCommunitySettings(communityId),
-          getNotices(communityId),
-          getCommunityServices(communityId),
-        ])
+        const token = await getAuthToken().catch(() => null)
+        const res = await fetch(`/api/settings/overview?communityId=${encodeURIComponent(communityId)}`, { headers: token ? { authorization: `Bearer ${token}` } : undefined })
+        if (!res.ok) throw new Error('failed to load settings overview')
+        const data = await res.json()
         if (!isMounted) return
+        const s = data?.settings || null
         setValues(s || {})
-        setNotices(ns)
-        setServices(sv.map(v => ({ id: v.id, label: v.label })))
+        setSettingsInitial({ mission: (s?.mission || ""), brand_color: (s?.brand_color ?? null) as any })
+        setNotices((data?.notices || []).slice(0, 50))
+        setServices((data?.services || []).map((v: any) => ({ id: v.id, label: v.label })))
+        // basics는 별도 effect에서 supabase로 로드하지만, 여기서도 보조로 반영할 수 있음 (slug/이름 등)
+      } catch {
+        // 폴백: 기존 개별 호출 (오류 시에도 UI는 로딩 해제)
+        try {
+          const [s, ns, sv] = await Promise.all([
+            getCommunitySettings(communityId),
+            getNotices(communityId),
+            getCommunityServices(communityId),
+          ])
+          if (!isMounted) return
+          setValues(s || {})
+          setSettingsInitial({ mission: (s?.mission || ""), brand_color: (s?.brand_color ?? null) as any })
+          setNotices(ns)
+          setServices(sv.map(v => ({ id: v.id, label: v.label })))
+        } catch {}
       } finally {
         if (isMounted) setLoading(false)
       }
@@ -120,6 +141,8 @@ export function SettingsTab({ communityId }: SettingsTabProps) {
       setIsPublic((data as any)?.is_public ?? true)
       setJoinPolicy(((data as any)?.join_policy as any) || 'free')
       if (!slug) setSlug(data.slug || '')
+      // 초기 스냅샷 저장(한 번만 세팅)
+      setBasicInitial({ name: data.name || '', slug: data.slug || '', desc: data.description || '', category: data.category || '' })
     })()
     return () => { alive = false }
   }, [communityId])
@@ -165,13 +188,15 @@ export function SettingsTab({ communityId }: SettingsTabProps) {
     }
   }
 
-  const handleSaveSettings = async () => {
+  const handleSaveSettings = async (patch?: Partial<CommunitySettings>) => {
     setSaving(true)
     try {
       const payload = {
-        mission: values.mission || "",
+        mission: (patch?.mission ?? values.mission) || "",
         // 브랜드 컬러 저장 (선택적)
-        brand_color: values.brand_color || null,
+        brand_color: (patch?.brand_color ?? values.brand_color) || null,
+        // 배너 URL도 포함(있을 경우)
+        banner_url: (patch?.banner_url ?? (values as any).banner_url) || null,
       }
       const s = await upsertCommunitySettings(communityId, payload)
       setValues(s)
@@ -321,14 +346,24 @@ export function SettingsTab({ communityId }: SettingsTabProps) {
   const nameMax = 20
   const descMax = 100
   const missionMax = 50
+  const settingsChanged = (values.mission || "") !== (settingsInitial?.mission || "") || ((values.brand_color ?? null) !== (settingsInitial?.brand_color ?? null))
+  const basicsChanged = !!basicInitial && (basicInitial.name !== communityName || basicInitial.slug !== communitySlug || basicInitial.desc !== communityDesc || basicInitial.category !== communityCategory)
+  const combinedChanged = basicsChanged || settingsChanged
+
+  const handleSaveAll = async () => {
+    // 기본 정보 + 상세 설정(미션/브랜드컬러) 함께 저장
+    await handleSaveCommunityBasics()
+    await handleSaveSettings()
+    setBasicInitial({ name: communityName, slug: communitySlug, desc: communityDesc, category: communityCategory })
+    setSettingsInitial({ mission: (values.mission || ""), brand_color: (values.brand_color ?? null) as any })
+  }
 
   return (
     <section className="space-y-4">
-      {/* Sub Tabs - centered */}
+      {/* Sub Tabs - centered (대시보드 설정 탭 제거) */}
       <div className="flex items-center justify-center gap-1.5">
         {([
-          { k: 'page', label: '상세페이지 설정' },
-          { k: 'basic', label: '대시보드 설정' },
+          { k: 'page', label: '커뮤니티 설정' },
           { k: 'advanced', label: '고급 설정' },
         ] as const).map(tab => (
           <button
@@ -347,7 +382,11 @@ export function SettingsTab({ communityId }: SettingsTabProps) {
           <Card>
             <CardHeader className="flex items-center justify-between px-4 py-3">
               <CardTitle>커뮤니티 기본 정보</CardTitle>
-              <div className="flex gap-2"><Button onClick={handleSaveCommunityBasics}>기본 정보 저장</Button></div>
+              <div className="flex gap-2">
+                <Button onClick={handleSaveAll} variant={combinedChanged ? 'default' : 'outline'}>
+                  {combinedChanged ? '변경된 사항 저장' : '변경된 사항 저장'}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-3 px-4 pb-4">
               <div className="grid md:grid-cols-2 gap-2.5">
@@ -372,6 +411,18 @@ export function SettingsTab({ communityId }: SettingsTabProps) {
                   <Textarea value={communityDesc} maxLength={descMax} onChange={(e) => setCommunityDesc(e.target.value)} placeholder="커뮤니티 소개" />
                   <div className="text-xs text-slate-500 text-right">{communityDesc.length}/{descMax}</div>
                 </div>
+
+                {/* Our Mission - 커뮤니티 소개 아래 배치 */}
+                <div className="md:col-span-2">
+                  <Label className="text-xs text-slate-600">Our Mission</Label>
+                  <Textarea
+                    placeholder="커뮤니티 미션을 입력하세요"
+                    value={values.mission || ""}
+                    maxLength={missionMax}
+                    onChange={(e) => setValues((v) => ({ ...v, mission: e.target.value }))}
+                  />
+                  <div className="text-xs text-slate-500 text-right mt-1">{(values.mission || "").length}/{missionMax}</div>
+                </div>
               </div>
               
               {/* 커뮤니티 아이콘 섹션 */}
@@ -390,10 +441,52 @@ export function SettingsTab({ communityId }: SettingsTabProps) {
                   <div className="text-xs text-slate-600">버킷: community-icons / 경로: {slug ? `${slug}/` : '(slug 로딩중)'}</div>
                 </div>
               </div>
+
+              {/* 대시보드 브랜드 컬러 - 아이콘 아래 배치 */}
+              <div className="border-t pt-3">
+              <div className="flex items-center justify-between mb-3">
+                  <Label className="text-sm font-medium">대시보드 브랜드 컬러</Label>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setBrandModalOpen(true)}>변경</Button>
+                </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 items-center">
+                  <p className="text-xs text-slate-600">활성 버튼과 강조 요소에 적용됩니다.</p>
+                <div className="flex items-center md:justify-end gap-3">
+                    <div
+                      className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold shadow-sm border"
+                      style={{ backgroundColor: values.brand_color || '#0f172a', color: getReadableTextColor(values.brand_color || '#0f172a'), borderColor: 'rgba(0,0,0,0.08)' }}
+                    >
+                      활성 버튼 예시
+                    </div>
+                    <div className="text-xs text-slate-600">현재 색상: <span className="font-medium text-slate-800">{normalizeHex(values.brand_color || '#0f172a')}</span></div>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
-
+          {/* 대시보드 배너 이미지를 커뮤니티 이미지 위에 배치 */}
+          <Card>
+            <CardHeader className="flex items-center justify-between px-4 py-3">
+              <CardTitle>대시보드 배너 이미지</CardTitle>
+              <div className="flex gap-2">
+                <input ref={bannerInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onUploadBanner(f) }} />
+                <Button size="sm" onClick={() => bannerInputRef.current?.click()} disabled={uploading}>{uploading ? '업로드 중...' : '배너 업로드'}</Button>
+                <Button size="sm" variant="outline" onClick={() => handleSaveSettings()} disabled={saving}>{saving ? '저장 중...' : '설정 저장'}</Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2.5 px-4 pb-4">
+              <p className="text-xs text-slate-600">권장 비율: (예: 16:4 ~ 21:9) 가로로 긴 배너가 대시보드 홈 상단에 노출됩니다.</p>
+              <div className="rounded-2xl overflow-hidden border border-slate-200 bg-slate-50">
+                {values.banner_url ? (
+                  <img src={values.banner_url} alt="banner" className="w-full h-40 md:h-56 lg:h-60 object-cover" />
+                ) : (
+                  <div className="w-full h-40 md:h-56 lg:h-60 flex items-center justify-center text-slate-500 text-sm">루트를 대표하는 배너 이미지를 등록해보세요!</div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader className="flex items-center justify-between px-4 py-3">
@@ -407,9 +500,7 @@ export function SettingsTab({ communityId }: SettingsTabProps) {
               </div>
             </CardHeader>
             <CardContent className="space-y-3 px-4 pb-4">
-              <p className="text-xs text-slate-600">
-                첫 번째 이미지가 대표 이미지로 설정되며, 이미지 위치 변경은 드래그를 통해 가능합니다
-              </p>
+              <p className="text-xs text-slate-600">첫 번째 이미지가 대표 이미지로 설정되며, 이미지 위치 변경은 드래그를 통해 가능합니다</p>
               {/* 모바일: 한 줄 2개 노출 + 가로 스크롤 */}
               <div className="block sm:hidden">
                 <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 snap-x snap-mandatory">
@@ -566,119 +657,54 @@ export function SettingsTab({ communityId }: SettingsTabProps) {
       {/* Basic Settings */}
       {active === 'basic' && (
         <div className="space-y-3">
-          {/* 브랜드 컬러 선택 */}
-          <Card>
-            <CardHeader className="flex items-center justify-between px-4 py-3">
-              <CardTitle>대시보드 브랜드 컬러</CardTitle>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setBrandModalOpen(true)}>변경</Button>
-                <Button onClick={handleSaveSettings} disabled={saving}>{saving ? '저장 중...' : '저장'}</Button>
-              </div>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 items-center">
-                <p className="text-xs text-slate-600">활성 버튼과 강조 요소에 적용됩니다. 어두운 색은 자동으로 흰색 텍스트, 밝은 색은 검정 텍스트가 적용됩니다.</p>
-                <div className="flex items-center md:justify-end gap-3">
-                  <div
-                    className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold shadow-sm border"
-                    style={{ backgroundColor: values.brand_color || '#0f172a', color: getReadableTextColor(values.brand_color || '#0f172a'), borderColor: 'rgba(0,0,0,0.08)' }}
-                  >
-                    활성 버튼 예시
-                  </div>
-                  <div className="text-xs text-slate-600">현재 색상: <span className="font-medium text-slate-800">{normalizeHex(values.brand_color || '#0f172a')}</span></div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 브랜드 컬러 선택 모달 */}
-          <Dialog open={brandModalOpen} onOpenChange={setBrandModalOpen}>
-            <DialogContent className="sm:max-w-[520px]">
-              <DialogHeader>
-                <DialogTitle>브랜드 컬러 선택</DialogTitle>
-                <DialogDescription>팔레트에서 색상을 선택하세요. 저장을 눌러 반영됩니다.</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-3">
-                <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
-                  {BRAND_COLOR_PALETTE.map((c) => {
-                    const selected = normalizeHex(values.brand_color || '') === normalizeHex(c)
-                    const text = getReadableTextColor(c)
-                    return (
-                      <button
-                        key={c}
-                        title={c}
-                        onClick={() => setValues(v => ({ ...v, brand_color: c }))}
-                        className={`h-10 rounded-md border cursor-pointer transition-transform active:scale-95 ${selected ? 'ring-2 ring-offset-2 ring-slate-900' : 'hover:scale-[1.02]'} `}
-                        style={{ backgroundColor: c, color: text, borderColor: 'rgba(0,0,0,0.08)' }}
-                      >
-                        <span className="text-[11px] font-semibold">{selected ? '선택됨' : '선택'}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-                <div className="flex items-center justify-between pt-1">
-                  <div className="text-xs text-slate-600">현재: {normalizeHex(values.brand_color || '#0f172a')}</div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setValues(v => ({ ...v, brand_color: null as any }))}>초기화</Button>
-                    <Button onClick={() => setBrandModalOpen(false)}>완료</Button>
-                  </div>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-
-          <Card>
-            <CardHeader className="flex items-center justify-between px-4 py-3">
-              <CardTitle>Our Mission</CardTitle>
-              <div className="flex gap-2"><Button onClick={handleSaveSettings} disabled={saving}>{saving ? '저장 중...' : '저장'}</Button></div>
-            </CardHeader>
-            <CardContent className="space-y-2.5 px-4 pb-4">
-              <div>
-                <Textarea
-                  placeholder="커뮤니티 미션을 입력하세요"
-                  value={values.mission || ""}
-                  maxLength={missionMax}
-                  onChange={(e) => setValues((v) => ({ ...v, mission: e.target.value }))}
-                />
-                <div className="text-xs text-slate-500 text-right mt-1">{(values.mission || "").length}/{missionMax}</div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 배너 설정 */}
-          <Card>
-            <CardHeader className="flex items-center justify-between px-4 py-3">
-              <CardTitle>대시보드 배너 이미지</CardTitle>
-              <div className="flex gap-2">
-                <input ref={bannerInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onUploadBanner(f) }} />
-                <Button size="sm" onClick={() => bannerInputRef.current?.click()} disabled={uploading}>{uploading ? '업로드 중...' : '배너 업로드'}</Button>
-                <Button size="sm" variant="outline" onClick={handleSaveSettings} disabled={saving}>{saving ? '저장 중...' : '설정 저장'}</Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-2.5 px-4 pb-4">
-              <p className="text-xs text-slate-600">권장 비율: (예: 16:4 ~ 21:9) 가로로 긴 배너가 대시보드 홈 상단에 노출됩니다.</p>
-              <div className="rounded-2xl overflow-hidden border border-slate-200 bg-slate-50">
-                {values.banner_url ? (
-                  <img src={values.banner_url} alt="banner" className="w-full h-40 md:h-56 lg:h-60 object-cover" />
-                ) : (
-                  <div className="w-full h-40 md:h-56 lg:h-60 flex items-center justify-center text-slate-500 text-sm">루트를 대표하는 배너 이미지를 등록해보세요!</div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex items-center justify-between px-4 py-3">
-              <CardTitle>공지사항</CardTitle>
-              <div className="flex gap-2"><Button size="sm" onClick={handleAddNotice}>공지 추가</Button></div>
-            </CardHeader>
-            <CardContent className="space-y-2.5 px-4 pb-4">
-              <Input value={noticeTitle} onChange={(e) => setNoticeTitle(e.target.value)} placeholder="공지 제목" />
-              <Textarea value={noticeContent} onChange={(e) => setNoticeContent(e.target.value)} placeholder="공지 내용" />
-            </CardContent>
-          </Card>
+          {/* (비움) */}
         </div>
       )}
+
+      {/* 브랜드 컬러 선택 모달 - 탭과 무관하게 항상 마운트 */}
+      <Dialog open={brandModalOpen} onOpenChange={setBrandModalOpen}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>브랜드 컬러 선택</DialogTitle>
+            <DialogDescription>팔레트에서 색상을 선택하세요. 저장을 눌러 반영됩니다.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
+              {BRAND_COLOR_PALETTE.map((c) => {
+                const selected = normalizeHex(values.brand_color || '') === normalizeHex(c)
+                const text = getReadableTextColor(c)
+                return (
+                  <button
+                    key={c}
+                    title={c}
+                    onClick={() => setValues(v => ({ ...v, brand_color: c }))}
+                    className={`h-10 rounded-md border cursor-pointer transition-transform active:scale-95 ${selected ? 'ring-2 ring-offset-2 ring-slate-900' : 'hover:scale-[1.02]'} `}
+                    style={{ backgroundColor: c, color: text, borderColor: 'rgba(0,0,0,0.08)' }}
+                  >
+                    <span className="text-[11px] font-semibold">{selected ? '선택됨' : '선택'}</span>
+                  </button>
+                )
+              })}
+            </div>
+              <div className="flex items-center justify-between pt-1">
+                <div className="text-xs text-slate-600">현재: {normalizeHex(values.brand_color || '#0f172a')}</div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setValues(v => ({ ...v, brand_color: null as any }))}
+                  >초기화</Button>
+                  <Button
+                    onClick={async () => {
+                      await handleSaveSettings({ brand_color: values.brand_color || null })
+                      setSettingsInitial({ mission: (values.mission || ""), brand_color: (values.brand_color ?? null) as any })
+                      setBrandModalOpen(false)
+                    }}
+                  >완료</Button>
+                </div>
+              </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Advanced Settings */}
       {active === 'advanced' && (

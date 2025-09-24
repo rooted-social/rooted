@@ -4,11 +4,12 @@ import { useParams, useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { getCommunity } from "@/lib/communities"
 import { SettingsTab } from "@/components/community-dashboard/SettingsTab"
-import { getUserId } from "@/lib/supabase"
+import { useAuthData } from "@/components/auth/AuthProvider"
 
 export default function CommunitySettingsPage() {
   const { slug } = useParams<{ slug: string }>()
   const router = useRouter()
+  const { user } = useAuthData()
   const [communityId, setCommunityId] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(true)
   const [authorized, setAuthorized] = useState<boolean>(false)
@@ -23,20 +24,12 @@ export default function CommunitySettingsPage() {
         const community = await getCommunity(String(slug))
         if (!mounted) return
         setCommunityId(community.id)
-        // 오너만 접근 허용
-        try {
-          const uid = await getUserId()
-          if (!uid) { router.replace(`/${String(slug)}`); return }
-          const isOwner = uid === (community as any)?.owner_id
-          setAuthorized(isOwner)
-          if (!isOwner) {
-            router.replace(`/${String(slug)}`)
-            return
-          }
-        } catch {
-          router.replace(`/${String(slug)}`)
-          return
-        }
+        // 오너만 접근 허용 (전역 Context 사용)
+        const uid = user?.id
+        if (!uid) { router.replace(`/${String(slug)}`); return }
+        const isOwner = uid === (community as any)?.owner_id
+        setAuthorized(isOwner)
+        if (!isOwner) { router.replace(`/${String(slug)}`); return }
       } catch (error) {
         console.error('Community load failed:', error)
       } finally {
@@ -44,7 +37,7 @@ export default function CommunitySettingsPage() {
       }
     })()
     return () => { mounted = false }
-  }, [slug])
+  }, [slug, user?.id])
 
   if (loading || !authorized) {
     return (

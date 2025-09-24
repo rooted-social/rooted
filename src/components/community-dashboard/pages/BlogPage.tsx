@@ -9,8 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { getAvatarUrl } from "@/lib/profiles"
 import { deleteBlogPost } from "@/lib/blog"
-import { supabase, getUserId } from "@/lib/supabase"
-import { getCommunitySlugById, getCommunitySettings } from "@/lib/communities"
+import { useAuthData } from "@/components/auth/AuthProvider"
 import { getReadableTextColor } from "@/utils/color"
 import AnimatedBackground from "@/components/AnimatedBackground"
 import { Pencil, Trash2 } from "lucide-react"
@@ -27,18 +26,48 @@ interface BlogPageProps {
 
 type BlogListItem = LibBlogListItem
 
-function formatDate(iso: string) {
+function formatDateKST(iso: string) {
   try {
     const d = new Date(iso)
-    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+    return d.toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: 'short', day: 'numeric' })
   } catch {
     return iso
+  }
+}
+
+function timeAgoKST(iso: string) {
+  try {
+    const now = new Date()
+    const then = new Date(iso)
+    // 밀리초 보정은 불필요, 단순 차이 계산
+    const diffMs = now.getTime() - then.getTime()
+    const minutes = Math.floor(diffMs / (1000 * 60))
+    const hours = Math.floor(diffMs / (1000 * 60 * 60))
+    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+    if (minutes < 60) return `${Math.max(0, minutes)}분 전`
+    if (hours < 24) return `${hours}시간 전`
+    if (days < 7) return `${days}일 전`
+    return formatDateKST(iso)
+  } catch {
+    return iso
+  }
+}
+
+function toPlainText(input: string): string {
+  try {
+    const el = document.createElement('div')
+    el.innerHTML = input || ''
+    const text = (el.textContent || el.innerText || '').replace(/\s+/g, ' ').trim()
+    return text
+  } catch {
+    return (input || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
   }
 }
 
 // 읽기 시간 뱃지 제거
 
 export default function BlogPage({ title, bannerUrl, description, pageId, communityId }: BlogPageProps) {
+  const { user } = useAuthData()
   const [items, setItems] = useState<BlogListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [slug, setSlug] = useState<string>("")
@@ -54,21 +83,19 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
     ;(async () => {
       setLoading(true)
       try {
-        const [list, s, uid, comm, settings] = await Promise.all([
+        const [overview] = await Promise.all([
           fetchBlogList(pageId),
-          getCommunitySlugById(communityId),
-          getUserId(),
-          supabase.from('communities').select('owner_id').eq('id', communityId).single(),
-          getCommunitySettings(communityId).catch(() => null),
         ])
         if (!mounted) return
-        console.log('Blog posts loaded:', list) // 디버깅용
-        setItems(list as any)
-        setSlug(s || "")
-        const ownerId = (comm.data as any)?.owner_id || null
-        setCurrentUserId(uid || null)
-        setIsOwner(!!uid && !!ownerId && uid === ownerId)
-        setBrandColor((settings as any)?.brand_color || null)
+        const list = (overview?.posts || []) as any[]
+        console.log('Blog posts loaded:', list)
+        setItems(list)
+        setSlug(overview?.slug || "")
+        const uid = user?.id || null
+        const ownerId = overview?.isOwner ? uid : null
+        setCurrentUserId(uid)
+        setIsOwner(!!overview?.isOwner)
+        setBrandColor(overview?.brandColor || null)
       } catch (error) {
         console.error('Failed to load blog data:', error)
         if (mounted) {
@@ -82,7 +109,7 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
       }
     })()
     return () => { mounted = false }
-  }, [pageId, communityId])
+  }, [pageId, communityId, user?.id])
 
   // 아이템 변화 시 현재 페이지가 범위를 넘지 않도록 보정
   useEffect(() => {
@@ -93,7 +120,7 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
   return (
     <>
       <AnimatedBackground zIndexClass="-z-10" />
-      <div className="space-y-3 relative z-10">
+      <div className="space-y-3 relative z-10 max-w-2xl md:max-w-3xl mx-auto w-full px-3 md:px-0">
       {bannerUrl && (
         <div className="relative w-full h-40 overflow-hidden rounded-xl border">
           <Image src={bannerUrl} alt={title} fill className="object-cover" />
@@ -107,8 +134,8 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
           <p className="mt-2 text-sm md:text-base text-slate-600 max-w-2xl mx-auto">{description}</p>
         )}
         {slug && (
-          <div className="mt-3 px-4 md:px-0 md:pr-[5%] flex justify-end">
-            <Button asChild size="sm" className="h-auto whitespace-nowrap cursor-pointer rounded-xl md:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border-0 font-semibold px-3 py-2 text-sm md:px-6 md:py-3 md:text-base"
+          <div className="mt-3 px-0 flex justify-end">
+            <Button asChild size="sm" className="h-auto whitespace-nowrap cursor-pointer rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border-0 font-semibold px-3 py-2 text-sm"
               style={brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor) } : undefined}
             >
               <Link href={`/${slug}/blog/new?pageId=${pageId}`} className="inline-flex items-center gap-2">
@@ -123,28 +150,16 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fit,minmax(250px,330px))] justify-center md:justify-start justify-items-center md:justify-items-stretch gap-5 w-full max-w-[1400px] md:max-w-none mx-auto md:mx-0 px-[2%] md:px-0">
+        <div className="space-y-3">
           {Array.from({ length: perPage }).map((_, i) => (
-            <div key={i} className="h-80 rounded-2xl bg-white animate-pulse shadow-sm border border-slate-200 overflow-hidden">
-              {/* 썸네일 스켈레톤 */}
-              <div className="w-full aspect-[16/9] bg-slate-100" />
-              {/* 콘텐츠 스켈레톤 */}
-              <div className="p-5 space-y-4">
-                {/* 작성자 스켈레톤 */}
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-slate-200 rounded-full" />
-                  <div className="h-4 bg-slate-200 rounded w-20" />
-                </div>
-                {/* 제목 스켈레톤 */}
-                <div className="h-6 bg-slate-200 rounded w-3/4" />
-                {/* 통계 스켈레톤 */}
-                <div className="flex items-center justify-between">
-                  <div className="flex gap-3">
-                    <div className="h-7 w-12 bg-slate-200 rounded-full" />
-                    <div className="h-7 w-12 bg-slate-200 rounded-full" />
-                    <div className="h-7 w-12 bg-slate-200 rounded-full" />
-                  </div>
-                  <div className="h-7 w-20 bg-slate-200 rounded-full" />
+            <div key={i} className="rounded-2xl bg-white animate-pulse shadow-sm border border-slate-200 overflow-hidden p-4">
+              <div className="flex items-start gap-4">
+                <div className="hidden md:block w-24 md:w-28 aspect-square bg-slate-100 rounded-xl" />
+                <div className="flex-1 space-y-3">
+                  <div className="h-5 w-1/2 bg-slate-200 rounded" />
+                  <div className="h-4 w-3/4 bg-slate-200 rounded" />
+                  <div className="h-4 w-2/3 bg-slate-200 rounded" />
+                  <div className="h-4 w-1/4 bg-slate-200 rounded" />
                 </div>
               </div>
             </div>
@@ -156,7 +171,7 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
             <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>
           </div>
           <h3 className="text-lg font-semibold text-slate-900">첫 번째 게시글을 작성해보세요!</h3>
-          <p className="mt-1 text-sm text-slate-600">블로그의 첫 글을 등록해 커뮤니티와 소식을 공유해보세요.</p>
+          <p className="mt-1 text-sm text-slate-600">첫 글을 등록해 커뮤니티와 소식을 공유해보세요.</p>
           {slug && (
             <Button asChild className="mt-4 h-auto rounded-xl md:rounded-2xl shadow-lg px-3 py-2 text-sm md:px-6 md:py-3 md:text-base"
               size="sm"
@@ -171,66 +186,36 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
         </div>
       ) : (
         <>
-        <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fit,minmax(250px,330px))] justify-center md:justify-start justify-items-center md:justify-items-stretch gap-5 w-full max-w-[1400px] md:max-w-none mx-auto md:mx-0 px-[3%] md:px-0">
+        <div className="space-y-3">
           {items.slice((page-1)*perPage, page*perPage).map((post: any) => (
             <Link key={post.id} href={`/${slug}/blog/${post.id}?pageId=${pageId}`} className="group block w-full" prefetch={false}>
-              <article className="w-full h-[400px] md:h-auto min-w-0 overflow-hidden rounded-2xl bg-white shadow-sm hover:shadow-lg transition-all duration-300 group-hover:scale-[1.01] border border-slate-200 relative">
-                {/* 썸네일 영역 */}
-                <div className="relative w-full h-[220px] md:h-auto md:aspect-[16/9] overflow-hidden bg-slate-50">
-                  {post.thumbnail_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img 
-                      src={post.thumbnail_url} 
-                      alt={post.title} 
-                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
-                    />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-slate-400">
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-slate-200 flex items-center justify-center">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                        </div>
-                        <span className="text-xs">썸네일 없음</span>
-                      </div>
+              <article className="w-full min-w-0 overflow-hidden rounded-2xl bg-white shadow-xs hover:shadow-lg transition-all duration-200 border border-slate-200 relative p-4">
+                <div className="flex items-start gap-4">
+                  {/* 텍스트 영역 */}
+                  <div className={`flex-1 min-w-0 ${post.thumbnail_url ? '' : ''}`}>
+                    <h3 className="text-base md:text-lg font-semibold text-slate-900 leading-snug line-clamp-2 group-hover:text-slate-700 transition-colors duration-200">
+                      {post.title}
+                    </h3>
+                    <p className="mt-2 text-sm text-slate-700 line-clamp-2 whitespace-pre-line break-words">
+                      {toPlainText(post.content)}
+                    </p>
+                    <div className="mt-3">
+                      <StatsRow counts={post.counts} createdAt={post.created_at} author={post.author} />
+                    </div>
+                  </div>
+
+                  {/* 썸네일 영역: 정사각형, 우측 정렬 */}
+                  {post.thumbnail_url && (
+                    <div className="relative w-16 sm:w-20 md:w-28 aspect-square rounded-xl overflow-hidden bg-slate-50 flex-shrink-0 ml-auto">
+                      <Image
+                        src={post.thumbnail_url}
+                        alt={post.title}
+                        fill
+                        sizes="(max-width: 480px) 64px, (max-width: 768px) 80px, (max-width: 1024px) 112px, 112px"
+                        className="object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
                     </div>
                   )}
-                </div>
-
-                {/* 콘텐츠 영역 */}
-                <div className="p-5 md:p-5 px-6 py-6 space-y-4 min-h-[180px] md:min-h-[140px]">
-                  {/* 작성자 프로필 + 날짜 (고정 높이) */}
-                  <div className="flex items-center justify-between h-8">
-                    <div className="flex items-center gap-2 min-w-0 overflow-hidden">
-                      <Avatar className="w-8 h-8">
-                      <AvatarImage 
-                        src={post.author?.avatar_url ? getAvatarUrl(post.author.avatar_url, post.author.updated_at) : undefined} 
-                        alt={post.author?.username || post.author?.full_name || 'User'} 
-                      />
-                      <AvatarFallback className="bg-slate-200 text-slate-600 text-sm font-medium">
-                        {post.author?.full_name ? 
-                          post.author.full_name.slice(0,1).toUpperCase() : 
-                          post.author?.username ? 
-                            post.author.username.slice(0,1).toUpperCase() : 
-                            '?'
-                        }
-                      </AvatarFallback>
-                      </Avatar>
-                      <div className="text-sm font-medium text-slate-700 truncate max-w-[52%]">
-                        {post.author?.full_name || post.author?.username || 'Anonymous'}
-                      </div>
-                    </div>
-                    <span className="text-[11px] text-slate-500 truncate max-w-[40%] text-right ml-2">{formatDate(post.created_at)}</span>
-                  </div>
-                  
-                  {/* 제목 */}
-                  <h3 className="text-[17px] md:text-lg font-semibold text-slate-900 leading-snug line-clamp-2 group-hover:text-slate-700 transition-colors duration-200 min-h-[46px]">
-                    {post.title}
-                  </h3>
-                  
-                  {/* 통계 */}
-                  <StatsRow counts={post.counts} createdAt={post.created_at} />
                 </div>
 
                 {/* 액션 버튼: 작성자 또는 오너만 */}
@@ -302,29 +287,32 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
   )
 }
 
-function StatsRow({ counts, createdAt }: { counts: { views: number; likes: number; comments: number }; createdAt: string }) {
+function StatsRow({ counts, createdAt, author }: { counts: { views: number; likes: number; comments: number }; createdAt: string; author?: { full_name?: string | null; username?: string | null } | null }) {
   return (
     <div className="relative flex items-center justify-between">
-      <div className="flex items-center gap-4">
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-50 border border-slate-100 hover:bg-slate-100 transition-colors duration-200">
-          <svg className="w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="flex items-center gap-3 text-slate-500">
+        <div className="inline-flex items-center gap-1">
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
             <circle cx="12" cy="12" r="3"/>
           </svg>
-          <span className="text-xs font-medium text-slate-700">{counts.views}</span>
+          <span className="text-[12px] font-medium">{counts.views}</span>
         </div>
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-red-50 border border-red-100 hover:bg-red-100 transition-colors duration-200">
-          <svg className="w-3.5 h-3.5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="inline-flex items-center gap-1">
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/>
           </svg>
-          <span className="text-xs font-medium text-red-700">{counts.likes}</span>
+          <span className="text-[12px] font-medium">{counts.likes}</span>
         </div>
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-blue-50 border border-blue-100 hover:bg-blue-100 transition-colors duration-200">
-          <svg className="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="inline-flex items-center gap-1">
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/>
           </svg>
-          <span className="text-xs font-medium text-blue-700">{counts.comments}</span>
+          <span className="text-[12px] font-medium">{counts.comments}</span>
         </div>
+      </div>
+      <div className="text-[11px] text-slate-500 whitespace-nowrap ml-3">
+        {timeAgoKST(createdAt)} · by {author?.full_name || author?.username || 'Anonymous'}
       </div>
     </div>
   )

@@ -51,7 +51,7 @@ export default function CreatePage() {
   }
 
   const generateSlug = (name: string) =>
-    name.toLowerCase().replace(/[^a-z0-9가-힣]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "")
+    name.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "")
 
   const performCreate = async () => {
     if (!formData.name.trim() || !formData.description.trim() || !formData.slug.trim()) return
@@ -69,6 +69,8 @@ export default function CreatePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    const s = formData.slug
+    if (!s || s.length < 3 || s.length > 32) { toast.error('URL은 3~32자 사이여야 합니다.'); return }
     setBetaOpen(true)
   }
 
@@ -114,8 +116,10 @@ export default function CreatePage() {
                   type="text"
                   placeholder="ex) rooted"
                   value={formData.slug}
-                  onChange={(e) => updateFormData("slug", e.target.value)}
+                  onChange={(e) => updateFormData("slug", generateSlug(e.target.value))}
                   pattern="[a-z0-9-]+"
+                  minLength={3}
+                  maxLength={32}
                   required
                   disabled={isCreating}
                 />

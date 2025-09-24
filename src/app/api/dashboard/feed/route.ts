@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
 
   const authHeader = req.headers.get('authorization') || ''
   const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : undefined
-  const supabase = createServerClientWithAuth(bearer)
+  const supabase = await createServerClientWithAuth(bearer)
 
   try {
     // 멤버십 체크: 쿠키 또는 Authorization 헤더 기반 사용자

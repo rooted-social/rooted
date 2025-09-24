@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { getCommunity, getCommunitySettings } from "@/lib/communities"
-import { getUserId } from "@/lib/supabase"
+import { useAuthData } from "@/components/auth/AuthProvider"
 import { StatsTab } from "@/components/community-dashboard/StatsTab"
 import { BarChart3 } from "lucide-react"
 
 export default function CommunityStatsPage() {
   const { slug } = useParams<{ slug: string }>()
   const router = useRouter()
+  const { user } = useAuthData()
   const [communityId, setCommunityId] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(true)
   const [authorized, setAuthorized] = useState<boolean>(false)
@@ -24,19 +25,11 @@ export default function CommunityStatsPage() {
         const community = await getCommunity(String(slug))
         if (!mounted) return
         setCommunityId(community.id)
-        try {
-          const uid = await getUserId()
-          if (!uid) { router.replace(`/${String(slug)}`); return }
-          const isOwner = uid === (community as any)?.owner_id
-          setAuthorized(isOwner)
-          if (!isOwner) {
-            router.replace(`/${String(slug)}`)
-            return
-          }
-        } catch {
-          router.replace(`/${String(slug)}`)
-          return
-        }
+        const uid = user?.id
+        if (!uid) { router.replace(`/${String(slug)}`); return }
+        const isOwner = uid === (community as any)?.owner_id
+        setAuthorized(isOwner)
+        if (!isOwner) { router.replace(`/${String(slug)}`); return }
         try {
           const s = await getCommunitySettings(community.id)
           setBrandColor((s as any)?.brand_color || null)
@@ -48,7 +41,7 @@ export default function CommunityStatsPage() {
       }
     })()
     return () => { mounted = false }
-  }, [slug])
+  }, [slug, user?.id])
 
   if (loading || !authorized) {
     return (
