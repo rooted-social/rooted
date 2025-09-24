@@ -1,7 +1,7 @@
 "use client"
 
 import { useParams, usePathname } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { CommunityTopbar } from "@/components/community-dashboard/CommunityTopbar"
 import { CommunitySidebar } from "@/components/community-dashboard/CommunitySidebar"
 import { useCommunityBySlug } from "@/hooks/useCommunity"
@@ -175,7 +175,32 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
     pathname?.includes('/members') || pathname?.includes('/settings') ||
     pathname?.includes('/stats') || pathname?.includes('/blog')
 
-  const showBlockingLoading = isDashboardArea && (communityQ.isLoading || !guardChecked || !communityId)
+  const [initialReady, setInitialReady] = useState<boolean>(false)
+  const readyTimeoutRef = useRef<any>(null)
+
+  // 대시보드 초기 데이터 준비 완료 이벤트 수신
+  useEffect(() => {
+    const onReady = () => setInitialReady(true)
+    window.addEventListener('dashboard-initial-ready', onReady)
+    return () => window.removeEventListener('dashboard-initial-ready', onReady)
+  }, [])
+
+  // 경로 변경 시 대시보드 영역이면 초기 준비 상태를 리셋
+  useEffect(() => {
+    if (isDashboardArea) setInitialReady(false)
+  }, [isDashboardArea, pathname])
+
+  // 가드 통과 후에도 준비 신호가 없으면 최대 대기 시간 후 자동 해제 (안전장치)
+  useEffect(() => {
+    if (!isDashboardArea) return
+    if (!guardChecked || !communityId) return
+    if (initialReady) return
+    if (readyTimeoutRef.current) clearTimeout(readyTimeoutRef.current)
+    readyTimeoutRef.current = setTimeout(() => setInitialReady(true), 4000)
+    return () => { if (readyTimeoutRef.current) clearTimeout(readyTimeoutRef.current) }
+  }, [isDashboardArea, guardChecked, communityId, initialReady])
+
+  const showBlockingLoading = isDashboardArea && (communityQ.isLoading || !guardChecked || !communityId || !initialReady)
 
   return (
     <div className="min-h-screen">
