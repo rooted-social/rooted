@@ -12,6 +12,7 @@ import { Button as UIButton } from "@/components/ui/button"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { getAvatarUrl } from "@/lib/profiles"
+import { useAuthData } from "@/components/auth/AuthProvider"
 import { CalendarDays, Heart, MessageCircle, Eye, ArrowLeft, Settings } from "lucide-react"
 // Animated background 제거
 
@@ -27,7 +28,7 @@ export default function BlogDetailPage() {
   const [comments, setComments] = useState<any[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingText, setEditingText] = useState<string>("")
-  const [myAvatar, setMyAvatar] = useState<string | null>(null)
+  const { profile } = useAuthData()
   const [canEdit, setCanEdit] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const refetchDetail = async () => {
@@ -97,7 +98,7 @@ export default function BlogDetailPage() {
             </Link>
           </Button>
           <div className="flex-1 text-center">
-            <span className="text-sm font-semibold text-slate-900">블로그</span>
+            <span className="text-sm font-semibold text-slate-900">포스트</span>
           </div>
           <div className="w-16" /> {/* 우측 공간 확보 */}
         </div>
@@ -222,9 +223,9 @@ export default function BlogDetailPage() {
         {/* 댓글 입력 */}
           <div className="flex items-start gap-4 mb-8 p-4 bg-slate-50 rounded-xl border border-slate-200">
             <Avatar className="w-10 h-10 shrink-0">
-              <AvatarImage src={myAvatar || undefined} alt="My avatar" />
+              <AvatarImage src={getAvatarUrl(profile?.avatar_url || null, (profile as any)?.updated_at || null)} alt="My avatar" />
               <AvatarFallback className="bg-slate-200 text-slate-600">
-                {myAvatar ? '나' : '?'}
+                {profile ? '나' : '?'}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 flex gap-3">

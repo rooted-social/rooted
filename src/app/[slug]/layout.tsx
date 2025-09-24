@@ -8,6 +8,7 @@ import { useCommunityBySlug } from "@/hooks/useCommunity"
 import { useRouter } from "next/navigation"
 import { useAuthData } from "@/components/auth/AuthProvider"
 import { supabase } from "@/lib/supabase"
+import LoadingOverlay from "@/components/ui/LoadingOverlay"
 
 interface CommunityLayoutProps {
   children: React.ReactNode
@@ -169,6 +170,13 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
     pathname?.includes('/stats') ||
     pathname?.includes('/blog')
 
+  const isDashboardArea = pathname?.includes('/dashboard') || 
+    pathname?.includes('/classes') || pathname?.includes('/calendar') || 
+    pathname?.includes('/members') || pathname?.includes('/settings') ||
+    pathname?.includes('/stats') || pathname?.includes('/blog')
+
+  const showBlockingLoading = isDashboardArea && (communityQ.isLoading || !guardChecked || !communityId)
+
   return (
     <div className="min-h-screen">
       {/* 커뮤니티 대시보드 페이지에서만 CommunityTopbar 표시 */}
@@ -216,6 +224,7 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
           ? (<div className="md:pt-0 pt-15 pb-20">{children}</div>)
           : children
       )}
+      <LoadingOverlay show={showBlockingLoading} text="커뮤니티 불러오는 중.." />
     </div>
   )
 }

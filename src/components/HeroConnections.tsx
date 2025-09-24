@@ -48,67 +48,76 @@ export default function HeroConnections() {
       const R = baseR * 1.1 // 1.1배 확장
       const pulse = 1 + Math.sin(t * 2.2) * 0.04
 
-      // 중심부 은은한 글로우 (너무 밝지 않게 유지)
-      ctx.save()
-      ctx.globalCompositeOperation = 'lighter'
-      const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * pulse)
-      glow.addColorStop(0.0, 'rgba(255,255,255,0.18)')
-      glow.addColorStop(0.4, 'rgba(255,255,255,0.10)')
-      glow.addColorStop(1.0, 'rgba(255,255,255,0.0)')
-      ctx.fillStyle = glow
-      ctx.beginPath()
-      ctx.arc(cx, cy, baseR * pulse, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.restore()
-
-      // 얇은 링(헤일로) + 외곽 글로우 강화
-      ctx.save()
-      // 외곽 링 글로우: 도넛 형태의 방사형 그라디언트로 링 주변을 더 밝게
-      ctx.globalCompositeOperation = 'lighter'
-      const haloInner = R * 0.88
-      const haloOuter = R * 1.22
-      const ringGlow = ctx.createRadialGradient(cx, cy, haloInner, cx, cy, haloOuter)
-      ringGlow.addColorStop(0.00, 'rgba(255,255,255,0.0)')
-      ringGlow.addColorStop(0.25, 'rgba(255,255,255,0.18)')
-      ringGlow.addColorStop(0.55, 'rgba(255,255,255,0.10)')
-      ringGlow.addColorStop(1.00, 'rgba(255,255,255,0.0)')
-      ctx.fillStyle = ringGlow
-      ctx.fillRect(0, 0, w, h)
-
-      // 실제 얇은 링 스트로크
-      ctx.globalCompositeOperation = 'source-over'
-      ctx.strokeStyle = 'rgba(255,255,255,0.22)'
-      ctx.lineWidth = 2
-      ctx.shadowColor = 'rgba(255,255,255,0.45)'
-      ctx.shadowBlur = 14
-      ctx.beginPath()
-      ctx.arc(cx, cy, R * 0.92, 0, Math.PI * 2)
-      ctx.stroke()
-      ctx.restore()
-
-      // 곡선 웨이브 레이어
-      ctx.save()
-      ctx.strokeStyle = 'rgba(255,255,255,0.18)'
-      const WAVE_COUNT = isMobile ? 5 : 8
-      for (let i = 0; i < WAVE_COUNT; i++) {
-        const yBase = h * 0.30 + i * 40
+      if (!isMobile) {
+        // 중심부 은은한 글로우 (너무 밝지 않게 유지)
+        ctx.save()
+        ctx.globalCompositeOperation = 'lighter'
+        const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * pulse)
+        glow.addColorStop(0.0, 'rgba(255,255,255,0.18)')
+        glow.addColorStop(0.4, 'rgba(255,255,255,0.10)')
+        glow.addColorStop(1.0, 'rgba(255,255,255,0.0)')
+        ctx.fillStyle = glow
         ctx.beginPath()
-        for (let x = 0; x <= w; x += 6) {
-          const y = yBase + Math.sin((x + performance.now() * 0.04 + i * 120) / (220 + i * 12)) * 40
-          if (x === 0) ctx.moveTo(x, y)
-          else ctx.lineTo(x, y)
-        }
-        ctx.stroke()
+        ctx.arc(cx, cy, baseR * pulse, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.restore()
       }
-      ctx.restore()
 
-      // 연결 점/선 레이어 (중앙 원 내부로는 그리지 않도록 외곽 영역만 clip)
-      const clipRadius = R * 0.88
-      ctx.save()
-      ctx.beginPath()
-      ctx.rect(0, 0, w, h)
-      ctx.arc(cx, cy, clipRadius, 0, Math.PI * 2)
-      ;(ctx as any).clip('evenodd')
+      if (!isMobile) {
+        // 얇은 링(헤일로) + 외곽 글로우 강화
+        ctx.save()
+        // 외곽 링 글로우: 도넛 형태의 방사형 그라디언트로 링 주변을 더 밝게
+        ctx.globalCompositeOperation = 'lighter'
+        const haloInner = R * 0.88
+        const haloOuter = R * 1.22
+        const ringGlow = ctx.createRadialGradient(cx, cy, haloInner, cx, cy, haloOuter)
+        ringGlow.addColorStop(0.00, 'rgba(255,255,255,0.0)')
+        ringGlow.addColorStop(0.25, 'rgba(255,255,255,0.18)')
+        ringGlow.addColorStop(0.55, 'rgba(255,255,255,0.10)')
+        ringGlow.addColorStop(1.00, 'rgba(255,255,255,0.0)')
+        ctx.fillStyle = ringGlow
+        ctx.fillRect(0, 0, w, h)
+
+        // 실제 얇은 링 스트로크
+        ctx.globalCompositeOperation = 'source-over'
+        ctx.strokeStyle = 'rgba(255,255,255,0.22)'
+        ctx.lineWidth = 2
+        ctx.shadowColor = 'rgba(255,255,255,0.45)'
+        ctx.shadowBlur = 14
+        ctx.beginPath()
+        ctx.arc(cx, cy, R * 0.92, 0, Math.PI * 2)
+        ctx.stroke()
+        ctx.restore()
+      }
+
+      if (!isMobile) {
+        // 곡선 웨이브 레이어
+        ctx.save()
+        ctx.strokeStyle = 'rgba(255,255,255,0.18)'
+        const WAVE_COUNT = isMobile ? 5 : 8
+        for (let i = 0; i < WAVE_COUNT; i++) {
+          const yBase = h * 0.30 + i * 40
+          ctx.beginPath()
+          for (let x = 0; x <= w; x += 6) {
+            const y = yBase + Math.sin((x + performance.now() * 0.04 + i * 120) / (220 + i * 12)) * 40
+            if (x === 0) ctx.moveTo(x, y)
+            else ctx.lineTo(x, y)
+          }
+          ctx.stroke()
+        }
+        ctx.restore()
+      }
+
+      // 연결 점/선 레이어
+      if (!isMobile) {
+        // 중앙 원 내부로는 그리지 않도록 외곽 영역만 clip
+        const clipRadius = R * 0.88
+        ctx.save()
+        ctx.beginPath()
+        ctx.rect(0, 0, w, h)
+        ctx.arc(cx, cy, clipRadius, 0, Math.PI * 2)
+        ;(ctx as any).clip('evenodd')
+      }
 
       for (const n of nodes) {
         n.x += n.vx
@@ -148,16 +157,20 @@ export default function HeroConnections() {
         ctx.fill()
       }
       ctx.restore()
-      ctx.restore()
+      if (!isMobile) {
+        ctx.restore()
+      }
 
-      // 비네트(가독성 강조를 위한 가장자리 어둡게)
-      ctx.save()
-      const vignette = ctx.createRadialGradient(cx, cy, Math.min(w, h) * 0.55, cx, cy, Math.hypot(w, h) * 0.65)
-      vignette.addColorStop(0.0, 'rgba(0,0,0,0.0)')
-      vignette.addColorStop(1.0, 'rgba(0,0,0,0.35)')
-      ctx.fillStyle = vignette
-      ctx.fillRect(0, 0, w, h)
-      ctx.restore()
+      if (!isMobile) {
+        // 비네트(가독성 강조를 위한 가장자리 어둡게)
+        ctx.save()
+        const vignette = ctx.createRadialGradient(cx, cy, Math.min(w, h) * 0.55, cx, cy, Math.hypot(w, h) * 0.65)
+        vignette.addColorStop(0.0, 'rgba(0,0,0,0.0)')
+        vignette.addColorStop(1.0, 'rgba(0,0,0,0.35)')
+        ctx.fillStyle = vignette
+        ctx.fillRect(0, 0, w, h)
+        ctx.restore()
+      }
 
       raf = requestAnimationFrame(draw)
     }

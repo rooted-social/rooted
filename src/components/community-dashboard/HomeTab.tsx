@@ -13,7 +13,8 @@ import { updateNotice, deleteNotice, createNotice } from "@/lib/communities"
 import { fetchHomeData } from '@/lib/dashboard'
 import { Target, FileText, BookOpen, Newspaper, CalendarClock, Rss, StickyNote, Calendar, Bell, Activity, Settings, Edit3, Trash2, MoreVertical, SquarePen, MapPin } from "lucide-react"
 import { toast } from "sonner"
-import { getAuthToken, getUserId } from '@/lib/supabase'
+import { getAuthToken } from '@/lib/supabase'
+import { useAuthData } from '@/components/auth/AuthProvider'
 import type { CommunitySettings, Notice, Post } from "@/types/community"
 import { withAlpha } from "@/utils/color"
 import { useCommunityContext } from "@/components/community-dashboard/CommunityContext"
@@ -456,6 +457,7 @@ function NoticesSection({
 }
 
 function UpcomingEventsCard({ items, brandColor }: { items: { id: string; title: string; start_at: string }[]; brandColor?: string }) {
+  const { user } = useAuthData()
   const [selected, setSelected] = useState<{ id: string; title: string; start_at: string } | null>(null)
   const [open, setOpen] = useState(false)
   const [isAttending, setIsAttending] = useState(false)
@@ -468,7 +470,7 @@ function UpcomingEventsCard({ items, brandColor }: { items: { id: string; title:
     const load = async () => {
       setLoadingAttendees(true)
       try {
-        const [token, uid] = await Promise.all([getAuthToken(), getUserId()])
+        const [token] = await Promise.all([getAuthToken()])
         const res = await fetch(`/api/events/attendees?eventId=${encodeURIComponent(selected.id)}`, {
           headers: token ? { authorization: `Bearer ${token}` } : undefined,
           cache: 'no-store',
@@ -477,6 +479,7 @@ function UpcomingEventsCard({ items, brandColor }: { items: { id: string; title:
         const list = await res.json()
         if (!aborted) {
           setAttendees(list || [])
+          const uid = user?.id
           if (uid) setIsAttending((list || []).some((m: any) => m?.id === uid))
           else setIsAttending(false)
         }
@@ -488,7 +491,7 @@ function UpcomingEventsCard({ items, brandColor }: { items: { id: string; title:
     }
     void load()
     return () => { aborted = true }
-  }, [open, selected])
+  }, [open, selected, user?.id])
 
   return (
     <div className="rounded-3xl shadow-sm bg-white/60 backdrop-blur-md border" style={{ borderColor: withAlpha(brandColor || '#0f172a', 0.18) }}>

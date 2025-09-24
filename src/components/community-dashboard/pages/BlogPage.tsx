@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { getAvatarUrl } from "@/lib/profiles"
 import { deleteBlogPost } from "@/lib/blog"
-import { getUserId } from "@/lib/supabase"
+import { useAuthData } from "@/components/auth/AuthProvider"
 import { getReadableTextColor } from "@/utils/color"
 import AnimatedBackground from "@/components/AnimatedBackground"
 import { Pencil, Trash2 } from "lucide-react"
@@ -67,6 +67,7 @@ function toPlainText(input: string): string {
 // 읽기 시간 뱃지 제거
 
 export default function BlogPage({ title, bannerUrl, description, pageId, communityId }: BlogPageProps) {
+  const { user } = useAuthData()
   const [items, setItems] = useState<BlogListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [slug, setSlug] = useState<string>("")
@@ -82,17 +83,17 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
     ;(async () => {
       setLoading(true)
       try {
-        const [overview, uid] = await Promise.all([
+        const [overview] = await Promise.all([
           fetchBlogList(pageId),
-          getUserId(),
         ])
         if (!mounted) return
         const list = (overview?.posts || []) as any[]
         console.log('Blog posts loaded:', list)
         setItems(list)
         setSlug(overview?.slug || "")
+        const uid = user?.id || null
         const ownerId = overview?.isOwner ? uid : null
-        setCurrentUserId(uid || null)
+        setCurrentUserId(uid)
         setIsOwner(!!overview?.isOwner)
         setBrandColor(overview?.brandColor || null)
       } catch (error) {
@@ -108,7 +109,7 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
       }
     })()
     return () => { mounted = false }
-  }, [pageId, communityId])
+  }, [pageId, communityId, user?.id])
 
   // 아이템 변화 시 현재 페이지가 범위를 넘지 않도록 보정
   useEffect(() => {
@@ -170,7 +171,7 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
             <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>
           </div>
           <h3 className="text-lg font-semibold text-slate-900">첫 번째 게시글을 작성해보세요!</h3>
-          <p className="mt-1 text-sm text-slate-600">블로그의 첫 글을 등록해 커뮤니티와 소식을 공유해보세요.</p>
+          <p className="mt-1 text-sm text-slate-600">첫 글을 등록해 커뮤니티와 소식을 공유해보세요.</p>
           {slug && (
             <Button asChild className="mt-4 h-auto rounded-xl md:rounded-2xl shadow-lg px-3 py-2 text-sm md:px-6 md:py-3 md:text-base"
               size="sm"
