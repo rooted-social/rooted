@@ -41,6 +41,7 @@ export function HomeTab({ communityId, slug, initial }: HomeTabProps) {
       setUpcomingEvents(((initial.upcomingEvents || []) as any).slice(0,5))
       setRecentActivity((initial.recentActivity || []) as any)
       setLoading(false)
+      try { window.dispatchEvent(new Event('dashboard-initial-ready')) } catch {}
       return
     }
     let isMounted = true
@@ -56,6 +57,7 @@ export function HomeTab({ communityId, slug, initial }: HomeTabProps) {
         setRecentActivity((home.recentActivity || []) as any)
       } finally {
         if (isMounted) setLoading(false)
+        try { window.dispatchEvent(new Event('dashboard-initial-ready')) } catch {}
       }
     })()
     return () => {
