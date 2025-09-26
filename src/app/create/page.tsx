@@ -269,7 +269,7 @@ export default function CreatePage() {
                 <Button variant="outline" onClick={()=>setBetaOpen(false)}>취소</Button>
                 <Button
                   onClick={async ()=>{
-                    if (betaCode.trim().toLowerCase() !== 'beta1') { setBetaError('코드가 올바르지 않습니다.'); return }
+                    if (betaCode.trim().toLowerCase() !== 'beta') { setBetaError('코드가 올바르지 않습니다.'); return }
                     setBetaOpen(false)
                     setBetaCode("")
                     await performCreate()

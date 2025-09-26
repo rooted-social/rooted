@@ -27,6 +27,12 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
   // 제거된 로컬 로딩 상태: Topbar가 사라지는 문제 방지
   const [guardChecked, setGuardChecked] = useState<boolean>(false)
 
+  // 공개 상세(/[slug])에서는 커뮤니티 정보 요청을 생략하여 중복 네트워크 감소
+  const shouldFetchCommunity = !!pathname && (
+    pathname.includes('/dashboard') || pathname.includes('/classes') || pathname.includes('/calendar') ||
+    pathname.includes('/members') || pathname.includes('/settings') || pathname.includes('/stats') || pathname.includes('/blog')
+  )
+
   // 현재 활성 탭 결정
   const getActiveTab = () => {
     if (!pathname) return 'home'
@@ -71,7 +77,7 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
     setActive(getActiveTab())
   }, [pathname])
 
-  const communityQ = useCommunityBySlug(String(slug))
+  const communityQ = useCommunityBySlug(shouldFetchCommunity ? String(slug) : undefined)
   useEffect(() => {
     const data = communityQ.data as any
     if (!data) return
@@ -175,7 +181,10 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
     pathname?.includes('/members') || pathname?.includes('/settings') ||
     pathname?.includes('/stats') || pathname?.includes('/blog')
 
+  const isHomeDashboardPage = pathname === `/${slug}/dashboard`
+
   const [initialReady, setInitialReady] = useState<boolean>(false)
+  const [hasShownHomeLoading, setHasShownHomeLoading] = useState<boolean>(false)
   const readyTimeoutRef = useRef<any>(null)
 
   // 대시보드 초기 데이터 준비 완료 이벤트 수신
@@ -185,22 +194,30 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
     return () => window.removeEventListener('dashboard-initial-ready', onReady)
   }, [])
 
-  // 경로 변경 시 대시보드 영역이면 초기 준비 상태를 리셋
+  // 경로 변경 시 홈 대시보드에 진입하면 초기 준비 상태를 리셋
   useEffect(() => {
-    if (isDashboardArea) setInitialReady(false)
-  }, [isDashboardArea, pathname])
+    if (isHomeDashboardPage) setInitialReady(false)
+  }, [isHomeDashboardPage, pathname])
 
-  // 가드 통과 후에도 준비 신호가 없으면 최대 대기 시간 후 자동 해제 (안전장치)
+  // 가드 통과 후에도 준비 신호가 없으면 최대 대기 시간 후 자동 해제 (안전장치, 홈 대시보드 한정)
   useEffect(() => {
-    if (!isDashboardArea) return
+    if (!isHomeDashboardPage) return
     if (!guardChecked || !communityId) return
     if (initialReady) return
     if (readyTimeoutRef.current) clearTimeout(readyTimeoutRef.current)
     readyTimeoutRef.current = setTimeout(() => setInitialReady(true), 4000)
     return () => { if (readyTimeoutRef.current) clearTimeout(readyTimeoutRef.current) }
-  }, [isDashboardArea, guardChecked, communityId, initialReady])
+  }, [isHomeDashboardPage, guardChecked, communityId, initialReady])
 
-  const showBlockingLoading = isDashboardArea && (communityQ.isLoading || !guardChecked || !communityId || !initialReady)
+  // 홈 대시보드 최초 1회 로딩 완료 후 재진입 시에는 로딩을 보여주지 않음
+  useEffect(() => {
+    if (!isHomeDashboardPage) return
+    if (!guardChecked || !communityId) return
+    if (!initialReady) return
+    setHasShownHomeLoading(true)
+  }, [isHomeDashboardPage, guardChecked, communityId, initialReady])
+
+  const showBlockingLoading = isHomeDashboardPage && !hasShownHomeLoading && (communityQ.isLoading || !guardChecked || !communityId || !initialReady)
 
   return (
     <div className="min-h-screen">
@@ -249,7 +266,7 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
           ? (<div className="md:pt-0 pt-15 pb-20">{children}</div>)
           : children
       )}
-      <LoadingOverlay show={showBlockingLoading} text="커뮤니티 불러오는 중.." />
+      <LoadingOverlay show={showBlockingLoading} text="커뮤니티 입장 중.." />
     </div>
   )
 }

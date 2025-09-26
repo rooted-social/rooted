@@ -109,6 +109,13 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
     }
   }, [])
 
+  // 비로그인 공개 상세 진입 시, 돌아올 경로를 저장하여 로그인/회원가입 후 복귀하도록 함
+  useEffect(() => {
+    if (!user && typeof window !== 'undefined' && slug) {
+      try { localStorage.setItem('rooted:return_to', `/${slug}`) } catch {}
+    }
+  }, [user, slug])
+
   const loadCommunityData = async () => {
     try {
       setLoading(true)
