@@ -43,7 +43,12 @@ export default function SignUpPage() {
         toast.error(error.message)
       } else {
         toast.success("회원가입이 완료되었습니다! 이메일을 확인해주세요.")
-        router.push("/login")
+        // 회원가입 후 로그인 페이지로 이동하되, 돌아갈 경로(next)를 유지
+        let next: string | null = null
+        if (typeof window !== 'undefined') {
+          try { next = localStorage.getItem('rooted:return_to') } catch {}
+        }
+        router.push(next ? `/login?next=${encodeURIComponent(next)}` : "/login")
       }
     } catch {
       toast.error("회원가입 중 오류가 발생했습니다.")

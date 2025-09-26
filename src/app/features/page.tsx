@@ -1,4 +1,5 @@
 import AnimatedBackground from "@/components/AnimatedBackground"
+import Image from "next/image"
 import { Users, FileText, Megaphone, CalendarDays, GraduationCap, BarChart3, Check, HelpCircle } from "lucide-react"
 
 export default function FeaturesPage() {
@@ -13,9 +14,28 @@ export default function FeaturesPage() {
         {/* Intro section */}
         <div className="mx-auto max-w-3xl rounded-3xl bg-white/80 backdrop-blur-md border border-slate-200 shadow-md p-6 md:p-8 mt-4 fade-in-down" style={{ animationDelay: '120ms' }}>
           <div className="text-slate-700 leading-relaxed text-[15px] md:text-base text-left md:text-center">
-            <p>루티드는 커뮤니티 플랫폼이며, 루트는 하나의 커뮤니티입니다.</p>
-            <p className="mt-2"><span className="font-semibold">루트(Root)</span>는 뿌리라는 뜻으로, 생명의 근본이 됩니다. </p>
-            <p className="mt-2">하나의 커뮤니티인 당신만의 루트에서 전문성과 노하우를 공유하고 커뮤니티의 힘을 키워가세요!</p>
+            <p>"루티드"는 커뮤니티를 만드는 공간입니다.</p>
+            <p className="mt-2"><span className="font-semibold">루트(Root)</span>는 뿌리의 뜻을 가지며, 생명의 근본이 됩니다. </p>
+            <p className="mt-2">당신의 전문성과 노하우를 손쉽게 공유하고, 커뮤니티의 힘을 키워가세요!</p>
+          </div>
+        </div>
+
+        {/* Monitor-like preview between intro and features */}
+        <div className="mt-12 fade-in-down" style={{ animationDelay: '90ms' }}>
+          <div className="mx-auto max-w-6xl">
+            <div className="rounded-[36px] bg-gradient-to-br from-indigo-950/70 to-slate-900/70 p-1.5 ring-1 ring-white/10 shadow-[0_20px_60px_rgba(2,6,23,0.45)]">
+              <div className="rounded-[28px] bg-white/95 backdrop-blur-sm border border-slate-200 p-2 md:p-3 shadow-lg">
+                <div className="rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 aspect-[16/10] relative">
+                  <Image
+                    src="/logos/511.png"
+                    alt="커뮤니티 대시보드 미리보기"
+                    fill
+                    priority
+                    className="object-cover"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 

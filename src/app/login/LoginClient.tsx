@@ -30,7 +30,13 @@ export default function LoginClient() {
         toast.error(error.message)
       } else {
         toast.success("로그인 성공!")
-        const next = searchParams?.get('next')
+        let next = searchParams?.get('next') || null
+        if (!next && typeof window !== 'undefined') {
+          try { next = localStorage.getItem('rooted:return_to') } catch {}
+        }
+        if (typeof window !== 'undefined') {
+          try { localStorage.removeItem('rooted:return_to') } catch {}
+        }
         router.push(next || "/")
       }
     } catch {
@@ -47,7 +53,11 @@ export default function LoginClient() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "kakao",
         options: {
-          redirectTo: baseUrl ? `${baseUrl}/auth/callback${(() => { const next = searchParams?.get('next'); return next ? `?next=${encodeURIComponent(next)}` : '' })()}` : undefined,
+          redirectTo: baseUrl ? `${baseUrl}/auth/callback${(() => { 
+            let next = searchParams?.get('next') || null
+            if (!next && typeof window !== 'undefined') { try { next = localStorage.getItem('rooted:return_to') } catch {} }
+            return next ? `?next=${encodeURIComponent(next)}` : ''
+          })()}` : undefined,
           scopes: "account_email profile_nickname profile_image",
         },
       })
