@@ -249,7 +249,7 @@ export function Header() {
                   <span className="hidden sm:block text-sm text-slate-900 max-w-[160px] truncate">{profile?.full_name || '사용자'}</span>
                 </button>
               ) : (
-                <Link href={`/login?next=${encodeURIComponent(typeof window !== 'undefined' ? window.location.pathname : '/')}`} className="inline-flex items-center gap-2 px-3 py-2 rounded-full hover:bg-white/50 transition-colors text-slate-900">
+                <Link href={`/login?next=${encodeURIComponent(pathname || '/')}`} className="inline-flex items-center gap-2 px-3 py-2 rounded-full hover:bg-white/50 transition-colors text-slate-900">
                   <LogIn className="w-4 h-4" />
                   <span className="text-sm">로그인</span>
                 </Link>
@@ -349,7 +349,7 @@ export function Header() {
                 )}
               </>
             ) : (
-              <Link href={`/login?next=${encodeURIComponent(typeof window !== 'undefined' ? window.location.pathname : '/')}`} className="w-9 h-9 grid place-items-center text-slate-900">
+              <Link href={`/login?next=${encodeURIComponent(pathname || '/')}`} className="w-9 h-9 grid place-items-center text-slate-900">
                 <LogIn className="w-5 h-5" />
               </Link>
             )}

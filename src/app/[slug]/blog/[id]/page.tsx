@@ -34,7 +34,7 @@ export default function BlogDetailPage() {
   const refetchDetail = async () => {
     try {
       const token = await getAuthToken().catch(() => null)
-      const res = await fetch(`/api/blog/detail?id=${encodeURIComponent(String(id))}`, { headers: token ? { authorization: `Bearer ${token}` } : undefined })
+      const res = await fetch(`/api/blog/detail?id=${encodeURIComponent(String(id))}`, { cache: 'no-store', headers: token ? { authorization: `Bearer ${token}` } : undefined })
       if (!res.ok) return
       const data = await res.json()
       setCounts(data.counts || { views: 0, likes: 0, comments: 0 })
@@ -199,7 +199,7 @@ export default function BlogDetailPage() {
               try { 
                 const t = await toggleBlogLike(String(id)); 
                 setLiked(t.liked); 
-                await refetchDetail()
+                if (t.counts) setCounts(t.counts)
               } catch (e) { 
                 console.error(e) 
               } 

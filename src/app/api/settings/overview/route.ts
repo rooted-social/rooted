@@ -28,10 +28,8 @@ export async function GET(req: NextRequest) {
     const isOwner = (basicsRow as any)?.owner_id === authUserId
     if (!isOwner) return new Response(JSON.stringify({}), { status: 403 })
 
-    const [settingsRes, noticesRes, servicesRes] = await Promise.all([
+    const [settingsRes, servicesRes] = await Promise.all([
       supabase.from('community_settings').select('mission, brand_color, banner_url').eq('community_id', communityId).maybeSingle(),
-      // 공지 섹션은 제거되었지만, 호환을 위해 데이터는 반환
-      supabase.from('notices').select('id,title,content,created_at').eq('community_id', communityId).order('created_at', { ascending: false }),
       supabase.from('community_services').select('id,label').eq('community_id', communityId).order('created_at', { ascending: true }),
     ])
 
@@ -47,7 +45,6 @@ export async function GET(req: NextRequest) {
         join_policy: (basicsRow as any)?.join_policy || 'free',
       },
       settings: settingsRes.data || null,
-      notices: Array.isArray(noticesRes.data) ? noticesRes.data : [],
       services: Array.isArray(servicesRes.data) ? servicesRes.data : [],
     }
 

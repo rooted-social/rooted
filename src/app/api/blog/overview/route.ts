@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
       profileMap = Object.fromEntries((authors || []).map((a: any) => [a.id, a]))
     }
 
-    // 카운트(좋아요/댓글): 단건 집계 쿼리 2회
+    // 카운트(좋아요/댓글): 단건 집계 쿼리 2회 (간단 캐시)
     let likeCounts: Record<string, number> = {}
     let commentCounts: Record<string, number> = {}
     if (postIds.length > 0) {
@@ -59,15 +59,28 @@ export async function GET(req: NextRequest) {
       for (const r of (commentsRes.data || []) as any[]) commentCounts[r.post_id] = (commentCounts[r.post_id] || 0) + 1
     }
 
+    const toPlain = (html: string): string => {
+      try {
+        const el = globalThis?.document ? document.createElement('div') : (null as any)
+        if (el) { el.innerHTML = html || ''; return (el.textContent || el.innerText || '').replace(/\s+/g, ' ').trim() }
+      } catch {}
+      return (html || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+    }
+
     const payload = {
       posts: list.map(p => ({
-        ...p,
-        author: p.user_id ? profileMap[p.user_id] || null : null,
+        id: p.id,
+        title: p.title,
+        thumbnail_url: p.thumbnail_url,
+        created_at: p.created_at,
+        user_id: p.user_id,
         counts: {
           views: p.views ?? 0,
           likes: likeCounts[p.id] || 0,
           comments: commentCounts[p.id] || 0,
         },
+        author: p.user_id ? profileMap[p.user_id] || null : null,
+        excerpt: toPlain(p.content || '').slice(0, 180),
       })),
       slug: (community as any)?.slug || null,
       isOwner,
@@ -78,7 +91,8 @@ export async function GET(req: NextRequest) {
       status: 200,
       headers: {
         'content-type': 'application/json',
-        'Cache-Control': 'public, max-age=60, s-maxage=60',
+        // 30초 캐시: 서버/클라 모두 잦은 중복요청을 줄이면서, 새 상호작용(좋아요/댓글)도 빠르게 반영
+        'Cache-Control': 'public, max-age=30, s-maxage=30',
       },
     })
   } catch (e: any) {

@@ -1,5 +1,6 @@
 import ClientDashboardPage from '@/components/dashboard/ClientDashboardPage'
 import { createServerClient } from '@/lib/supabase-server'
+import type { Metadata } from 'next'
 
 export default async function CommunityDashboardPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
@@ -29,5 +30,17 @@ export default async function CommunityDashboardPage({ params }: { params: Promi
 
   const initial = { community, pages, home }
   return <ClientDashboardPage slug={slug} initial={initial} />
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params
+  try {
+    const supabase = await createServerClient()
+    const { data } = await supabase.from('communities').select('name').eq('slug', slug).single()
+    const title = (data as any)?.name || slug
+    return { title }
+  } catch {
+    return { title: slug }
+  }
 }
 

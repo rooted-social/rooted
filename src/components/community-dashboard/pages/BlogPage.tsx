@@ -12,7 +12,7 @@ import { deleteBlogPost } from "@/lib/blog"
 import { useAuthData } from "@/components/auth/AuthProvider"
 import { getReadableTextColor } from "@/utils/color"
 import AnimatedBackground from "@/components/AnimatedBackground"
-import { Pencil, Trash2 } from "lucide-react"
+import { Pencil, Trash2, Loader2 } from "lucide-react"
 import { type BlogListItem as LibBlogListItem } from "@/lib/blog"
 import { fetchBlogList } from '@/lib/dashboard'
 
@@ -53,6 +53,25 @@ function timeAgoKST(iso: string) {
   }
 }
 
+// 모바일용: 더 간결한 상대 시간 표기 (분/시간/일/달)
+function timeAgoCompact(iso: string) {
+  try {
+    const now = new Date()
+    const then = new Date(iso)
+    const diffMs = now.getTime() - then.getTime()
+    const minutes = Math.floor(diffMs / (1000 * 60))
+    const hours = Math.floor(diffMs / (1000 * 60 * 60))
+    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+    const months = Math.floor(days / 30)
+    if (minutes < 60) return `${Math.max(0, minutes)}분 전`
+    if (hours < 24) return `${hours}시간 전`
+    if (days < 30) return `${days}일 전`
+    return `${Math.max(1, months)}달 전`
+  } catch {
+    return ''
+  }
+}
+
 function toPlainText(input: string): string {
   try {
     const el = document.createElement('div')
@@ -67,6 +86,23 @@ function toPlainText(input: string): string {
 // 읽기 시간 뱃지 제거
 
 export default function BlogPage({ title, bannerUrl, description, pageId, communityId }: BlogPageProps) {
+  const decodeEntities = (str: string) => {
+    if (!str) return ''
+    const map: Record<string, string> = {
+      '&nbsp;': ' ',
+      '&amp;': '&',
+      '&lt;': '<',
+      '&gt;': '>',
+      '&quot;': '"',
+      '&#39;': "'",
+    }
+    let out = str.replace(/&(nbsp|amp|lt|gt|quot|#39);/gi, (m) => map[m.toLowerCase()] || ' ')
+    // numeric entities
+    out = out.replace(/&#(x?[0-9a-fA-F]+);/g, (_, code) => {
+      try { return String.fromCharCode(code.startsWith('x') || code.startsWith('X') ? parseInt(code.slice(1), 16) : parseInt(code, 10)) } catch { return ' ' }
+    })
+    return out.replace(/\s+/g, ' ').trim()
+  }
   const { user } = useAuthData()
   const [items, setItems] = useState<BlogListItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -81,7 +117,7 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
   useEffect(() => {
     let mounted = true
     ;(async () => {
-      setLoading(true)
+      setLoading(items.length === 0)
       try {
         const [overview] = await Promise.all([
           fetchBlogList(pageId),
@@ -103,9 +139,7 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
           setSlug("")
         }
       } finally {
-        if (mounted) {
-          setLoading(false)
-        }
+        if (mounted) setLoading(false)
       }
     })()
     return () => { mounted = false }
@@ -120,7 +154,7 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
   return (
     <>
       <AnimatedBackground zIndexClass="-z-10" />
-      <div className="space-y-3 relative z-10 max-w-2xl md:max-w-3xl mx-auto w-full px-3 md:px-0">
+      <div className="space-y-3 relative z-10 max-w-none md:max-w-3xl mx-auto w-full px-2 md:px-0">
       {bannerUrl && (
         <div className="relative w-full h-40 overflow-hidden rounded-xl border">
           <Image src={bannerUrl} alt={title} fill className="object-cover" />
@@ -149,21 +183,12 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
         )}
       </div>
 
-      {loading ? (
-        <div className="space-y-3">
-          {Array.from({ length: perPage }).map((_, i) => (
-            <div key={i} className="rounded-2xl bg-white animate-pulse shadow-sm border border-slate-200 overflow-hidden p-4">
-              <div className="flex items-start gap-4">
-                <div className="hidden md:block w-24 md:w-28 aspect-square bg-slate-100 rounded-xl" />
-                <div className="flex-1 space-y-3">
-                  <div className="h-5 w-1/2 bg-slate-200 rounded" />
-                  <div className="h-4 w-3/4 bg-slate-200 rounded" />
-                  <div className="h-4 w-2/3 bg-slate-200 rounded" />
-                  <div className="h-4 w-1/4 bg-slate-200 rounded" />
-                </div>
-              </div>
-            </div>
-          ))}
+      {loading && items.length === 0 ? (
+        <div className="py-10 flex items-center justify-center">
+          <div className="flex items-center gap-2 rounded-2xl bg-black/5 border border-black/10 px-3 py-2 shadow-sm">
+            <Loader2 className="w-5 h-5 animate-spin text-slate-800" />
+            <span className="text-sm font-medium text-slate-800">불러오는 중...</span>
+          </div>
         </div>
       ) : items.length === 0 ? (
         <div className="flex flex-col items-center justify-center text-center py-16 rounded-3xl border border-dashed border-slate-300 bg-white/60">
@@ -188,30 +213,30 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
         <>
         <div className="space-y-3">
           {items.slice((page-1)*perPage, page*perPage).map((post: any) => (
-            <Link key={post.id} href={`/${slug}/blog/${post.id}?pageId=${pageId}`} className="group block w-full" prefetch={false}>
+            <Link key={post.id} href={`/${slug}/blog/${post.id}?pageId=${pageId}`} className="group block w-full" prefetch>
               <article className="w-full min-w-0 overflow-hidden rounded-2xl bg-white shadow-xs hover:shadow-lg transition-all duration-200 border border-slate-200 relative p-4">
-                <div className="flex items-start gap-4">
+                <div className="grid grid-cols-[1fr_auto] items-start gap-3 md:gap-4">
                   {/* 텍스트 영역 */}
                   <div className={`flex-1 min-w-0 ${post.thumbnail_url ? '' : ''}`}>
                     <h3 className="text-base md:text-lg font-semibold text-slate-900 leading-snug line-clamp-2 group-hover:text-slate-700 transition-colors duration-200">
                       {post.title}
                     </h3>
                     <p className="mt-2 text-sm text-slate-700 line-clamp-2 whitespace-pre-line break-words">
-                      {toPlainText(post.content)}
+                      {decodeEntities(post.excerpt ? post.excerpt : toPlainText(post.content))}
                     </p>
-                    <div className="mt-3">
+                    <div className="mt-3 order-2 md:order-none">
                       <StatsRow counts={post.counts} createdAt={post.created_at} author={post.author} />
                     </div>
                   </div>
 
                   {/* 썸네일 영역: 정사각형, 우측 정렬 */}
                   {post.thumbnail_url && (
-                    <div className="relative w-16 sm:w-20 md:w-28 aspect-square rounded-xl overflow-hidden bg-slate-50 flex-shrink-0 ml-auto">
+                    <div className="relative w-20 h-20 md:w-28 md:h-28 rounded-xl overflow-hidden bg-slate-50 flex-shrink-0 justify-self-end">
                       <Image
                         src={post.thumbnail_url}
                         alt={post.title}
                         fill
-                        sizes="(max-width: 480px) 64px, (max-width: 768px) 80px, (max-width: 1024px) 112px, 112px"
+                        sizes="(max-width: 768px) 80px, 112px"
                         className="object-cover transition-transform duration-300 group-hover:scale-105"
                       />
                     </div>
@@ -289,8 +314,8 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
 
 function StatsRow({ counts, createdAt, author }: { counts: { views: number; likes: number; comments: number }; createdAt: string; author?: { full_name?: string | null; username?: string | null } | null }) {
   return (
-    <div className="relative flex items-center justify-between">
-      <div className="flex items-center gap-3 text-slate-500">
+    <div className="relative flex items-center gap-2 md:gap-3 md:justify-between flex-wrap">
+      <div className="flex items-center gap-2 md:gap-3 text-slate-500">
         <div className="inline-flex items-center gap-1">
           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -311,8 +336,10 @@ function StatsRow({ counts, createdAt, author }: { counts: { views: number; like
           <span className="text-[12px] font-medium">{counts.comments}</span>
         </div>
       </div>
-      <div className="text-[11px] text-slate-500 whitespace-nowrap ml-3">
-        {timeAgoKST(createdAt)} · by {author?.full_name || author?.username || 'Anonymous'}
+      <div className="text-[11px] text-slate-500 md:ml-3">
+        <span className="md:hidden">{timeAgoCompact(createdAt)}</span>
+        <span className="hidden md:inline">{formatDateKST(createdAt)}</span>
+        {' '}· by {author?.full_name || author?.username || 'Anonymous'}
       </div>
     </div>
   )

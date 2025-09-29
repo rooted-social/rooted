@@ -9,10 +9,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
-import { createNotice, getCommunitySettings, getNotices, upsertCommunitySettings, getCommunityServices, addCommunityService, removeCommunityService, updateCommunity, deleteCommunity } from "@/lib/communities"
+import { getCommunitySettings, upsertCommunitySettings, getCommunityServices, addCommunityService, removeCommunityService, updateCommunity, deleteCommunity } from "@/lib/communities"
 import { getAuthToken } from "@/lib/supabase"
 import { supabase } from "@/lib/supabase"
-import type { CommunitySettings, Notice } from "@/types/community"
+import type { CommunitySettings } from "@/types/community"
 import { buildPublicR2UrlForBucket, COMMUNITY_BANNER_BUCKET } from "@/lib/r2"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
 import { COMMUNITY_CATEGORIES } from '@/lib/constants'
@@ -37,9 +37,7 @@ export function SettingsTab({ communityId }: SettingsTabProps) {
   const [values, setValues] = useState<Partial<CommunitySettings>>({})
   const [loading, setLoading] = useState<boolean>(true)
   const [saving, setSaving] = useState<boolean>(false)
-  const [notices, setNotices] = useState<Notice[]>([])
-  const [noticeTitle, setNoticeTitle] = useState("")
-  const [noticeContent, setNoticeContent] = useState("")
+  // 공지사항 기능 제거됨
   const [services, setServices] = useState<{ id: string; label: string }[]>([])
   const [newService, setNewService] = useState("")
   const [slug, setSlug] = useState<string>(routeSlug || "")
@@ -90,21 +88,30 @@ export function SettingsTab({ communityId }: SettingsTabProps) {
         const s = data?.settings || null
         setValues(s || {})
         setSettingsInitial({ mission: (s?.mission || ""), brand_color: (s?.brand_color ?? null) as any })
-        setNotices((data?.notices || []).slice(0, 50))
         setServices((data?.services || []).map((v: any) => ({ id: v.id, label: v.label })))
-        // basics는 별도 effect에서 supabase로 로드하지만, 여기서도 보조로 반영할 수 있음 (slug/이름 등)
+        // basics: overview 응답의 basics를 활용해 초기화하여 추가 질의 축소
+        const b = data?.basics
+        if (b) {
+          setCommunityName(b.name || '')
+          setCommunitySlug(b.slug || '')
+          setCommunityDesc(b.description || '')
+          setCommunityCategory(b.category || '')
+          setIsPublic((b as any)?.is_public ?? true)
+          setJoinPolicy(((b as any)?.join_policy as any) || 'free')
+          setCommunityIconUrl((b as any)?.icon_url || (b as any)?.image_url || '')
+          setBasicInitial({ name: b.name || '', slug: b.slug || '', desc: b.description || '', category: b.category || '' })
+          if (!slug) setSlug(b.slug || '')
+        }
       } catch {
         // 폴백: 기존 개별 호출 (오류 시에도 UI는 로딩 해제)
         try {
-          const [s, ns, sv] = await Promise.all([
+          const [s, sv] = await Promise.all([
             getCommunitySettings(communityId),
-            getNotices(communityId),
             getCommunityServices(communityId),
           ])
           if (!isMounted) return
           setValues(s || {})
           setSettingsInitial({ mission: (s?.mission || ""), brand_color: (s?.brand_color ?? null) as any })
-          setNotices(ns)
           setServices(sv.map(v => ({ id: v.id, label: v.label })))
         } catch {}
       } finally {
@@ -114,38 +121,7 @@ export function SettingsTab({ communityId }: SettingsTabProps) {
     return () => { isMounted = false }
   }, [communityId])
 
-  // load community basics
-  useEffect(() => {
-    let alive = true
-    ;(async () => {
-      let { data, error } = await supabase
-        .from('communities')
-        .select('name, slug, description, category, image_url, icon_url, is_public, join_policy')
-        .eq('id', communityId)
-        .single()
-      if (error) {
-        // 폴백: 확장 필드 없는 구 스키마
-        const retry = await supabase
-          .from('communities')
-          .select('name, slug, description, category, image_url, icon_url')
-          .eq('id', communityId)
-          .single()
-        data = retry.data as any
-      }
-      if (!alive || !data) return
-      setCommunityName(data.name || '')
-      setCommunitySlug(data.slug || '')
-      setCommunityDesc(data.description || '')
-      setCommunityCategory(data.category || '')
-      setCommunityIconUrl((data as any).icon_url || data.image_url || '')
-      setIsPublic((data as any)?.is_public ?? true)
-      setJoinPolicy(((data as any)?.join_policy as any) || 'free')
-      if (!slug) setSlug(data.slug || '')
-      // 초기 스냅샷 저장(한 번만 세팅)
-      setBasicInitial({ name: data.name || '', slug: data.slug || '', desc: data.description || '', category: data.category || '' })
-    })()
-    return () => { alive = false }
-  }, [communityId])
+  // load community basics 제거: overview에서 초기화하도록 변경하여 네트워크 호출 1회 절감
 
   useEffect(() => {
     if (routeSlug && routeSlug !== slug) setSlug(routeSlug)
@@ -207,14 +183,7 @@ export function SettingsTab({ communityId }: SettingsTabProps) {
     }
   }
 
-  const handleAddNotice = async () => {
-    if (!noticeTitle.trim()) return
-    const n = await createNotice({ community_id: communityId, user_id: '', title: noticeTitle, content: noticeContent, pinned: false })
-    setNotices((prev) => [n, ...prev])
-    setNoticeTitle("")
-    setNoticeContent("")
-    toast.success('공지사항이 추가되었습니다')
-  }
+  // 공지사항 관련 핸들러 제거됨
 
   const handleAddService = async () => {
     if (!newService.trim()) return
@@ -628,7 +597,7 @@ export function SettingsTab({ communityId }: SettingsTabProps) {
 
           <Card>
             <CardHeader className="flex items-center justify-between px-4 py-3">
-              <CardTitle>커뮤니티 특징</CardTitle>
+              <CardTitle>커뮤니티 혜택</CardTitle>
               <div className="flex gap-2">
                 <Button onClick={handleAddService} disabled={!newService.trim()}>추가</Button>
               </div>

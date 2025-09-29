@@ -537,12 +537,12 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
       )}
 
       {/* 메인: 글 목록 */}
-      <div className={`${variant === 'standalone' ? 'md:col-span-3' : ''} space-y-3 overflow-x-hidden`}>
+      <div className={`${variant === 'standalone' ? 'md:col-span-3' : ''} space-y-3 overflow-x-hidden max-w-none`}>
         {loading ? (
           <div className="py-12 flex items-center justify-center">
-            <div className="flex items-center gap-3 rounded-2xl bg-amber-50/80 border border-amber-200 px-4 py-3 shadow-sm">
-              <Loader2 className="w-5 h-5 animate-spin text-amber-600" />
-              <span className="text-sm font-medium text-amber-700">로딩 중...</span>
+            <div className="flex items-center gap-2 rounded-2xl bg-black/5 border border-black/10 px-3 py-2 shadow-sm">
+              <Loader2 className="w-5 h-5 animate-spin text-slate-800" />
+              <span className="text-sm font-medium text-slate-800">불러오는 중...</span>
             </div>
           </div>
         ) : filteredPosts.length === 0 ? (
@@ -560,9 +560,9 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
           </div>
         ) : (
           pagedPosts.map((p) => (
-            <div key={p.id} className="group w-full max-w-full overflow-x-hidden" aria-expanded={false} data-slot="card">
-              <div className="rounded-2xl bg-white/80 backdrop-blur-xl border border-black/60 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_2px_6px_rgba(0,0,0,0.04)] hover:shadow-[0_2px_6px_rgba(0,0,0,0.06),0_4px_14px_rgba(0,0,0,0.06)] transition-all duration-200 overflow-hidden w-full max-w-full">
-                <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100/70">
+            <div key={p.id} className="group w-full overflow-x-hidden" aria-expanded={false} data-slot="card">
+              <div className="rounded-2xl bg-white/80 backdrop-blur-xl border border-black/60 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_2px_6px_rgba(0,0,0,0.04)] hover:shadow-[0_2px_6px_rgba(0,0,0,0.06),0_4px_14px_rgba(0,0,0,0.06)] transition-all duration-200 overflow-hidden w-full">
+                <div className="flex items-center justify-between px-3 md:px-5 py-3 border-b border-slate-100/70">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <div className="flex flex-col items-center w-14">
                       <Avatar className="w-10 h-10 ring-2 ring-white shadow-md">
@@ -604,7 +604,7 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
                     )}
                   </div>
                 </div>
-                <div className="px-5 py-4 space-y-4" onClick={(e)=>e.stopPropagation()}>
+                <div className="px-3 md:px-5 py-4 space-y-4" onClick={(e)=>e.stopPropagation()}>
                   <p className="text-slate-800 leading-relaxed whitespace-pre-wrap break-all sm:break-words text-[15px]">{p.content}</p>
                   <div className="flex gap-5 items-center pt-2 border-t border-slate-100">
                       <button className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-50 hover:bg-rose-50 text-slate-600 hover:text-rose-600 transition-all duration-200 cursor-pointer" onClick={(e) => { e.stopPropagation(); handleLike(p.id) }}>
@@ -618,10 +618,10 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
                   </div>
                 </div>
               {showComments[p.id] && (
-                <div className="bg-gradient-to-b from-slate-50/50 to-white px-5 py-4 space-y-4 border-t border-slate-100">
+                <div className="bg-gradient-to-b from-slate-50/50 to-white px-3 md:px-5 py-4 space-y-4 border-t border-slate-100">
                   <div className="space-y-3">
                     {(comments[p.id] || []).map((c: any) => (
-                      <div key={c.id} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100/50 hover:shadow-md transition-all duration-200">
+                      <div key={c.id} className="bg-white rounded-2xl p-3 md:p-4 shadow-sm border border-slate-100/50 hover:shadow-md transition-all duration-200">
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-start gap-3 flex-1">
                             <Avatar className="w-8 h-8 ring-2 ring-white shadow-sm">

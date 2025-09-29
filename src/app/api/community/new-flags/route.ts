@@ -66,6 +66,7 @@ export async function GET(req: NextRequest) {
       status: 200,
       headers: {
         'content-type': 'application/json',
+        // 1분 캐시로 충분. 새 글이 자주 올라오지 않는 것을 감안해 최소 트래픽 유지
         'Cache-Control': 'public, max-age=60, s-maxage=60',
       },
     })
