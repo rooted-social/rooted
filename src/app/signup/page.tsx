@@ -141,7 +141,18 @@ export default function SignUpPage() {
           <div className="mt-4 text-center">
             <p className="text-sm text-slate-600">
               이미 계정이 있으신가요?{" "}
-              <Link href="/login" className="text-slate-900 hover:underline font-medium">
+              <Link
+                href={`/login${(() => {
+                  try {
+                    if (typeof window !== 'undefined') {
+                      const next = window.localStorage.getItem('rooted:return_to')
+                      return next ? `?next=${encodeURIComponent(next)}` : ''
+                    }
+                  } catch {}
+                  return ''
+                })()}`}
+                className="text-slate-900 hover:underline font-medium"
+              >
                 로그인
               </Link>
             </p>

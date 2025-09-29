@@ -13,7 +13,7 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://rooted.kr"),
   title: "루티드 - 올인원 커뮤니티 플랫폼",
   description:
     "루티드는 멤버십, 콘텐츠, 이벤트, 클래스 운영까지 손쉽게 관리하고, 함께 성장할 수 있는 공간을 제공합니다.",
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    url: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+    url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://rooted.kr",
     title: "루티드 - 올인원 커뮤니티 플랫폼",
     description:
       "루티드는 멤버십, 콘텐츠, 이벤트, 클래스 운영까지 손쉽게 관리하고, 함께 성장할 수 있는 공간을 제공합니다.",

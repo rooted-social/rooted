@@ -94,7 +94,7 @@ export async function fetchBlogList(pageId: string) {
   const key = `/api/blog/overview?pageId=${encodeURIComponent(pageId)}`
   const now = Date.now()
   const cached = blogCache.get(key)
-  if (cached && now - cached.ts < 120_000) return cached.data
+  if (cached && now - cached.ts < 30_000) return cached.data
   const token = await getAuthToken().catch(() => null)
   const res = await fetch(key, { headers: token ? { authorization: `Bearer ${token}` } : undefined })
   if (!res.ok) throw new Error('failed to fetch blog list')
@@ -129,12 +129,18 @@ export async function fetchExploreCommunities(opts?: { search?: string; category
   const qs = params.toString()
   const url = `/api/explore/communities${qs ? `?${qs}` : ''}`
   const now = Date.now()
-  const cached = exploreCache.get(url)
+  // 서버 환경에서는 절대 URL이 필요하므로 base URL을 구성
+  const baseUrl = typeof window === 'undefined'
+    ? (process.env.NEXT_PUBLIC_SITE_URL
+        || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://localhost:${process.env.PORT || 3000}`))
+    : ''
+  const finalUrl = typeof window === 'undefined' ? new URL(url, baseUrl).toString() : url
+  const cached = exploreCache.get(finalUrl)
   if (cached && now - cached.ts < 60_000) return cached.data
-  const res = await fetch(url, { signal: opts?.signal })
+  const res = await fetch(finalUrl, { signal: opts?.signal })
   if (!res.ok) throw new Error('failed to fetch explore communities')
   const data = await res.json()
-  exploreCache.set(url, { ts: now, data })
+  exploreCache.set(finalUrl, { ts: now, data })
   return data as any[]
 }
 

@@ -9,6 +9,7 @@ export const COMMUNITY_CATEGORIES: readonly string[] = [
   '투자 & 금융',
   '교육 & 커리어',
   '라이프스타일',
+  '건강 & 웰니스',
   '자기계발 & 취미',
 ] as const
 

@@ -153,14 +153,10 @@ export async function getBlogCounts(postId: string): Promise<{ views: number; li
 
 export async function incrementBlogViews(postId: string) {
   try {
-    const { data, error } = await supabase
-      .from('community_page_blog_posts')
-      .update({ views: (null as any) })
-      .eq('id', postId)
-      .select('views')
-      .single()
-    if (error) throw error
-    return (data as any)?.views ?? null
+    const res = await fetch('/api/blog/views', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: postId }) })
+    if (!res.ok) return null
+    const body = await res.json()
+    return body?.views ?? null
   } catch {
     return null
   }
@@ -189,10 +185,12 @@ export async function toggleBlogLike(postId: string) {
     .maybeSingle()
   if (existing) {
     await supabase.from('community_page_blog_likes').delete().eq('id', existing.id)
-    return { liked: false }
+    const counts = await getBlogCounts(postId)
+    return { liked: false, counts }
   }
   await supabase.from('community_page_blog_likes').insert({ post_id: postId, user_id: uid })
-  return { liked: true }
+  const counts = await getBlogCounts(postId)
+  return { liked: true, counts }
 }
 
 export async function listBlogComments(postId: string) {

@@ -7,7 +7,7 @@ import dynamic from 'next/dynamic'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Users, Crown, ArrowLeft, UserPlus, Check, Info, X, Loader2, Clock } from 'lucide-react'
+import { Users, Crown, ArrowLeft, UserPlus, Check, Info, X, Clock, Loader2, Gift } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { joinCommunity, leaveCommunity } from '@/lib/communities'
 import { useAuthData } from '@/components/auth/AuthProvider'
@@ -45,18 +45,21 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
   const router = useRouter()
   const slug = (params as any).slug as string
 
-  const [community, setCommunity] = useState<CommunityWithOwner | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [community, setCommunity] = useState<CommunityWithOwner | null>(initial?.community ?? null)
   const [isJoining, setIsJoining] = useState(false)
-  const [isMember, setIsMember] = useState(false)
-  const [isPending, setIsPending] = useState(false)
+  const initialRole = (initial?.membership as any)?.role as 'pending' | string | undefined
+  const [isMember, setIsMember] = useState<boolean>(!!initialRole && initialRole !== 'pending')
+  const [isPending, setIsPending] = useState<boolean>(initialRole === 'pending')
   const { user } = useAuthData()
-  const [services, setServices] = useState<{ id: string; label: string }[]>([])
-  const [images, setImages] = useState<GalleryItem[]>([])
+  const [services, setServices] = useState<{ id: string; label: string }[]>(initial?.services || [])
+  const [images, setImages] = useState<GalleryItem[]>((initial?.images || []).slice(0, 10))
   const [mainIdx, setMainIdx] = useState<number>(0)
-  const [stats, setStats] = useState<{ memberCount: number; postCount: number; commentCount: number; classCount: number }>({ memberCount: 0, postCount: 0, commentCount: 0, classCount: 0 })
+  const [stats, setStats] = useState<{ memberCount: number; postCount: number; commentCount: number; classCount: number }>(
+    (initial as any)?.stats || { memberCount: 0, postCount: 0, commentCount: 0, classCount: 0 }
+  )
   const [imageModal, setImageModal] = useState<{ open: boolean; url: string }>({ open: false, url: '' })
   const [mountBg, setMountBg] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
 
   const getCategoryColor = (category: string) => {
     const colorMap: { [key: string]: string } = {
@@ -70,36 +73,25 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
     return colorMap[category] || 'bg-slate-500'
   }
 
-  // 초기 데이터가 있으면 즉시 반영하여 첫 렌더를 빠르게 함
-  const initializedRef = useRef(false)
-  useEffect(() => {
-    if (initializedRef.current) return
-    initializedRef.current = true
-    if (initial && initial.community) {
-      setCommunity(initial.community)
-      setServices(initial.services || [])
-      setImages((initial.images || []).slice(0, 10))
-      setMainIdx(0)
-      // membership 힌트가 있으면 즉시 반영
-      const role = (initial.membership as any)?.role
-      if (role) {
-        if (role === 'pending') { setIsPending(true); setIsMember(false) }
-        else { setIsMember(true); setIsPending(false) }
-      }
-      // 초기 페인트를 빠르게: 메인 히어로 이미지는 미리 로딩 우선
-      if (typeof window !== 'undefined' && (initial.images || []).length > 0) {
-        try { const preload = new window.Image(); preload.src = (initial.images[0] as any).url } catch {}
-      }
-      if ((initial as any)?.stats) setStats((initial as any).stats)
-      setLoading(false)
-      return
-    }
-    // 초기 데이터가 없으면 클라이언트에서 로드
-    void loadCommunityData()
-  }, [initial])
+  // SSR 초기 데이터는 초기 state로 반영되며, 추가 클라이언트 로딩은 수행하지 않음
 
-  // AnimatedBackground를 아이들 타이밍에 지연 마운트하여 초기 페인트 방해 최소화
+  // 모바일 감지 및 AnimatedBackground 지연 마운트 (모바일에서는 비활성화)
   useEffect(() => {
+    const check = () => {
+      if (typeof window === 'undefined') return
+      setIsMobile(window.innerWidth < 768)
+    }
+    check()
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', check)
+    }
+    return () => {
+      if (typeof window !== 'undefined') window.removeEventListener('resize', check)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (isMobile) return
     const cb = () => setMountBg(true)
     if (typeof (window as any).requestIdleCallback === 'function') {
       ;(window as any).requestIdleCallback(cb)
@@ -107,7 +99,7 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
       const t = setTimeout(cb, 200)
       return () => clearTimeout(t)
     }
-  }, [])
+  }, [isMobile])
 
   // 비로그인 공개 상세 진입 시, 돌아올 경로를 저장하여 로그인/회원가입 후 복귀하도록 함
   useEffect(() => {
@@ -116,30 +108,7 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
     }
   }, [user, slug])
 
-  const loadCommunityData = async () => {
-    try {
-      setLoading(true)
-      const headers: Record<string, string> = {}
-      if (user?.id) headers['x-user-id'] = user.id
-      const res = await fetch(`/api/community/detail?slug=${encodeURIComponent(slug)}`, { cache: 'no-store', headers })
-      if (!res.ok) throw new Error('failed')
-      const body = await res.json()
-      setCommunity(body.community)
-      setServices(body.services)
-      setImages((body.images || []).slice(0, 10))
-      setMainIdx(0)
-      if (body?.stats) setStats(body.stats)
-      const role = (body?.membership as any)?.role
-      if (role) {
-        if (role === 'pending') { setIsPending(true); setIsMember(false) }
-        else { setIsMember(true); setIsPending(false) }
-      } else { setIsMember(false); setIsPending(false) }
-    } catch (error) {
-      console.error('커뮤니티 로드 오류:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
+  // 데이터 로딩 함수 제거: initial이 없으면 커뮤니티 없음 UI를 표시
 
   // 클라 Supabase 질의 제거: membership은 initial 또는 detail 응답으로 판단
   const lastCheckRef = useRef<string | null>(null)
@@ -217,24 +186,12 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen relative overflow-hidden">
-        {/* 초기 페인트 단순화: 배경 애니메이션 생략하여 TTI, FCP 개선 */}
-        <div className="absolute inset-0 flex items-center justify-center z-10">
-          <div className="flex items-center gap-3 rounded-2xl bg-white/80 backdrop-blur px-4 py-3 border border-slate-200 shadow-sm">
-            <Loader2 className="w-5 h-5 animate-spin text-slate-700" />
-            <span className="text-sm font-medium text-slate-700">불러오는 중...</span>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  // 로딩 스켈레톤 제거
 
   if (!community) {
     return (
       <div className="min-h-screen relative overflow-hidden">
-        <AnimatedBackground />
+        {!isMobile && <AnimatedBackground />}
         <main className="relative px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 pt-5 pb-24 z-10">
           <div className="w-full">
             <h1 className="text-xl sm:text-2xl font-semibold text-slate-900 mb-3">커뮤니티를 찾을 수 없습니다</h1>
@@ -365,7 +322,7 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
 
                   {/* 커뮤니티 현황 */}
                   <div>
-                    <h3 className="text-sm sm:text-base font-semibold text-slate-900 mb-2 inline-flex items-center"><Users className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2 text-indigo-600" />커뮤니티 현황</h3>
+                    <h3 className="text-sm sm:text-base font-semibold text-slate-900 mb-2 inline-flex items-center"><Users className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2 text-black" />커뮤니티 현황</h3>
                     <div className="p-3 sm:p-4 rounded-xl border border-slate-200 bg-white text-center">
                       <span className="text-sm sm:text-base text-slate-800">
                         총 <span className="font-bold text-slate-900">{stats.memberCount.toLocaleString()}</span>명의 멤버가 함께하고 있어요!
@@ -410,8 +367,8 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
           <div className="grid grid-cols-1 gap-4 sm:gap-6">
             <div>
               <Card className="hover:shadow-sm transition-all duration-300 border border-slate-300">
-                <CardHeader className="pb-3 sm:pb-6">
-                  <CardTitle className="flex items-center text-base sm:text-lg font-bold"><Users className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2 text-blue-500" />커뮤니티 특징</CardTitle>
+                <CardHeader className="pb-2 sm:pb-3">
+                  <CardTitle className="flex items-center text-base sm:text-lg font-bold"><Gift className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2 text-black" />커뮤니티 혜택</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2 sm:space-y-3 pt-0">
                   {services.length === 0 ? (
@@ -419,7 +376,7 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
                   ) : (
                     services.map((s, i) => (
                       <div key={s.id} className="flex items-center gap-2 sm:gap-3">
-                        <div className={`${['bg-blue-500','bg-green-500','bg-purple-500','bg-orange-500','bg-teal-500'][i % 5]} w-2 h-2 rounded-full flex-shrink-0`} />
+                        <div className={`bg-slate-700 w-2 h-2 rounded-full flex-shrink-0`} />
                         <span className="text-slate-900 text-medium sm:text-base">{s.label}</span>
                       </div>
                     ))

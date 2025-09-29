@@ -122,8 +122,8 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
         if (!res.ok) { if (!aborted) { setNewPageMap({}); setHasNewFeed(false) }; return }
         const data = await res.json()
         if (aborted) return
-        // 7일 기준 판단
-        const threshold = Date.now() - 7 * 24 * 60 * 60 * 1000
+        // 2일 기준 판단으로 단축
+        const threshold = Date.now() - 2 * 24 * 60 * 60 * 1000
         const feedOk = data?.feedLatestAt ? new Date(data.feedLatestAt).getTime() >= threshold : false
         const pageMapRaw = data?.pageLatestMap || {}
         const map: Record<string, boolean> = {}

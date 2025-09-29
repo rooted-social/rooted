@@ -146,22 +146,22 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
   }, [])
 
   const handleTabChange = (newTab: typeof active) => {
-    // 탭 변경 시 해당 경로로 이동
+    // 탭 변경 시 해당 경로로 이동 (전체 리로드 방지)
     switch (newTab) {
       case 'home':
-        window.location.href = `/${slug}/dashboard`
+        router.push(`/${slug}/dashboard`)
         break
       case 'classes':
-        window.location.href = `/${slug}/classes`
+        router.push(`/${slug}/classes`)
         break
       case 'calendar':
-        window.location.href = `/${slug}/calendar`
+        router.push(`/${slug}/calendar`)
         break
       case 'members':
-        window.location.href = `/${slug}/members`
+        router.push(`/${slug}/members`)
         break
       case 'settings':
-        window.location.href = `/${slug}/settings`
+        router.push(`/${slug}/settings`)
         break
     }
   }
@@ -209,13 +209,24 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
     return () => { if (readyTimeoutRef.current) clearTimeout(readyTimeoutRef.current) }
   }, [isHomeDashboardPage, guardChecked, communityId, initialReady])
 
-  // 홈 대시보드 최초 1회 로딩 완료 후 재진입 시에는 로딩을 보여주지 않음
+  // 세션 내 1회 표시 정책: 세션 스토리지에서 플래그를 읽어 초기화
+  useEffect(() => {
+    if (!slug) return
+    try {
+      const key = `rooted:homeLoadingShown:${slug}`
+      const val = typeof window !== 'undefined' ? window.sessionStorage.getItem(key) : null
+      if (val === '1') setHasShownHomeLoading(true)
+    } catch {}
+  }, [slug])
+
+  // 홈 대시보드 최초 1회 로딩 완료 후 재진입 시에는 로딩을 보여주지 않음 + 세션 저장
   useEffect(() => {
     if (!isHomeDashboardPage) return
     if (!guardChecked || !communityId) return
     if (!initialReady) return
     setHasShownHomeLoading(true)
-  }, [isHomeDashboardPage, guardChecked, communityId, initialReady])
+    try { if (typeof window !== 'undefined') window.sessionStorage.setItem(`rooted:homeLoadingShown:${slug}`, '1') } catch {}
+  }, [isHomeDashboardPage, guardChecked, communityId, initialReady, slug])
 
   const showBlockingLoading = isHomeDashboardPage && !hasShownHomeLoading && (communityQ.isLoading || !guardChecked || !communityId || !initialReady)
 
@@ -247,9 +258,9 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
           communityId={communityId}
           ownerId={ownerId}
           active={{ type: 'home' }}
-          onSelectHome={() => { window.location.href = `/${slug}/dashboard`; setIsMobileSidebarOpen(false) }}
-          onSelectFeed={() => { window.location.href = `/${slug}/dashboard`; setIsMobileSidebarOpen(false) }}
-          onSelectPage={() => { window.location.href = `/${slug}/dashboard`; setIsMobileSidebarOpen(false) }}
+          onSelectHome={() => { router.push(`/${slug}/dashboard`); setIsMobileSidebarOpen(false) }}
+          onSelectFeed={() => { router.push(`/${slug}/dashboard`); setIsMobileSidebarOpen(false) }}
+          onSelectPage={() => { router.push(`/${slug}/dashboard`); setIsMobileSidebarOpen(false) }}
           isOpen={isMobileSidebarOpen}
           onClose={() => setIsMobileSidebarOpen(false)}
           hideDesktop

@@ -93,7 +93,7 @@ export async function GET(req: NextRequest) {
       status: 200,
       headers: {
         'content-type': 'application/json',
-        'Cache-Control': 'public, max-age=60, s-maxage=60',
+        'Cache-Control': 'no-store',
       },
     })
   } catch (e: any) {
