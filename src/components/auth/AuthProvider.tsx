@@ -34,6 +34,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data: { session } } = await supabase.auth.getSession()
       // 세션을 가져올 때 캐시를 동기화하여 중복 auth 호출 억제
       setAuthCacheFromSession(session)
+      // 서버 쿠키 동기화(초기 마운트 시 토큰이 없으면 401 발생 방지)
+      try {
+        const access_token = session?.access_token
+        const refresh_token = session?.refresh_token
+        if (access_token && refresh_token) {
+          await fetch('/api/auth/sync', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ access_token, refresh_token })
+          })
+        }
+      } catch {}
       return session
     },
     staleTime: 1000 * 60 * 15,

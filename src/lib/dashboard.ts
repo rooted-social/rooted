@@ -80,7 +80,18 @@ export async function fetchHomeData(communityId: string) {
   const cached = homeCache.get(key)
   if (cached && now - cached.ts < 300_000) return cached.data
   const token = await getAuthToken().catch(() => null)
-  const res = await fetch(`/api/dashboard/home?communityId=${encodeURIComponent(communityId)}`, { headers: token ? { authorization: `Bearer ${token}` } : undefined })
+  let res = await fetch(`/api/dashboard/home?communityId=${encodeURIComponent(communityId)}`, { headers: token ? { authorization: `Bearer ${token}` } : undefined })
+  // 401일 때 세션-쿠키가 어긋났을 수 있으므로 동기화 후 1회 재시도
+  if (res.status === 401) {
+    try {
+      const { data: { session } } = await (await import('./supabase')).supabase.auth.getSession()
+      if (session?.access_token && session?.refresh_token) {
+        await fetch('/api/auth/sync', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ access_token: session.access_token, refresh_token: session.refresh_token }) })
+        const retryHeaders = session?.access_token ? { authorization: `Bearer ${session.access_token}` } : undefined
+        res = await fetch(`/api/dashboard/home?communityId=${encodeURIComponent(communityId)}`, { headers: retryHeaders })
+      }
+    } catch {}
+  }
   if (!res.ok) throw new Error('failed to fetch home data')
   const data = await res.json() as { settings: any; notices: any[]; canManage?: boolean; upcomingEvents?: any[]; recentActivity?: any[] }
   homeCache.set(key, { ts: now, data })
