@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { useAuthData } from "@/components/auth/AuthProvider"
 import { Card, CardTitle } from "@/components/ui/card"
-import { AnimatedBackground } from "@/components/AnimatedBackground"
+import dynamic from "next/dynamic"
 import { Input } from "@/components/ui/input"
 import { Search, ChevronLeft, ChevronRight, Compass, Sparkles } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
@@ -19,6 +19,9 @@ import { COMMUNITY_CATEGORIES, DEFAULT_EXPLORE_CATEGORY } from '@/lib/constants'
 import { getVersionedUrl } from '@/lib/utils'
 import { toast } from "sonner"
 
+// 배경 애니메이션은 동적 로드하여 초기 페인트 비용을 낮춤
+const AnimatedBackground = dynamic(() => import("@/components/AnimatedBackground").then(m => m.AnimatedBackground), { ssr: false })
+
 export default function ClientExplorePage({ initial }: { initial?: Community[] }) {
   const router = useRouter()
   const { user } = useAuthData()
@@ -30,6 +33,7 @@ export default function ClientExplorePage({ initial }: { initial?: Community[] }
   // 모바일 페이지네이션
   const [currentPage, setCurrentPage] = useState(1)
   const [isMobile, setIsMobile] = useState(false)
+  const [mountBg, setMountBg] = useState(false)
   const MOBILE_ITEMS_PER_PAGE = 15
   const firstEffectSkippedRef = useRef(false)
   
@@ -62,6 +66,18 @@ export default function ClientExplorePage({ initial }: { initial?: Community[] }
     
     return () => window.removeEventListener('resize', checkIsMobile)
   }, [])
+
+  // 배경 애니메이션은 메인 컨텐츠 렌더 후 브라우저 idle 타이밍에 마운트
+  useEffect(() => {
+    if (isMobile) return
+    const cb = () => setMountBg(true)
+    if (typeof (window as any).requestIdleCallback === 'function') {
+      ;(window as any).requestIdleCallback(cb)
+    } else {
+      const t = setTimeout(cb, 200)
+      return () => clearTimeout(t)
+    }
+  }, [isMobile])
 
   const loadCommunities = async (signal?: AbortSignal) => {
     try {
@@ -200,7 +216,7 @@ export default function ClientExplorePage({ initial }: { initial?: Community[] }
 
   return (
     <div className="min-h-screen bg-white relative overflow-hidden">
-      <AnimatedBackground zIndexClass="-z-0" />
+      {mountBg && <AnimatedBackground zIndexClass="-z-0" />}
       {/* Main Content */}
       <main className="relative px-2 sm:px-6 md:px-10 lg:px-16 xl:px-24 pt-12 md:pt-20 pb-24 z-10">
         <div className="w-full">

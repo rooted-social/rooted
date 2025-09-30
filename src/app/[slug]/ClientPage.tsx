@@ -128,6 +128,8 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
   // 사용자 로그인/변경 시 membership을 최신 응답으로 동기화
   useEffect(() => {
     if (!community?.id || !user?.id) return
+    // SSR 초기 렌더에서 membership을 이미 전달받았다면 즉시 재조회 생략
+    if (initial?.membership != null) return
     let cancelled = false
     ;(async () => {
       try {
@@ -142,7 +144,7 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
       } catch {}
     })()
     return () => { cancelled = true }
-  }, [user?.id, community?.id, slug])
+  }, [user?.id, community?.id, slug, initial?.membership])
 
   // checkMembership 제거 (API에서 제공)
 
