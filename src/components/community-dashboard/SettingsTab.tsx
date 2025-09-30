@@ -21,13 +21,15 @@ import { BRAND_COLOR_PALETTE, getReadableTextColor, normalizeHex } from "@/utils
 
 interface SettingsTabProps {
   communityId: string
+  // modal 전용 렌더 모드 (미지정 시 기존 탭 UI 그대로 동작)
+  mode?: 'basic' | 'images' | 'details' | 'advanced'
 }
 
 type GalleryItem = { key: string; url: string }
 
 type SubTab = 'page' | 'basic' | 'advanced'
 
-export function SettingsTab({ communityId }: SettingsTabProps) {
+export function SettingsTab({ communityId, mode }: SettingsTabProps) {
   const router = useRouter()
   const params = useParams()
   const routeSlug = (params as any)?.slug as string | undefined
@@ -309,7 +311,18 @@ export function SettingsTab({ communityId }: SettingsTabProps) {
   }
 
   if (loading) {
-    return <div className="h-24 bg-slate-100 rounded-xl animate-pulse" />
+    return (
+      <div className="h-24 rounded-xl bg-slate-100 relative overflow-hidden">
+        <div className="absolute inset-0 flex items-center justify-center text-slate-500 text-sm">
+          <span className="inline-flex items-center gap-1">
+            로딩 중
+            <span className="inline-block animate-pulse">.</span>
+            <span className="inline-block animate-pulse [animation-delay:150ms]">.</span>
+            <span className="inline-block animate-pulse [animation-delay:300ms]">.</span>
+          </span>
+        </div>
+      </div>
+    )
   }
 
   const nameMax = 20
@@ -327,117 +340,104 @@ export function SettingsTab({ communityId }: SettingsTabProps) {
     setSettingsInitial({ mission: (values.mission || ""), brand_color: (values.brand_color ?? null) as any })
   }
 
-  return (
-    <section className="space-y-4">
-      {/* Sub Tabs - centered (대시보드 설정 탭 제거) */}
-      <div className="flex items-center justify-center gap-1.5">
-        {([
-          { k: 'page', label: '커뮤니티 설정' },
-          { k: 'advanced', label: '고급 설정' },
-        ] as const).map(tab => (
-          <button
-            key={tab.k}
-            onClick={() => setActive(tab.k as SubTab)}
-            className={`px-3.5 py-1.5 rounded-full border text-sm transition-colors cursor-pointer ${active===tab.k ? 'bg-slate-900 text-white border-slate-900' : 'text-slate-700 hover:bg-slate-50 border-slate-200'}`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Page Settings */}
-      {active === 'page' && (
-        <div className="space-y-3">
-          <Card>
-            <CardHeader className="flex items-center justify-between px-4 py-3">
-              <CardTitle>커뮤니티 기본 정보</CardTitle>
-              <div className="flex gap-2">
-                <Button onClick={handleSaveAll} variant={combinedChanged ? 'default' : 'outline'}>
-                  {combinedChanged ? '변경된 사항 저장' : '변경된 사항 저장'}
-                </Button>
+  // 렌더링 유틸: 기본 정보 카드
+  const BasicInfoCard = (
+        <Card className="border-0 shadow-none sm:border sm:shadow-sm">
+          <CardHeader className="flex items-center justify-between px-2 sm:px-4 py-3">
+            <CardTitle>커뮤니티 기본 정보</CardTitle>
+            <div className="flex gap-2">
+              <Button onClick={handleSaveAll} variant={combinedChanged ? 'default' : 'outline'}>
+                {combinedChanged ? '변경된 사항 저장' : '변경된 사항 저장'}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3 px-1 sm:px-4 pb-4">
+            <div className="grid md:grid-cols-2 gap-2.5">
+              <div>
+                <Label className="text-xs text-slate-600">커뮤니티 이름</Label>
+                <Input value={communityName} maxLength={nameMax} onChange={(e) => setCommunityName(e.target.value)} placeholder="예: 루티드 커뮤니티" />
+                <div className="text-xs text-slate-500 text-right mt-1">{communityName.length}/{nameMax}</div>
               </div>
-            </CardHeader>
-            <CardContent className="space-y-3 px-4 pb-4">
-              <div className="grid md:grid-cols-2 gap-2.5">
-                <div>
-                  <Label className="text-xs text-slate-600">커뮤니티 이름</Label>
-                  <Input value={communityName} maxLength={nameMax} onChange={(e) => setCommunityName(e.target.value)} placeholder="예: 루티드 커뮤니티" />
-                  <div className="text-xs text-slate-500 text-right mt-1">{communityName.length}/{nameMax}</div>
-                </div>
-                <div>
-                  <Label className="text-xs text-slate-600">카테고리</Label>
-                  <Select value={communityCategory} onValueChange={setCommunityCategory}>
-                    <SelectTrigger className="w-full"><SelectValue placeholder="카테고리 선택" /></SelectTrigger>
-                    <SelectContent>
-                      {COMMUNITY_CATEGORIES.filter(c => c !== '전체').map(c => (
-                        <SelectItem key={c} value={c}>{c}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="md:col-span-2">
-                  <Label className="text-xs text-slate-600">커뮤니티 소개</Label>
-                  <Textarea value={communityDesc} maxLength={descMax} onChange={(e) => setCommunityDesc(e.target.value)} placeholder="커뮤니티 소개" />
-                  <div className="text-xs text-slate-500 text-right">{communityDesc.length}/{descMax}</div>
-                </div>
-
-                {/* Our Mission - 커뮤니티 소개 아래 배치 */}
-                <div className="md:col-span-2">
-                  <Label className="text-xs text-slate-600">Our Mission</Label>
-                  <Textarea
-                    placeholder="커뮤니티 미션을 입력하세요"
-                    value={values.mission || ""}
-                    maxLength={missionMax}
-                    onChange={(e) => setValues((v) => ({ ...v, mission: e.target.value }))}
-                  />
-                  <div className="text-xs text-slate-500 text-right mt-1">{(values.mission || "").length}/{missionMax}</div>
-                </div>
+              <div>
+                <Label className="text-xs text-slate-600">카테고리</Label>
+                <Select value={communityCategory} onValueChange={setCommunityCategory}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="카테고리 선택" /></SelectTrigger>
+                  <SelectContent>
+                    {COMMUNITY_CATEGORIES.filter(c => c !== '전체').map(c => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              
-              {/* 커뮤니티 아이콘 섹션 */}
-              <div className="border-t pt-3">
-                <div className="flex items-center justify-between mb-3">
-                  <Label className="text-sm font-medium">커뮤니티 아이콘</Label>
-                  <div className="flex gap-2">
-                    <input ref={iconInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload(f, 'icon'); if (iconInputRef.current) iconInputRef.current.value = '' }} />
-                    <Button size="sm" onClick={() => iconInputRef.current?.click()} disabled={uploading}>{uploading ? '업로드 중...' : '이미지 변경'}</Button>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
-                    {communityIconUrl ? <img src={communityIconUrl} alt="icon" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-xs text-slate-400">no icon</div>}
-                  </div>
-                  <div className="text-xs text-slate-600">버킷: community-icons / 경로: {slug ? `${slug}/` : '(slug 로딩중)'}</div>
-                </div>
+              <div className="md:col-span-2">
+                <Label className="text-xs text-slate-600">커뮤니티 소개</Label>
+                <Textarea value={communityDesc} maxLength={descMax} onChange={(e) => setCommunityDesc(e.target.value)} placeholder="커뮤니티 소개" />
+                <div className="text-xs text-slate-500 text-right">{communityDesc.length}/{descMax}</div>
               </div>
 
-              {/* 대시보드 브랜드 컬러 - 아이콘 아래 배치 */}
-              <div className="border-t pt-3">
+              {/* Our Mission */}
+              <div className="md:col-span-2">
+                <Label className="text-xs text-slate-600">Our Mission</Label>
+                <Textarea
+                  placeholder="커뮤니티 미션을 입력하세요"
+                  value={values.mission || ""}
+                  maxLength={missionMax}
+                  onChange={(e) => setValues((v) => ({ ...v, mission: e.target.value }))}
+                />
+                <div className="text-xs text-slate-500 text-right mt-1">{(values.mission || "").length}/{missionMax}</div>
+              </div>
+            </div>
+
+            {/* 브랜드 컬러 */}
+            <div className="border-t pt-3">
               <div className="flex items-center justify-between mb-3">
-                  <Label className="text-sm font-medium">대시보드 브랜드 컬러</Label>
+                <Label className="text-sm font-medium">대시보드 브랜드 컬러</Label>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={() => setBrandModalOpen(true)}>변경</Button>
                 </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 items-center">
-                  <p className="text-xs text-slate-600">활성 버튼과 강조 요소에 적용됩니다.</p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 items-center">
+                <p className="text-xs text-slate-600">활성 버튼과 강조 요소에 적용됩니다.</p>
                 <div className="flex items-center md:justify-end gap-3">
-                    <div
-                      className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold shadow-sm border"
-                      style={{ backgroundColor: values.brand_color || '#0f172a', color: getReadableTextColor(values.brand_color || '#0f172a'), borderColor: 'rgba(0,0,0,0.08)' }}
-                    >
-                      활성 버튼 예시
-                    </div>
-                    <div className="text-xs text-slate-600">현재 색상: <span className="font-medium text-slate-800">{normalizeHex(values.brand_color || '#0f172a')}</span></div>
+                  <div
+                    className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold shadow-sm border"
+                    style={{ backgroundColor: values.brand_color || '#0f172a', color: getReadableTextColor(values.brand_color || '#0f172a'), borderColor: 'rgba(0,0,0,0.08)' }}
+                  >
+                    활성 버튼 예시
                   </div>
+                  <div className="text-xs text-slate-600">현재 색상: <span className="font-medium text-slate-800">{normalizeHex(values.brand_color || '#0f172a')}</span></div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </CardContent>
+        </Card>
+  )
 
-          {/* 대시보드 배너 이미지를 커뮤니티 이미지 위에 배치 */}
-          <Card>
-            <CardHeader className="flex items-center justify-between px-4 py-3">
+  // 렌더링 유틸: 아이콘 카드 (이미지 관리에서 사용)
+  const IconCard = (
+        <Card>
+          <CardHeader className="flex items-center justify-between px-2 sm:px-4 py-3">
+            <CardTitle>커뮤니티 아이콘</CardTitle>
+            <div className="flex gap-2">
+              <input ref={iconInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload(f, 'icon'); if (iconInputRef.current) iconInputRef.current.value = '' }} />
+              <Button size="sm" onClick={() => iconInputRef.current?.click()} disabled={uploading}>{uploading ? '업로드 중...' : '이미지 변경'}</Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3 px-4 pb-4">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
+                {communityIconUrl ? <img src={communityIconUrl} alt="icon" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-xs text-slate-400">no icon</div>}
+              </div>
+              <div className="text-xs text-slate-600">버킷: community-icons / 경로: {slug ? `${slug}/` : '(slug 로딩중)'}</div>
+            </div>
+          </CardContent>
+        </Card>
+  )
+
+  // 렌더링 유틸: 배너 카드
+  const BannerCard = (
+          <Card className="border-0 shadow-none sm:border sm:shadow-sm">
+            <CardHeader className="flex items-center justify-between px-2 py-3">
               <CardTitle>대시보드 배너 이미지</CardTitle>
               <div className="flex gap-2">
                 <input ref={bannerInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onUploadBanner(f) }} />
@@ -445,7 +445,7 @@ export function SettingsTab({ communityId }: SettingsTabProps) {
                 <Button size="sm" variant="outline" onClick={() => handleSaveSettings()} disabled={saving}>{saving ? '저장 중...' : '설정 저장'}</Button>
               </div>
             </CardHeader>
-            <CardContent className="space-y-2.5 px-4 pb-4">
+            <CardContent className="space-y-2.5 px-2 sm:px-4 pb-4">
               <p className="text-xs text-slate-600">권장 비율: (예: 16:4 ~ 21:9) 가로로 긴 배너가 대시보드 홈 상단에 노출됩니다.</p>
               <div className="rounded-2xl overflow-hidden border border-slate-200 bg-slate-50">
                 {values.banner_url ? (
@@ -456,9 +456,13 @@ export function SettingsTab({ communityId }: SettingsTabProps) {
               </div>
             </CardContent>
           </Card>
+  )
 
-          <Card>
-            <CardHeader className="flex items-center justify-between px-4 py-3">
+  // 렌더링 유틸: 이미지 카드 묶음
+  const ImagesCard = (
+        <>
+          <Card className="border-0 shadow-none sm:border sm:shadow-sm">
+          <CardHeader className="flex items-center justify-between px-2 sm:px-4 py-3">
               <div className="flex items-center gap-3">
                 <CardTitle>커뮤니티 이미지</CardTitle>
                 <span className="text-sm text-slate-500">({images.length}/10)</span>
@@ -468,7 +472,7 @@ export function SettingsTab({ communityId }: SettingsTabProps) {
                 <Button onClick={() => fileInputRef.current?.click()} disabled={uploading}>{uploading ? '업로드 중...' : '이미지 추가'}</Button>
               </div>
             </CardHeader>
-            <CardContent className="space-y-3 px-4 pb-4">
+            <CardContent className="space-y-3 px-2 sm:px-4 pb-4">
               <p className="text-xs text-slate-600">첫 번째 이미지가 대표 이미지로 설정되며, 이미지 위치 변경은 드래그를 통해 가능합니다</p>
               {/* 모바일: 한 줄 2개 노출 + 가로 스크롤 */}
               <div className="block sm:hidden">
@@ -594,15 +598,19 @@ export function SettingsTab({ communityId }: SettingsTabProps) {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+        </>
+  )
 
-          <Card>
-            <CardHeader className="flex items-center justify-between px-4 py-3">
+  // 렌더링 유틸: 서비스(혜택)
+  const ServicesCard = (
+          <Card className="border-0 shadow-none sm:border sm:shadow-sm">
+            <CardHeader className="flex items-center justify-between px-1 sm:px-4 py-3">
               <CardTitle>커뮤니티 혜택</CardTitle>
               <div className="flex gap-2">
                 <Button onClick={handleAddService} disabled={!newService.trim()}>추가</Button>
               </div>
             </CardHeader>
-            <CardContent className="space-y-2.5 px-4 pb-4">
+            <CardContent className="space-y-2.5 px-1 sm:px-4 pb-4">
               <div className="flex gap-2">
                 <Input value={newService} onChange={(e) => setNewService(e.target.value)} placeholder="커뮤니티에서 제공하는 가치를 입력하세요" />
               </div>
@@ -620,11 +628,147 @@ export function SettingsTab({ communityId }: SettingsTabProps) {
               )}
             </CardContent>
           </Card>
+  )
+
+  // 렌더링 유틸: 고급 설정 카드 묶음
+  const AdvancedCards = (
+        <>
+          <Card>
+            <CardHeader className="flex items-center justify-between px-4 py-3">
+              <CardTitle>커뮤니티 공개 설정</CardTitle>
+              <Button onClick={handleSaveCommunityBasics} size="sm">저장</Button>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">공개 여부</Label>
+                  <p className="text-xs text-slate-600">공개 시 '루트 둘러보기' 페이지에 노출됩니다.</p>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isPublic}
+                      onChange={(e) => setIsPublic(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-slate-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-slate-900"></div>
+                  </label>
+                  <span className="text-sm font-medium text-slate-700">
+                    {isPublic ? '공개' : '비공개'}
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex items-center justify-between px-4 py-3">
+              <CardTitle>가입 설정</CardTitle>
+              <Button onClick={handleSaveCommunityBasics} size="sm">저장</Button>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">가입 형태</Label>
+                  <p className="text-xs text-slate-600">자유 가입 또는 승인 기반을 선택합니다.</p>
+                </div>
+                <div className="min-w-[140px]">
+                  <Select value={joinPolicy} onValueChange={(value: 'free' | 'approval') => setJoinPolicy(value)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="free">자유 가입</SelectItem>
+                      <SelectItem value="approval">승인 필요</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex items-center justify-between px-4 py-3">
+              <CardTitle className="text-red-600">커뮤니티 삭제</CardTitle>
+              <Button variant="destructive" onClick={() => { setDeleteCommunityText(""); setDeleteCommunityOpen(true) }}>삭제하기</Button>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <p className="text-sm text-slate-600">
+                이 작업은 되돌릴 수 없습니다. 커뮤니티를 영구적으로 삭제하려면 아래 버튼을 눌러 확인 모달에서 <span className="font-semibold text-slate-900">삭제</span> 라고 입력해주세요.
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* 커뮤니티 삭제 확인 모달 */}
+          <Dialog open={deleteCommunityOpen} onOpenChange={setDeleteCommunityOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="text-red-600">커뮤니티를 삭제하시겠어요?</DialogTitle>
+                <DialogDescription>
+                  이 동작은 영구적입니다. 계속하려면 아래 입력칸에 <span className="font-semibold">삭제</span> 를 입력한 뒤 삭제를 눌러주세요.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-2">
+                <Label className="text-xs text-slate-600">확인용 텍스트</Label>
+                <Input value={deleteCommunityText} onChange={(e) => setDeleteCommunityText(e.target.value)} placeholder="삭제" />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDeleteCommunityOpen(false)}>취소</Button>
+                <Button
+                  variant="destructive"
+                  disabled={deleteCommunityText !== '삭제'}
+                  onClick={async () => {
+                    try {
+                      await deleteCommunity(communityId)
+                      setDeleteCommunityOpen(false)
+                      toast.success('커뮤니티가 삭제되었습니다.')
+                      router.push('/explore')
+                    } catch (err: any) {
+                      toast.error(err?.message || '삭제 중 오류가 발생했습니다.')
+                    }
+                  }}
+                >
+                  삭제
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </>
+  )
+
+  return (
+    <section className="space-y-4">
+      {/* 상단 탭: 모드가 없을 때만 노출 */}
+      {!mode && (
+        <div className="flex items-center justify-center gap-1.5">
+          {([
+            { k: 'page', label: '커뮤니티 설정' },
+            { k: 'advanced', label: '고급 설정' },
+          ] as const).map(tab => (
+            <button
+              key={tab.k}
+              onClick={() => setActive(tab.k as SubTab)}
+              className={`px-3.5 py-1.5 rounded-full border text-sm transition-colors cursor-pointer ${active===tab.k ? 'bg-slate-900 text-white border-slate-900' : 'text-slate-700 hover:bg-slate-50 border-slate-200'}`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Page Settings (기존) 또는 모드별 분기 */}
+      {(!mode && active === 'page') && (
+        <div className="space-y-3">
+          {BasicInfoCard}
+          {BannerCard}
+          {ImagesCard}
+          {ServicesCard}
         </div>
       )}
 
       {/* Basic Settings */}
-      {active === 'basic' && (
+      {active === 'basic' && !mode && (
         <div className="space-y-3">
           {/* (비움) */}
         </div>
@@ -675,113 +819,20 @@ export function SettingsTab({ communityId }: SettingsTabProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Advanced Settings */}
-      {active === 'advanced' && (
+      {/* Advanced Settings (탭) */}
+      {!mode && active === 'advanced' && (
         <div className="space-y-3">
-          {/* 커뮤니티 공개 설정 */}
-          <Card>
-            <CardHeader className="flex items-center justify-between px-4 py-3">
-              <CardTitle>커뮤니티 공개 설정</CardTitle>
-              <Button onClick={handleSaveCommunityBasics} size="sm">저장</Button>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <Label className="text-sm font-medium">공개 여부</Label>
-                  <p className="text-xs text-slate-600">공개 시 '루트 둘러보기' 페이지에 노출됩니다.</p>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={isPublic}
-                      onChange={(e) => setIsPublic(e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-slate-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-slate-900"></div>
-                  </label>
-                  <span className="text-sm font-medium text-slate-700">
-                    {isPublic ? '공개' : '비공개'}
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {AdvancedCards}
+        </div>
+      )}
 
-          {/* 가입 형태 설정 */}
-          <Card>
-            <CardHeader className="flex items-center justify-between px-4 py-3">
-              <CardTitle>가입 설정</CardTitle>
-              <Button onClick={handleSaveCommunityBasics} size="sm">저장</Button>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <Label className="text-sm font-medium">가입 형태</Label>
-                  <p className="text-xs text-slate-600">자유 가입 또는 승인 기반을 선택합니다.</p>
-                </div>
-                <div className="min-w-[140px]">
-                  <Select value={joinPolicy} onValueChange={(value: 'free' | 'approval') => setJoinPolicy(value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="free">자유 가입</SelectItem>
-                      <SelectItem value="approval">승인 필요</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 커뮤니티 삭제 */}
-          <Card>
-            <CardHeader className="flex items-center justify-between px-4 py-3">
-              <CardTitle className="text-red-600">커뮤니티 삭제</CardTitle>
-              <Button variant="destructive" onClick={() => { setDeleteCommunityText(""); setDeleteCommunityOpen(true) }}>삭제하기</Button>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <p className="text-sm text-slate-600">
-                이 작업은 되돌릴 수 없습니다. 커뮤니티를 영구적으로 삭제하려면 아래 버튼을 눌러 확인 모달에서 <span className="font-semibold text-slate-900">삭제</span> 라고 입력해주세요.
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* 커뮤니티 삭제 확인 모달 */}
-          <Dialog open={deleteCommunityOpen} onOpenChange={setDeleteCommunityOpen}>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle className="text-red-600">커뮤니티를 삭제하시겠어요?</DialogTitle>
-                <DialogDescription>
-                  이 동작은 영구적입니다. 계속하려면 아래 입력칸에 <span className="font-semibold">삭제</span> 를 입력한 뒤 삭제를 눌러주세요.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-2">
-                <Label className="text-xs text-slate-600">확인용 텍스트</Label>
-                <Input value={deleteCommunityText} onChange={(e) => setDeleteCommunityText(e.target.value)} placeholder="삭제" />
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setDeleteCommunityOpen(false)}>취소</Button>
-                <Button
-                  variant="destructive"
-                  disabled={deleteCommunityText !== '삭제'}
-                  onClick={async () => {
-                    try {
-                      await deleteCommunity(communityId)
-                      setDeleteCommunityOpen(false)
-                      toast.success('커뮤니티가 삭제되었습니다.')
-                      router.push('/explore')
-                    } catch (err: any) {
-                      toast.error(err?.message || '삭제 중 오류가 발생했습니다.')
-                    }
-                  }}
-                >
-                  삭제
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+      {/* 모달 모드 렌더링 */}
+      {mode && (
+        <div className="space-y-3">
+          {mode === 'basic' && (<>{BasicInfoCard}</>)}
+          {mode === 'images' && (<>{IconCard}{BannerCard}{ImagesCard}</>)}
+          {mode === 'details' && (<>{ServicesCard}</>)}
+          {mode === 'advanced' && (<>{AdvancedCards}</>)}
         </div>
       )}
     </section>

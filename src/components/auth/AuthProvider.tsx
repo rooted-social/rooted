@@ -18,6 +18,7 @@ type AuthData = {
   myCommunities: any[]
   unreadCount: number
   loading: boolean
+  accessToken: string | null
 }
 
 const AuthContext = createContext<AuthData | null>(null)
@@ -118,7 +119,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     myCommunities: (communitiesQ.data as any[]) || [],
     unreadCount: (unreadQ.data as number) || 0,
     loading: sessionQ.isLoading || profileQ.isLoading || communitiesQ.isLoading,
-  }), [user, profileQ.data, communitiesQ.data, unreadQ.data, sessionQ.isLoading, profileQ.isLoading, communitiesQ.isLoading])
+    accessToken: sessionQ.data?.access_token || null,
+  }), [user, profileQ.data, communitiesQ.data, unreadQ.data, sessionQ.isLoading, profileQ.isLoading, communitiesQ.isLoading, sessionQ.data?.access_token])
 
   return (
     <AuthContext.Provider value={value}>
@@ -156,7 +158,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuthData(): AuthData {
   const ctx = useContext(AuthContext)
-  if (!ctx) return { user: null, profile: null, myCommunities: [], unreadCount: 0, loading: true }
+  if (!ctx) return { user: null, profile: null, myCommunities: [], unreadCount: 0, loading: true, accessToken: null }
   return ctx
 }
 

@@ -176,7 +176,7 @@ export default function ClientDashboardPage({ slug, initial }: { slug: string; i
                   className="cursor-pointer"
                   onClick={() => {
                     setShowOnboarding(false)
-                    router.push(`/${slug}/dashboard?tab=settings`)
+                    router.push(`/${slug}/settings`)
                   }}
                 >
                   설정으로 이동

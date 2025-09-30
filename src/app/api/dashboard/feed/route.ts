@@ -33,7 +33,12 @@ export async function GET(req: NextRequest) {
     // Posts (count + page)
     let base = supabase.from('posts')
     let qCount = base.select('*', { count: 'exact', head: true }).eq('community_id', communityId)
-    let q = base.select('*').eq('community_id', communityId).order('created_at', { ascending: false }).range(offset, offset + limit - 1)
+    let q = base
+      .select('*')
+      .eq('community_id', communityId)
+      .order('pinned', { ascending: false })
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
     if (pageId !== null && pageId !== undefined) {
       if (pageId === 'null') {
         q = q.is('page_id', null)

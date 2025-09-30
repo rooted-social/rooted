@@ -136,7 +136,7 @@ export function Header() {
                 <li>
                   <Link
                     href="/explore"
-                    className={`px-3 py-1 rounded-lg inline-block transition-colors duration-200 transform transition-transform ${isActive('/explore') ? 'text-slate-900 font-bold scale-[1.04]' : 'text-slate-700 hover:text-slate-900'} hover:scale-102`}
+                    className={`px-3 py-1 rounded-lg inline-block transition-colors duration-200 transform transition-transform ${isActive('/explore') ? 'text-slate-900 font-bold scale-[1.05]' : 'text-slate-900 hover:text-slate-900'} hover:scale-103`}
                   >
                     루트 둘러보기
                   </Link>
@@ -145,7 +145,7 @@ export function Header() {
                 <li>
                   <Link
                     href="/features"
-                    className={`px-3 py-1 rounded-lg inline-block transition-colors duration-200 transform transition-transform ${isActive('/features') ? 'text-slate-900 font-bold scale-[1.04]' : 'text-slate-700 hover:text-slate-900'} hover:scale-102`}
+                    className={`px-3 py-1 rounded-lg inline-block transition-colors duration-200 transform transition-transform ${isActive('/features') ? 'text-slate-900 font-bold scale-[1.05]' : 'text-slate-900 hover:text-slate-900'} hover:scale-103`}
                   >
                     서비스
                   </Link>
@@ -154,7 +154,7 @@ export function Header() {
                 <li>
                   <Link
                     href="/pricing"
-                    className={`px-3 py-1 rounded-lg inline-block transition-colors duration-200 transform transition-transform ${isActive('/pricing') ? 'text-slate-900 font-bold scale-[1.04]' : 'text-slate-700 hover:text-slate-900'} hover:scale-102`}
+                    className={`px-3 py-1 rounded-lg inline-block transition-colors duration-200 transform transition-transform ${isActive('/pricing') ? 'text-slate-900 font-bold scale-[1.05]' : 'text-slate-900 hover:text-slate-900'} hover:scale-103`}
                   >
                     요금제
                   </Link>

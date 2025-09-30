@@ -1,18 +1,21 @@
 "use client"
 
 import Link from "next/link"
+import { useParams } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Bell, ChevronDown, Menu, Home, BookOpen, Calendar, Users, Settings, BarChart3 } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { toast } from "sonner"
+import { Bell, ChevronDown, Menu, Home, BookOpen, Calendar, Users, Settings, BarChart3, Share2, Link as LinkIcon } from "lucide-react"
 import { getAvatarUrl } from "@/lib/utils"
 import { useAuthData } from "@/components/auth/AuthProvider"
-import { useCommunityBySlug } from "@/hooks/useCommunity"
+// removed useCommunityBySlug to avoid duplicate fetch with layout
 import { getCommunitySettings } from "@/lib/communities"
 import { getReadableTextColor, withAlpha } from "@/utils/color"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 
-type ViewKey = "home" | "settings" | "classes" | "calendar" | "members"
+type ViewKey = "home" | "settings" | "classes" | "calendar" | "members" | "stats"
 
 interface CommunityTopbarProps {
   slug: string
@@ -21,24 +24,27 @@ interface CommunityTopbarProps {
   onChangeAction: (next: ViewKey) => void
   imageUrl?: string | null
   onToggleSidebar?: () => void
+  ownerId?: string | null
+  communityId?: string | null
 }
 
-export function CommunityTopbar({ slug, name, active, onChangeAction, imageUrl, onToggleSidebar }: CommunityTopbarProps) {
+export function CommunityTopbar({ slug, name, active, onChangeAction, imageUrl, onToggleSidebar, ownerId, communityId }: CommunityTopbarProps) {
   const { user, profile, myCommunities, unreadCount } = useAuthData()
   const [showCommunityDropdown, setShowCommunityDropdown] = useState(false)
   const [showProfileDropdown, setShowProfileDropdown] = useState(false)
   const [isOwner, setIsOwner] = useState<boolean>(false)
-  const communityQ = useCommunityBySlug(slug)
   const [brandColor, setBrandColor] = useState<string | null>(null)
   const router = useRouter()
+  const [shareOpen, setShareOpen] = useState(false)
+  const params = useParams()
+  const routeSlug = (params as any)?.slug as string | undefined
 
   useEffect(() => {
-    const ownerId = (communityQ.data as any)?.owner_id || null
     setIsOwner(!!user && !!ownerId && ownerId === user.id)
-  }, [communityQ.data, user])
+  }, [ownerId, user])
 
   useEffect(() => {
-    const id = (communityQ.data as any)?.id
+    const id = communityId
     if (!id) return
     ;(async () => {
       try {
@@ -46,7 +52,7 @@ export function CommunityTopbar({ slug, name, active, onChangeAction, imageUrl, 
         setBrandColor((s as any)?.brand_color || null)
       } catch {}
     })()
-  }, [communityQ.data])
+  }, [communityId])
   const NavItem = ({ k, label }: { k: ViewKey; label: string }) => {
     const getIcon = () => {
       switch (k) {
@@ -162,12 +168,20 @@ export function CommunityTopbar({ slug, name, active, onChangeAction, imageUrl, 
             {isOwner && (
               <Link
                 href={`/${slug}/stats`}
-                className="relative p-1.5 rounded-full hover:bg-slate-50 transition-colors cursor-pointer"
+                className={`relative p-1.5 rounded-full transition-colors cursor-pointer ${active === 'stats' ? 'bg-slate-100 ring-1 ring-slate-300' : 'hover:bg-slate-50'}`}
                 title="통계"
               >
                 <BarChart3 className="w-4 h-4" style={brandColor ? { color: brandColor } : { color: '#0f172a' }} />
               </Link>
             )}
+            {/* Share button */}
+            <button
+              onClick={() => setShareOpen(true)}
+              className="relative p-1.5 rounded-full hover:bg-slate-50 transition-colors cursor-pointer"
+              title="공유"
+            >
+              <Share2 className="w-4 h-4 text-slate-700" />
+            </button>
             <Link
               href="/notifications"
               className="relative p-1.5 rounded-full hover:bg-slate-50 transition-colors cursor-pointer"
@@ -318,16 +332,23 @@ export function CommunityTopbar({ slug, name, active, onChangeAction, imageUrl, 
                 <div className="flex-1" />
 
                 {/* Right Actions */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
                   {isOwner && (
                     <Link
                       href={`/${slug}/stats`}
-                      className="w-9 h-9 grid place-items-center"
+                      className="w-9 h-9 grid place-items-center rounded-full"
                       title="통계"
                     >
                       <BarChart3 className="w-5 h-5" style={brandColor ? { color: brandColor } : undefined} />
                     </Link>
                   )}
+                  <button
+                    onClick={() => setShareOpen(true)}
+                    className="w-9 h-9 grid place-items-center rounded-full hover:bg-slate-50"
+                    title="공유"
+                  >
+                    <Share2 className="w-5 h-5 text-slate-700" />
+                  </button>
                   <Link
                     href="/notifications"
                     className="w-9 h-9 grid place-items-center"
@@ -435,16 +456,23 @@ export function CommunityTopbar({ slug, name, active, onChangeAction, imageUrl, 
                 <div className="flex-1" />
 
                 {/* Right Actions */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
                   {isOwner && (
                     <Link
                       href={`/${slug}/stats`}
-                      className="w-9 h-9 grid place-items-center"
+                      className={`w-9 h-9 grid place-items-center rounded-full ${active === 'stats' ? 'bg-slate-100 ring-1 ring-slate-300' : ''}`}
                       title="통계"
                     >
                       <BarChart3 className="w-5 h-5" style={brandColor ? { color: brandColor } : undefined} />
                     </Link>
                   )}
+                  <button
+                    onClick={() => setShareOpen(true)}
+                    className="w-9 h-9 grid place-items-center rounded-full hover:bg-slate-50"
+                    title="공유"
+                  >
+                    <Share2 className="w-5 h-5 text-slate-700" />
+                  </button>
                   <Link
                     href="/notifications"
                     className="w-9 h-9 grid place-items-center"
@@ -529,6 +557,28 @@ export function CommunityTopbar({ slug, name, active, onChangeAction, imageUrl, 
           </div>
         </nav>
       </div>
+      {/* Share Modal */}
+      <Dialog open={shareOpen} onOpenChange={setShareOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Share2 className="w-4 h-4" /> 루트 공유하기
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center gap-2">
+            <div className="flex-1 flex items-center gap-2 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-800">
+              <LinkIcon className="w-4 h-4 text-slate-500" />
+              <span className="truncate">{`https://rooted.kr/${routeSlug || ''}`}</span>
+            </div>
+            <button
+              onClick={async () => { try { await navigator.clipboard.writeText(`https://rooted.kr/${routeSlug || ''}`); toast.success('복사가 완료됐어요!') } catch { toast.error('복사에 실패했습니다') } }}
+              className="px-3 py-2 rounded-xl bg-black text-white text-sm font-semibold hover:bg-black/90 cursor-pointer"
+            >
+              복사
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

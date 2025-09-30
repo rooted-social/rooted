@@ -392,7 +392,7 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
           <div className="flex gap-2 pb-2 items-center overflow-x-auto whitespace-nowrap scrollbar-hide px-1 md:overflow-visible md:flex-wrap md:justify-center">
             <button 
               onClick={() => setActiveCat(null)} 
-              className={`flex-shrink-0 px-4 py-2 rounded-full border text-sm font-medium transition-all duration-200 ${
+              className={`flex-shrink-0 px-4 py-2 rounded-lg border text-sm font-medium transition-all duration-200 ${
                 !activeCat 
                   ? 'shadow-sm' 
                   : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
@@ -405,7 +405,7 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
               <button 
                 key={category.id}
                 onClick={() => setActiveCat(category.id)} 
-                className={`flex-shrink-0 px-4 py-2 rounded-full border text-sm font-medium transition-all duration-200 ${
+                className={`flex-shrink-0 px-4 py-2 rounded-lg border text-sm font-medium transition-all duration-200 cursor-pointer ${
                   activeCat === category.id 
                     ? 'shadow-sm' 
                     : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
@@ -418,7 +418,7 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
             {isOwner && (
               <button 
                 onClick={() => setOpenCategoryManage(true)}
-                className="ml-2 p-2 rounded-lg transition-colors duration-200 flex-shrink-0"
+                className="ml-2 p-2 rounded-sm transition-colors duration-200 flex-shrink-0"
                 style={brandColor ? { backgroundColor: withAlpha(brandColor, 0.08), border: `1px solid ${withAlpha(brandColor, 0.25)}` } : undefined}
                 title="카테고리 관리"
               >
@@ -468,7 +468,7 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
               })
               .map((cls, idx) => (
               <Link key={cls.id} href={`./classes/${cls.id}`} className="group" prefetch={false}>
-                <article className="h-full overflow-hidden rounded-3xl bg-gradient-to-br from-slate-50 to-white shadow-sm hover:shadow-xl transition-all duration-300 group-hover:scale-[1.01] border border-slate-200/60 relative">
+                <article className="h-full overflow-hidden rounded-xl bg-gradient-to-br from-slate-50 to-white shadow-sm hover:shadow-xl transition-all duration-300 group-hover:scale-[1.01] border border-slate-200/60 relative">
                   {/* 썸네일 영역 */}
                   <div className="relative w-full aspect-[16/9] overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200">
                     {cls.thumbnail_url ? (

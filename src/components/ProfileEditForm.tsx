@@ -195,9 +195,9 @@ export function ProfileEditForm({ profile, userId, onProfileUpdateAction, onCanc
               type="text"
               placeholder="이름(닉네임)을 입력하세요"
               value={formData.full_name || ''}
-              onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value.slice(0, 10) }))}
+              onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value.slice(0, 20) }))}
             />
-            <p className="text-xs text-slate-500 text-right">{(formData.full_name || '').length}/10</p>
+            <p className="text-xs text-slate-500 text-right">{(formData.full_name || '').length}/20</p>
           </div>
 
           {/* 소개 */}

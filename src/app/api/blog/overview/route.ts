@@ -30,7 +30,12 @@ export async function GET(req: NextRequest) {
 
     const [{ data: settingsRow }, { data: posts }] = await Promise.all([
       supabase.from('community_settings').select('brand_color').eq('community_id', communityId).maybeSingle(),
-      supabase.from('community_page_blog_posts').select('id,title,content,thumbnail_url,created_at,user_id,views').eq('page_id', pageId).order('created_at', { ascending: false }),
+      supabase
+        .from('community_page_blog_posts')
+        .select('id,title,content,thumbnail_url,created_at,user_id,views,pinned')
+        .eq('page_id', pageId)
+        .order('pinned', { ascending: false })
+        .order('created_at', { ascending: false }),
     ])
 
     const list = (posts || []) as any[]
@@ -74,6 +79,7 @@ export async function GET(req: NextRequest) {
         thumbnail_url: p.thumbnail_url,
         created_at: p.created_at,
         user_id: p.user_id,
+        pinned: !!p.pinned,
         counts: {
           views: p.views ?? 0,
           likes: likeCounts[p.id] || 0,

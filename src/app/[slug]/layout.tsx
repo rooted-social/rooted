@@ -63,15 +63,15 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
       if (secondLastSegment === String(slug) && lastSegment === 'settings') return 'settings'
       if (pathname.includes(`/${slug}/settings`)) return 'settings'
 
-      // /slug/stats -> 설정 탭과 동일 톤으로 하이라이트
-      if (secondLastSegment === String(slug) && lastSegment === 'stats') return 'settings'
-      if (pathname.includes(`/${slug}/stats`)) return 'settings'
+      // /slug/stats
+      if (secondLastSegment === String(slug) && lastSegment === 'stats') return 'stats'
+      if (pathname.includes(`/${slug}/stats`)) return 'stats'
     }
     
     return 'home' // 기본값 (블로그나 기타 페이지)
   }
 
-  const [active, setActive] = useState<"home" | "settings" | "classes" | "calendar" | "members">(getActiveTab())
+  const [active, setActive] = useState<"home" | "settings" | "classes" | "calendar" | "members" | "stats">(getActiveTab())
 
   useEffect(() => {
     setActive(getActiveTab())
@@ -163,6 +163,9 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
       case 'settings':
         router.push(`/${slug}/settings`)
         break
+      case 'stats':
+        router.push(`/${slug}/stats`)
+        break
     }
   }
 
@@ -240,6 +243,8 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
           active={active} 
           onChangeAction={handleTabChange} 
           imageUrl={communityIcon || undefined}
+          ownerId={ownerId}
+          communityId={communityId}
           onToggleSidebar={() => {
             // 대시보드가 아니면 레이아웃 레벨에서 모바일 사이드바 오버레이 토글
             if (!pathname?.includes('/dashboard')) {
