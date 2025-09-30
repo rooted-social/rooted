@@ -14,9 +14,9 @@ export default function FeaturesPage() {
         {/* Intro section */}
         <div className="mx-auto max-w-3xl rounded-3xl bg-white/80 backdrop-blur-md border border-slate-200 shadow-md p-6 md:p-8 mt-4 fade-in-down" style={{ animationDelay: '120ms' }}>
           <div className="text-slate-700 leading-relaxed text-[15px] md:text-base text-left md:text-center">
-            <p>"루티드"는 커뮤니티를 만드는 공간입니다.</p>
-            <p className="mt-2"><span className="font-semibold">루트(Root)</span>는 뿌리의 뜻을 가지며, 생명의 근본이 됩니다. </p>
-            <p className="mt-2">당신의 전문성과 노하우를 손쉽게 공유하고, 커뮤니티의 힘을 키워가세요!</p>
+            <p><span className="font-semibold">루티드(Rooted)</span>는 커뮤니티 관리 솔루션입니다.</p>
+            <p className="mt-2"><span className="font-semibold">루트(Root)</span>는 뿌리의 뜻을 가지며, 각 커뮤니티의 존재의 근본이 됩니다. </p>
+            <p className="mt-2">당신의 전문성과 노하우를 손쉽게 공유하고, 소통하며, 커뮤니티의 힘을 키워가세요!</p>
           </div>
         </div>
 

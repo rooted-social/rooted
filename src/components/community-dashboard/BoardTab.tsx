@@ -10,7 +10,7 @@ import type { Post } from "@/types/community"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { getAvatarUrl } from "@/lib/utils"
-import { Heart, MessageSquare, MoreVertical, Rss, Eye, Sparkles, Send, Plus, Hash, Trash2, Edit3, Loader2 } from "lucide-react"
+import { Heart, MessageSquare, MoreVertical, Rss, Eye, Sparkles, Send, Plus, Hash, Trash2, Edit3, Loader2, Pin } from "lucide-react"
 import { toast } from "sonner"
 import { supabase } from "@/lib/supabase"
 import { fetchFeed } from '@/lib/dashboard'
@@ -124,11 +124,12 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
     }
   }
 
-  // StrictMode(개발환경)에서의 이중 실행을 방지: 커뮤니티별 1회 로드
-  const lastCommunityIdRef = useRef<string | null>(null)
+  // StrictMode 중복 호출 방지: communityId + page + pageId 단위로 dedupe
+  const lastFetchKeyRef = useRef<string | null>(null)
   useEffect(() => {
-    if (lastCommunityIdRef.current === communityId) return
-    lastCommunityIdRef.current = communityId
+    const key = `${communityId}:${page}:${pageId ?? 'null'}`
+    if (lastFetchKeyRef.current === key) return
+    lastFetchKeyRef.current = key
     load()
   }, [communityId, page, pageId])
 
@@ -561,7 +562,7 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
         ) : (
           pagedPosts.map((p) => (
             <div key={p.id} className="group w-full overflow-x-hidden" aria-expanded={false} data-slot="card">
-              <div className="rounded-2xl bg-white/80 backdrop-blur-xl border border-black/60 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_2px_6px_rgba(0,0,0,0.04)] hover:shadow-[0_2px_6px_rgba(0,0,0,0.06),0_4px_14px_rgba(0,0,0,0.06)] transition-all duration-200 overflow-hidden w-full">
+              <div className={`rounded-2xl backdrop-blur-xl border shadow-[0_1px_2px_rgba(0,0,0,0.04),0_2px_6px_rgba(0,0,0,0.04)] hover:shadow-[0_2px_6px_rgba(0,0,0,0.06),0_4px_14px_rgba(0,0,0,0.06)] transition-all duration-200 overflow-hidden w-full bg-white/80 border-black/60`}>
                 <div className="flex items-center justify-between px-3 md:px-5 py-3 border-b border-slate-100/70">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <div className="flex flex-col items-center w-14">
@@ -572,15 +573,20 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
                       {/* 모바일 닉네임 텍스트 제거로 간결화 */}
                     </div>
                     <div className="min-w-0 flex-1 overflow-hidden">
-                      <p className="text-sm text-slate-500 font-medium">{(p as any).author?.full_name || (p as any).author?.username || 'Anonymous'}</p>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <p className="text-sm text-slate-500 font-medium truncate">{(p as any).author?.full_name || (p as any).author?.username || 'Anonymous'}</p>
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 md:shrink-0">
-                    <span className="text-xs text-black bg-amber-100 px-2 py-0.5 rounded-full font-medium whitespace-nowrap">{timeAgo(p.created_at)}</span>
+                    {p.pinned && (
+                      <span className="inline-flex items-center rounded-md bg-amber-100 text-amber-800 border border-amber-200 px-1.5 py-0 text-[12px] font-semibold">필독</span>
+                    )}
+                    <span className="text-xs text-black bg-slate-100 px-2 py-0.5 rounded-full font-medium whitespace-nowrap">{timeAgo(p.created_at)}</span>
                     {(p.user_id === currentUserId || isOwner) && (
                       <Dialog>
                         <DialogTrigger asChild>
-                          <Button size="icon" variant="ghost" className="h-8 w-8 rounded-xl hover:bg-amber-100 opacity-0 group-hover:opacity-100 transition-all duration-200 hidden md:inline-flex" onClick={(e)=>e.stopPropagation()}>
+                          <Button size="icon" variant="ghost" className="h-8 w-8 rounded-xl hover:bg-slate-100 opacity-0 group-hover:opacity-100 transition-all duration-200 hidden md:inline-flex cursor-pointer" onClick={(e)=>e.stopPropagation()} title="옵션">
                             <MoreVertical className="w-4 h-4 text-slate-600" />
                           </Button>
                         </DialogTrigger>
@@ -590,6 +596,29 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
                             <DialogDescription className="sr-only">게시글을 수정하거나 삭제할 수 있습니다.</DialogDescription>
                           </DialogHeader>
                           <div className="flex gap-3 justify-end">
+                            {isOwner && (
+                              <Button variant="outline" className="rounded-2xl cursor-pointer" onClick={async (e) => {
+                                e.stopPropagation()
+                                const target = e.currentTarget as HTMLElement
+                                try {
+                                  const { getAuthToken } = await import('@/lib/supabase')
+                                  const token = await getAuthToken().catch(() => null)
+                                  const res = await fetch('/api/posts/pin', {
+                                    method: 'PATCH',
+                                    headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+                                    body: JSON.stringify({ postId: p.id, pinned: !p.pinned })
+                                  })
+                                  if (res.ok) {
+                                    const { pinned } = await res.json()
+                                    setPosts(prev => prev.map(x => x.id === p.id ? { ...x, pinned } as any : x).sort((a: any, b: any) => (Number(b.pinned) - Number(a.pinned)) || (new Date(b.created_at).getTime() - new Date(a.created_at).getTime())))
+                                  }
+                                } catch {}
+                                ;(target.closest('[data-slot=dialog-content]')?.querySelector('[data-slot=dialog-close]') as HTMLElement | null)?.click()
+                              }}>
+                                <Pin className="w-4 h-4 mr-2" />
+                                {p.pinned ? '고정 해제' : '고정'}
+                              </Button>
+                            )}
                             <Button variant="outline" className="rounded-2xl" onClick={(e) => { e.stopPropagation(); setEditingId(p.id); setTitle(p.title); setContent(p.content); setEditOpen(true) }}>
                               <Edit3 className="w-4 h-4 mr-2" />
                               수정
@@ -604,16 +633,16 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
                     )}
                   </div>
                 </div>
-                <div className="px-3 md:px-5 py-4 space-y-4" onClick={(e)=>e.stopPropagation()}>
+                  <div className="px-3 md:px-5 py-4 space-y-4" onClick={(e)=>e.stopPropagation()}>
                   <p className="text-slate-800 leading-relaxed whitespace-pre-wrap break-all sm:break-words text-[15px]">{p.content}</p>
                   <div className="flex gap-5 items-center pt-2 border-t border-slate-100">
-                      <button className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-50 hover:bg-rose-50 text-slate-600 hover:text-rose-600 transition-all duration-200 cursor-pointer" onClick={(e) => { e.stopPropagation(); handleLike(p.id) }}>
+                      <button className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-200 cursor-pointer bg-slate-50 hover:bg-rose-50 text-slate-600 hover:text-rose-600`} onClick={(e) => { e.stopPropagation(); handleLike(p.id) }}>
                         <Heart className={`w-4 h-4 ${ likedMap[p.id] ? 'text-rose-500 fill-rose-500' : ''}`} />
-                        <span className="text-sm font-medium">{likeCounts[p.id] ?? 0}</span>
+                        <span className={`text-sm font-medium`}>{likeCounts[p.id] ?? 0}</span>
                       </button>
-                      <button className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-50 hover:bg-blue-50 text-slate-600 hover:text-blue-600 transition-all duration-200 cursor-pointer" onClick={async (e) => { e.stopPropagation(); const next = !showComments[p.id]; setShowComments(prev => ({ ...prev, [p.id]: next })); if (next && !comments[p.id]) await loadComments(p.id) }}>
+                      <button className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-200 cursor-pointer bg-slate-50 hover:bg-blue-50 text-slate-600 hover:text-blue-600`} onClick={async (e) => { e.stopPropagation(); const next = !showComments[p.id]; setShowComments(prev => ({ ...prev, [p.id]: next })); if (next && !comments[p.id]) await loadComments(p.id) }}>
                         <MessageSquare className="w-4 h-4" />
-                        <span className="text-sm font-medium">{(commentCountsMap[p.id] ?? (comments[p.id]?.length ?? 0) ?? 0)}</span>
+                        <span className={`text-sm font-medium`}>{(commentCountsMap[p.id] ?? (comments[p.id]?.length ?? 0) ?? 0)}</span>
                       </button>
                   </div>
                 </div>
@@ -638,7 +667,7 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
                           </div>
                           <Dialog>
                             <DialogTrigger asChild>
-                              <Button size="icon" variant="ghost" className="h-7 w-7 rounded-xl hover:bg-slate-100 opacity-50 hover:opacity-100 transition-all duration-200" onClick={(e)=>{ e.stopPropagation() }}>
+                              <Button size="icon" variant="ghost" className="h-7 w-7 rounded-xl hover:bg-slate-100 opacity-70 hover:opacity-100 transition-all duration-200 cursor-pointer" onClick={(e)=>{ e.stopPropagation() }} title="댓글 옵션">
                                 <MoreVertical className="w-3.5 h-3.5 text-slate-500" />
                               </Button>
                             </DialogTrigger>
@@ -712,7 +741,7 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
               variant="outline" 
               disabled={page===1} 
               onClick={() => setPage(p => Math.max(1, p-1))}
-              className="rounded-2xl px-6 py-2 border-slate-200 hover:bg-slate-50 disabled:opacity-40"
+              className="rounded-2xl px-6 py-2 border-slate-200 hover:bg-slate-50 disabled:opacity-40 cursor-pointer"
             >
               이전
             </Button>
@@ -726,7 +755,7 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
               variant="outline" 
               disabled={page===totalPages} 
               onClick={() => setPage(p => Math.min(totalPages, p+1))}
-              className="rounded-2xl px-6 py-2 border-slate-200 hover:bg-slate-50 disabled:opacity-40"
+              className="rounded-2xl px-6 py-2 border-slate-200 hover:bg-slate-50 disabled:opacity-40 cursor-pointer"
             >
               다음
             </Button>

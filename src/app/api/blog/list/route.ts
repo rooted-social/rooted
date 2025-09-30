@@ -33,8 +33,9 @@ export async function GET(req: NextRequest) {
     // 포스트 목록
     const { data: posts } = await supabase
       .from('community_page_blog_posts')
-      .select('id,title,content,thumbnail_url,created_at,user_id')
+      .select('id,title,content,thumbnail_url,created_at,user_id,pinned')
       .eq('page_id', pageId)
+      .order('pinned', { ascending: false })
       .order('created_at', { ascending: false })
 
     const list = (posts || []) as any[]
@@ -68,6 +69,7 @@ export async function GET(req: NextRequest) {
 
     const payload = list.map(p => ({
       ...p,
+      pinned: !!p.pinned,
       author: p.user_id ? profileMap[p.user_id] || null : null,
       counts: {
         views: viewCounts[p.id] || 0,

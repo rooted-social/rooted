@@ -54,6 +54,7 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
   // 재정렬 모드 (HTML5 Drag & Drop 기반, 모바일은 포인터 보조)
   const [reorderMode, setReorderMode] = useState<boolean>(false)
   const [isCoarsePointer, setIsCoarsePointer] = useState<boolean>(false)
+  
   useEffect(() => {
     if (typeof window === 'undefined') return
     try {
@@ -428,7 +429,14 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
                     ))}
                   </div>
                 ) : (
-                  <></>
+                    <div className="p-3">
+                      <div className="rounded-sm border border-amber-300 bg-amber-50/70 text-amber-900 text-sm font-bold px-3 py-3 shadow-sm flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                          <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm10.28-4.53a.75.75 0 1 0-1.06 1.06L12.94 10.5H8.25a.75.75 0 0 0 0 1.5h4.69l-1.47 1.47a.75.75 0 1 0 1.06 1.06l3-3a.75.75 0 0 0 0-1.06l-3-3Z" clipRule="evenodd" />
+                        </svg>
+                        페이지를 추가해봐요!
+                      </div>
+                    </div>
                 )}
               </div>
               <div className="my-4 border-t border-slate-200/60" />
@@ -628,6 +636,8 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
           </aside>
         </div>
       )}
+
+      {/* 공유 모달 제거(탑바로 이동) */}
 
       {/* 모달들 */}
       <Dialog open={isAddPageOpen} onOpenChange={setIsAddPageOpen}>

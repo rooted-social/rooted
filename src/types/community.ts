@@ -34,6 +34,7 @@ export interface Post {
   image_url?: string
   created_at: string
   updated_at: string
+  pinned?: boolean
   author?: Profile
   comment_count?: number
   like_count?: number

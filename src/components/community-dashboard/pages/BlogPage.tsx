@@ -12,9 +12,10 @@ import { deleteBlogPost } from "@/lib/blog"
 import { useAuthData } from "@/components/auth/AuthProvider"
 import { getReadableTextColor } from "@/utils/color"
 import AnimatedBackground from "@/components/AnimatedBackground"
-import { Pencil, Trash2, Loader2 } from "lucide-react"
+import { Pencil, Trash2, Loader2, Pin as PinIcon } from "lucide-react"
 import { type BlogListItem as LibBlogListItem } from "@/lib/blog"
 import { fetchBlogList } from '@/lib/dashboard'
+import { getAuthToken } from '@/lib/supabase'
 
 interface BlogPageProps {
   title: string
@@ -215,10 +216,22 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
           {items.slice((page-1)*perPage, page*perPage).map((post: any) => (
             <Link key={post.id} href={`/${slug}/blog/${post.id}?pageId=${pageId}`} className="group block w-full" prefetch>
               <article className="w-full min-w-0 overflow-hidden rounded-2xl bg-white shadow-xs hover:shadow-lg transition-all duration-200 border border-slate-200 relative p-4">
+                {/* 공지 스티커 */}
+                {post.pinned && (
+                  <div className="absolute left-3 top-3 z-30">
+                    <span className="inline-flex items-center rounded-md bg-amber-100 text-amber-800 border border-amber-200 px-2 py-0.5 text-[11px] font-semibold shadow-xs">필독</span>
+                  </div>
+                )}
                 <div className="grid grid-cols-[1fr_auto] items-start gap-3 md:gap-4">
                   {/* 텍스트 영역 */}
                   <div className={`flex-1 min-w-0 ${post.thumbnail_url ? '' : ''}`}>
-                    <h3 className="text-base md:text-lg font-semibold text-slate-900 leading-snug line-clamp-2 group-hover:text-slate-700 transition-colors duration-200">
+                    <h3
+                      className={`text-base md:text-lg font-semibold leading-snug line-clamp-2 transition-colors duration-200 
+                        ${post.pinned
+                          ? 'text-amber-800 group-hover:text-amber-700 ml-10 md:ml-10'
+                          : 'text-slate-900 group-hover:text-slate-700'}
+                      `}
+                    >
                       {post.title}
                     </h3>
                     <p className="mt-2 text-sm text-slate-700 line-clamp-2 whitespace-pre-line break-words">
@@ -246,6 +259,32 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
                 {/* 액션 버튼: 작성자 또는 오너만 */}
                 {(post.user_id === currentUserId || isOwner) && (
                   <div className="absolute right-3 top-3 z-30 opacity-0 group-hover:opacity-100 transition-all duration-200 flex gap-1">
+                    {isOwner && (
+                      <button
+                        className={`w-8 h-8 rounded-lg backdrop-blur-sm border shadow-sm hover:shadow-md cursor-pointer grid place-items-center transition-all duration-200 ${post.pinned ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-white/90 border-slate-200 text-slate-600'}`}
+                        title={post.pinned ? '핀 해제' : '핀 고정'}
+                        onClick={async (e)=>{
+                          e.preventDefault()
+                          try {
+                            const token = await getAuthToken().catch(() => null)
+                            const res = await fetch('/api/blog/pin', {
+                              method: 'PATCH',
+                              headers: {
+                                'content-type': 'application/json',
+                                ...(token ? { authorization: `Bearer ${token}` } : {}),
+                              },
+                              body: JSON.stringify({ postId: post.id, pinned: !post.pinned })
+                            })
+                            if (res.ok) {
+                              const { pinned } = await res.json()
+                              setItems(prev => prev.map(p => p.id === post.id ? { ...p, pinned } : p).sort((a: any, b: any) => (Number(b.pinned) - Number(a.pinned)) || (new Date(b.created_at).getTime() - new Date(a.created_at).getTime())))
+                            }
+                          } catch {}
+                        }}
+                      >
+                        <PinIcon className={`w-3.5 h-3.5 ${post.pinned ? 'fill-amber-500 text-amber-700' : ''}`} />
+                      </button>
+                    )}
                     <button 
                       className="w-8 h-8 rounded-lg bg-white/90 backdrop-blur-sm border border-slate-200 shadow-sm hover:shadow-md cursor-pointer grid place-items-center transition-all duration-200" 
                       title="수정" 
@@ -336,7 +375,7 @@ function StatsRow({ counts, createdAt, author }: { counts: { views: number; like
           <span className="text-[12px] font-medium">{counts.comments}</span>
         </div>
       </div>
-      <div className="text-[11px] text-slate-500 md:ml-3">
+      <div className="text-[12px] text-slate-500 md:ml-3">
         <span className="md:hidden">{timeAgoCompact(createdAt)}</span>
         <span className="hidden md:inline">{formatDateKST(createdAt)}</span>
         {' '}· by {author?.full_name || author?.username || 'Anonymous'}
