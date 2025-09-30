@@ -9,11 +9,21 @@ export async function getCommunityPages(communityId: string) {
     const cached = pagesCache.get(communityId)
     if (cached && now - cached.ts < FIVE_MIN) return cached.data as CommunityPage[]
     const token = await getAuthToken().catch(() => null)
-    const res = await fetch(`/api/community/pages?communityId=${encodeURIComponent(communityId)}`, {
+    let res = await fetch(`/api/community/pages?communityId=${encodeURIComponent(communityId)}`, {
       // 뒤로가기/복귀 시 최신 목록을 보장하기 위해 no-store 유지
       cache: 'no-store',
       headers: token ? { authorization: `Bearer ${token}` } : undefined,
     })
+    if (res.status === 401) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.access_token && session?.refresh_token) {
+          await fetch('/api/auth/sync', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ access_token: session.access_token, refresh_token: session.refresh_token }) })
+          const retryHeaders = session?.access_token ? { authorization: `Bearer ${session.access_token}` } : undefined
+          res = await fetch(`/api/community/pages?communityId=${encodeURIComponent(communityId)}`, { cache: 'no-store', headers: retryHeaders })
+        }
+      } catch {}
+    }
     if (!res.ok) throw new Error('failed')
     const data = (await res.json()) as CommunityPage[]
     pagesCache.set(communityId, { ts: now, data: data || [] })
