@@ -16,6 +16,49 @@ import { useAuthData } from "@/components/auth/AuthProvider"
 import { CalendarDays, Heart, MessageCircle, Eye, ArrowLeft, Settings } from "lucide-react"
 // Animated background 제거
 
+// 본문 이미지 최적화: R2 업로드 시 생성한 -sm/-md/-lg.webp 변형을 srcset/sizes로 연결
+function optimizeContentImages(html: string): string {
+  if (!html) return html
+  return html.replace(/<img\s+[^>]*src=["']([^"']+)["'][^>]*>/gi, (tag, src: string) => {
+    try {
+      // 이미 srcset이 있다면 그대로 두되, 스타일/지연만 보장
+      const hasSrcset = /\ssrcset=/i.test(tag)
+      const url = new URL(src, typeof window === 'undefined' ? 'https://example.com' : window.location.origin)
+      const parts = url.pathname.split('/')
+      const file = parts.pop() || ''
+      const baseMatch = file.match(/^(.*?)(?:-(?:sm|md|lg))?\.(?:webp|jpe?g|png|gif)$/i)
+      if (!baseMatch) {
+        // 스타일/지연만 주입
+        let t = tag.replace(/>$/, '')
+        if (!/\sloading=/.test(t)) t += ' loading="lazy"'
+        if (!/\sdecoding=/.test(t)) t += ' decoding="async"'
+        if (!/\sstyle=/.test(t)) t += ' style="max-width:100%;height:auto;"'
+        return t + '>'
+      }
+      const name = baseMatch[1]
+      const dir = url.href.slice(0, url.href.lastIndexOf('/') + 1)
+      const sm = `${dir}${name}-sm.webp`
+      const md = `${dir}${name}-md.webp`
+      const lg = `${dir}${name}-lg.webp`
+      let t = tag
+      // 기본 src는 md로 교체 (중간 해상도)
+      t = t.replace(/\ssrc=["'][^"']+["']/i, ` src="${md}"`)
+      // srcset/sizes 주입
+      if (!hasSrcset) {
+        t = t.replace(/>$/, '') + ` srcset="${sm} 400w, ${md} 800w, ${lg} 1200w" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 800px, 1200px">`
+      }
+      // lazy/decoding/style 보장
+      t = t.replace(/>$/, '')
+      if (!/\sloading=/.test(t)) t += ' loading="lazy"'
+      if (!/\sdecoding=/.test(t)) t += ' decoding="async"'
+      if (!/\sstyle=/.test(t)) t += ' style="max-width:100%;height:auto;"'
+      return t + '>'
+    } catch {
+      return tag
+    }
+  })
+}
+
 export default function BlogDetailPage() {
   const params = useParams<{ slug: string; id: string }>()
   const search = useSearchParams()
@@ -57,7 +100,8 @@ export default function BlogDetailPage() {
         setComments(data.comments || [])
         setCanEdit(!!data.isOwner)
         // 내 아바타는 이미 data.comments에 포함되는 경우가 많지만, 별도로 가져오지 않고 유지
-        await incrementBlogViews(String(id))
+        // 조회수 증가는 렌더링을 막지 않도록 비동기 처리
+        incrementBlogViews(String(id)).catch(() => {})
       } catch (e) {
         console.error(e)
       }
@@ -179,7 +223,7 @@ export default function BlogDetailPage() {
             <div
               className="prose-img:rounded-2xl prose-img:shadow-md"
               style={{ wordBreak: 'break-word', lineHeight: 1.95 }}
-              dangerouslySetInnerHTML={{ __html: (post.content || '').replace(/<img /g, '<img style=\"max-width:100%;height:auto;\" ') }}
+              dangerouslySetInnerHTML={{ __html: optimizeContentImages(post.content || '') }}
             />
           </article>
         </div>

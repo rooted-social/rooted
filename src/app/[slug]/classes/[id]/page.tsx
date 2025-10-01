@@ -9,6 +9,7 @@ import { getClassById, incrementClassViews, toggleClassCompletion, getClassCompl
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getAvatarUrl } from '@/lib/profiles'
 import { Calendar, Eye, Users, ArrowLeft, CheckCircle2, Circle } from 'lucide-react'
+import LiteYouTube from '@/components/LiteYouTube'
 
 export default function ClassDetailPage() {
   const { id, slug } = useParams<{ id: string; slug: string }>()
@@ -199,22 +200,7 @@ export default function ClassDetailPage() {
         {/* 비디오/썸네일 */}
         <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden mb-8">
           {embed ? (
-            <div className="relative">
-              <iframe 
-                className="w-full aspect-video" 
-                src={embed} 
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-                allowFullScreen
-                title="Class Video"
-                frameBorder="0"
-                loading="lazy"
-                style={{
-                  pointerEvents: 'auto',
-                  border: 'none',
-                  outline: 'none'
-                }}
-              />
-            </div>
+            <LiteYouTube url={item.youtube_url} title={item.title} />
           ) : (
             <div className="w-full aspect-video bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
               {item.thumbnail_url ? (

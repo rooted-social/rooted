@@ -311,7 +311,7 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
   return (
     <>
       <AnimatedBackground zIndexClass="-z-10" />
-      <section className={`${variant === 'standalone' ? 'grid md:grid-cols-4 gap-4' : 'space-y-4 max-w-2xl md:max-w-3xl mx-auto w-full'} overflow-x-hidden px-3 md:px-0 relative z-10`}> 
+      <section className={`${variant === 'standalone' ? 'grid md:grid-cols-4 gap-4' : 'space-y-4 max-w-3xl md:max-w-2xl mx-auto w-full'} overflow-x-hidden px-3 md:px-0 relative z-10`}> 
       {variant === 'contentOnly' && (
         <>
           {!pageId && (
@@ -323,7 +323,7 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
             </div>
           )}
           {/* 모바일 최적화된 작성 영역 */}
-          <div className={`rounded-3xl backdrop-blur-xl shadow-sm hover:shadow-md transition-all duration-300 ease-out p-4 md:p-5 overflow-x-hidden w-full max-w-full`} style={{ backgroundColor: withAlpha(contextBrandColor || '#0f172a', 0.06), border: `1px solid ${withAlpha(contextBrandColor || '#0f172a', 0.25)}` }}> 
+          <div className={`rounded-xl backdrop-blur-xl shadow-sm hover:shadow-md transition-all duration-300 ease-out p-3 md:p-3 overflow-x-hidden w-full max-w-full`} style={{ backgroundColor: withAlpha(contextBrandColor || '#0f172a', 0.06), border: `1px solid ${withAlpha(contextBrandColor || '#0f172a', 0.25)}` }}> 
             <div className={`flex items-start gap-3 md:gap-4 w-full max-w-full md:flex-row flex-col`}>
               <Avatar className="hidden md:block w-10 h-10 shrink-0 ring-2 ring-white shadow-lg">
                 <AvatarImage src={getAvatarUrl(meAvatar)} alt="me" />
@@ -334,7 +334,7 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
                   ref={taRef}
                   value={inlineContent}
                   onChange={(e) => {
-                    setInlineContent(e.target.value.slice(0, 300))
+                    setInlineContent(e.target.value.slice(0, 400))
                   }}
                   // 단순 입력: 포커스/블러/오토사이즈 제거로 버벅임 최소화
                   onKeyDown={async (e) => {
@@ -362,15 +362,15 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
                     }
                   }}
                   placeholder="무엇을 공유하고 싶나요?"
-                  maxLength={300}
-                  className="w-full h-20 md:h-16 rounded-2xl bg-white/90 px-4 py-3 text-base placeholder:text-slate-400 border-transparent ring-1 ring-slate-200/80 focus:ring-2 focus:ring-slate-400 focus:border-slate-300 shadow-sm resize-none break-all will-change-transform"
+                  maxLength={400}
+                  className="w-full h-20 md:h-16 rounded-xl bg-white/90 px-4 py-3 text-base placeholder:text-slate-400 border-transparent ring-1 ring-slate-200/80 focus:ring-2 focus:ring-slate-400 focus:border-slate-300 shadow-sm resize-none break-all will-change-transform"
                   rows={3}
                 />
                 <div className="flex items-center justify-end gap-3 px-1">
-                  <span className="text-[11px] text-slate-600">{inlineContent.length}/300</span>
+                  <span className="text-[11px] text-slate-600">{inlineContent.length}/400</span>
                   <Button
                     size={"sm"}
-                    className="rounded-xl shadow-sm px-4 py-2 cursor-pointer"
+                    className="rounded-md shadow-sm px-4 py-2 cursor-pointer"
                     style={contextBrandColor ? { backgroundColor: contextBrandColor, color: getReadableTextColor(contextBrandColor) } : undefined}
                     disabled={!inlineContent.trim()}
                     onClick={async () => {
@@ -590,7 +590,7 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
                             <MoreVertical className="w-4 h-4 text-slate-600" />
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="rounded-3xl border border-slate-200">
+                        <DialogContent className="rounded-xl border border-slate-200">
                           <DialogHeader>
                             <DialogTitle className="text-xl font-semibold">게시글 옵션</DialogTitle>
                             <DialogDescription className="sr-only">게시글을 수정하거나 삭제할 수 있습니다.</DialogDescription>

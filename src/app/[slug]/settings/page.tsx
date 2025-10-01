@@ -130,7 +130,7 @@ export default function CommunitySettingsPage() {
 
       <Dialog open={!!open} onOpenChange={(v) => { if (!v) setOpen(null) }}>
         {open && (
-          <DialogContent className="sm:max-w-[1000px] max-w-[95vw] max-h-[90vh] overflow-y-auto">
+          <DialogContent className="sm:max-w-[1000px] max-w-[95vw] max-h-[70vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {open === 'basic' && '기본 정보 관리'}

@@ -642,7 +642,7 @@ export function SettingsTab({ communityId, mode }: SettingsTabProps) {
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
                   <Label className="text-sm font-medium">공개 여부</Label>
-                  <p className="text-xs text-slate-600">공개 시 '루트 둘러보기' 페이지에 노출됩니다.</p>
+                  <p className="text-xs text-slate-600">공개 시 '둘러보기' 페이지에 노출됩니다.</p>
                 </div>
                 <div className="flex items-center space-x-3">
                   <label className="relative inline-flex items-center cursor-pointer">
