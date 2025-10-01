@@ -215,7 +215,7 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
         <div className="space-y-3">
           {items.slice((page-1)*perPage, page*perPage).map((post: any) => (
             <Link key={post.id} href={`/${slug}/blog/${post.id}?pageId=${pageId}`} className="group block w-full" prefetch>
-              <article className="w-full min-w-0 overflow-hidden rounded-2xl bg-white shadow-xs hover:shadow-lg transition-all duration-200 border border-slate-200 relative p-4">
+              <article className="w-full min-w-0 overflow-hidden rounded-lg bg-white shadow-xs hover:shadow-lg transition-all duration-200 border-1 border-slate-300 relative p-4">
                 {/* 공지 스티커 */}
                 {post.pinned && (
                   <div className="absolute left-3 top-3 z-30">

@@ -13,6 +13,7 @@ import Image from "next/image"
 import { getVersionedUrl } from "@/lib/utils"
 import type { Community } from "@/types/community"
 import { Flame, Users, FileText, Megaphone, CalendarDays, GraduationCap, BarChart3 } from "lucide-react"
+import Footer from "@/components/Footer"
 
 export default function HomePage() {
   const router = useRouter()
@@ -23,6 +24,10 @@ export default function HomePage() {
   const [isDragging, setIsDragging] = useState(false)
   const [startX, setStartX] = useState(0)
   const [scrollLeft, setScrollLeft] = useState(0)
+  const [ctaVisible, setCtaVisible] = useState(false)
+  const ctaRef = useRef<HTMLDivElement>(null)
+  const [popularVisible, setPopularVisible] = useState(false)
+  const popularRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     ;(async () => {
@@ -98,6 +103,40 @@ export default function HomePage() {
     setIsDragging(false)
   }
 
+  // CTA 섹션: 뷰포트 진입 시 한 번만 노출 애니메이션
+  useEffect(() => {
+    const el = ctaRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setCtaVisible(true)
+          observer.disconnect()
+        }
+      },
+      { root: null, threshold: 0.4 }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  // 인기 섹션 타이틀: 스크롤 진입 시 애니메이션
+  useEffect(() => {
+    const el = popularRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setPopularVisible(true)
+          observer.disconnect()
+        }
+      },
+      { root: null, threshold: 0.4 }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
   return (
     <div className="min-h-screen relative overflow-hidden bg-black">
       {/* Hero Section - 블랙 테마 집중형 */}
@@ -149,10 +188,17 @@ export default function HomePage() {
           <div className="mt-8 overflow-visible relative z-[60]">
             <button
               onClick={() => router.push(user ? '/create' : '/login')}
-              className="relative z-[60] px-6 sm:px-7 py-3 sm:py-3.5 rounded-full font-semibold cursor-pointer will-change-transform reveal-line transition-all duration-300 hover:-translate-y-0.5 active:scale-95 text-slate-900 bg-white/80 hover:bg-white/90 backdrop-blur-md border border-white/40 ring-1 ring-white/40 hover:ring-white/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 shadow-[0_8px_28px_rgba(255,255,255,0.18)] hover:shadow-[0_10px_36px_rgba(255,255,255,0.26)]"
-              style={{ animationDelay: '560ms' }}
+              className="group relative z-[60] inline-flex items-center gap-2 px-8 sm:px-9 py-3.5 rounded-2xl font-semibold cursor-pointer transition-all duration-300 text-slate-900 bg-white/95 hover:bg-white/100 backdrop-blur-xl backdrop-saturate-150 border border-white/70 ring-1 ring-white/70 hover:ring-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 shadow-[0_10px_36px_rgba(255,255,255,0.18),_0_18px_60px_rgba(2,6,23,0.10)] hover:shadow-[0_14px_48px_rgba(255,255,255,0.24),_0_26px_80px_rgba(2,6,23,0.14)] hover:-translate-y-0.5 active:translate-y-0 overflow-hidden will-change-transform reveal-line"
+              style={{ animationDelay: '340ms' }}
             >
-              나의 커뮤니티 생성하기
+              {/* glow behind */}
+              <span className="pointer-events-none absolute -inset-1 rounded-full bg-white/40 blur-lg opacity-70 group-hover:opacity-90 transition-opacity duration-300" />
+              {/* label */}
+              <span className="relative z-10">나의 커뮤니티 생성하기</span>
+              {/* shimmer sweep */}
+              <span className="pointer-events-none absolute inset-0 overflow-hidden rounded-full z-10">
+                <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/80 to-transparent opacity-80 group-hover:animate-[shine_1.1s_ease-out]" />
+              </span>
             </button>
           </div>
         </div>
@@ -174,18 +220,35 @@ export default function HomePage() {
       </section>
 
       {/* Main Content */}
-      <main className="relative bg-white rounded-t-4xl -mt-12 z-10 px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 pt-10 pb-28">
+      <main className="relative bg-white rounded-t-4xl -mt-12 z-10 px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 pt-10 pb-0">
         {/* 상단 외곽 글로우: 다음 섹션 존재감을 은은하게 강조 */}
         <div aria-hidden className="pointer-events-none absolute -top-10 left-0 right-0 h-12 z-[-1]">
           <div className="h-full w-full bg-gradient-to-t from-white/70 via-white/30 to-transparent blur-2xl" />
         </div>
         <div className="w-full">
           {/* Featured communities */}
-          <section className="mt-6 sm:mt-8 md:mt-12 lg:mt-16 w-full">
-              <h2 className="text-2xl font-semibold mb-4 flex items-center justify-center gap-2">
-                <Flame className="w-5 h-5 text-amber-500" />
-                지금 인기 있는 루트
-              </h2>
+          <section className="mt-4 sm:mt-6 md:mt-10 lg:mt-10 w-full">
+              {/* 섹션 타이틀 영역 */}
+              <div ref={popularRef} className={`mb-10 text-center transition-all duration-700 ease-out ${popularVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
+                <div className={`relative inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-slate-300/70 bg-gradient-to-r from-slate-50/95 via-slate-100/95 to-slate-200/90 text-slate-800 shadow-sm ring-1 ring-white/60 backdrop-blur-sm transition-all duration-700 ${popularVisible ? 'scale-100' : 'scale-95'} shadow-[0_0_0_3px_rgba(255,255,255,0.02),_0_10px_30px_rgba(2,6,23,0.06)]`}>
+                  <Flame className="w-4 h-4 text-slate-500" />
+                  <span className="text-[15px] font-semibold tracking-wide">Popular</span>
+                  {/* shimmer */}
+                  <span className="pointer-events-none absolute inset-0 overflow-hidden rounded-full">
+                    <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-60 animate-[shine_1.8s_linear_infinite]" />
+                  </span>
+                </div>
+                <h2 className={`mt-5 text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-slate-900 via-slate-700 to-slate-900 bg-clip-text text-transparent transition-all duration-1000 ${popularVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
+                  다양한 커뮤니티가 머무는 공간
+                </h2>
+                   {/* 서브 텍스트 */}
+                    <p className={`mt-4 text-base sm:text-lg text-slate-800 max-w-2xl mx-auto transition-all duration-1000 ease-out delay-100 ${popularVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
+                    만들기 쉽고, 운영은 가볍게, 성장은 자연스럽게.
+                  </p>
+                <style jsx>{`
+                  @keyframes shine { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+                `}</style>
+              </div>
               <div className="relative overflow-hidden">
                 <div 
                   ref={scrollRef}
@@ -266,9 +329,87 @@ export default function HomePage() {
                 <div className="absolute top-0 left-0 w-8 h-full bg-gradient-to-r from-white to-transparent pointer-events-none z-10" />
                 <div className="absolute top-0 right-0 w-8 h-full bg-gradient-to-l from-white to-transparent pointer-events-none z-10" />
               </div>
+
+              {/* 블랙 섹션 (커뮤니티 운영의 새로운 기준 ~ 하위 콘텐츠) */}
+              <div className="-mx-3 sm:-mx-4 md:-mx-6 lg:-mx-8 xl:-mx-10 bg-black text-white mt-35 relative">
+                {/* 상단 외곽 글로우: 윗 섹션과 자연스러운 연결 (카드 위로 겹치지 않도록 z-[-1]) */}
+                <div aria-hidden className="pointer-events-none absolute -top-10 left-0 right-0 h-12 z-[-1]">
+                  <div className="h-full w-full bg-gradient-to-t from-black/70 via-black/30 to-transparent blur-2xl" />
+                </div>
+                <div ref={ctaRef} className="relative px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 py-14">
+                {/* 배경 그라데이션 장식 */}
+                <div className="absolute inset-0 -top-12 -bottom-12 bg-gradient-to-b from-transparent via-white/10 to-transparent pointer-events-none" />
+                
+                {/* 콘텐츠 */}
+                <div className="relative z-10 text-center max-w-5xl mx-auto px-4">
+                  {/* 상단 뱃지 */}
+                  <div className={`relative inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-slate-300/70 bg-gradient-to-r from-slate-50/95 via-slate-100/95 to-slate-200/90 text-slate-800 text-sm font-semibold mb-6 ring-1 ring-white/60 backdrop-blur-sm shadow-[0_0_0_3px_rgba(255,255,255,0.02),_0_10px_30px_rgba(2,6,23,0.06)] transition-all duration-1000 ease-out ${ctaVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-6 scale-95'}`}>
+                    <span className="inline-block size-1.5 rounded-full bg-slate-500/90" />
+                    <span>커뮤니티 운영의 새로운 기준</span>
+                    <span className="pointer-events-none absolute inset-0 overflow-hidden rounded-full">
+                      <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-60 animate-[shine_1.8s_linear_infinite]" />
+                    </span>
+                  </div>
+ 
+                  {/* 메인 타이틀 */}
+                  <h3 className={`text-2xl sm:text-3xl md:text-4xl font-bold text-white leading-tight transition-all duration-1000 ease-out ${ctaVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}>   
+                    오직 커뮤니티를 위한 운영 솔루션
+                  </h3>
+ 
+                  {/* 서브 텍스트 */}
+                  <p className={`mt-4 text-base sm:text-lg text-white/90 max-w-2xl mx-auto transition-all duration-1000 ease-out delay-100 ${ctaVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}>
+                    멤버들과 함께 성장하고, 당신의 커뮤니티 영향력을 확장하세요!
+                  </p>
+ 
+                  {/* 미리보기 (모니터 스타일) */}
+                  <div className={`mt-8 mx-auto max-w-7xl px-2 sm:px-4 md:px-6 transition-all duration-1000 ease-out delay-150 ${ctaVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+                    <div className="rounded-[28px] bg-gradient-to-br from-indigo-950/70 to-slate-900/70 p-1.5 ring-2 ring-white/50 shadow-[0_0_40px_rgba(255,255,255,0.12),_0_16px_60px_rgba(0,0,0,0.55)]">
+                      <div className="rounded-[24px] bg-white/95 backdrop-blur-sm border border-white p-2 md:p-3 shadow-lg">
+                        <div className="relative rounded-2xl overflow-hidden border border-white bg-slate-100 aspect-[16/10]">
+                          <span className="pointer-events-none absolute -inset-2 rounded-[20px] shadow-[0_0_60px_20px_rgba(255,255,255,0.12)]" />
+                          <Image src="/logos/511.png" alt="커뮤니티 대시보드 미리보기" fill priority className="object-cover" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+ 
+                  {/* CTA 버튼 */}
+                  <div className={`mt-15 transition-all duration-1000 ease-out delay-200 ${ctaVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}>
+                    <button
+                      onClick={() => router.push('/explore')}
+                      className="group relative inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-semibold cursor-pointer transition-all duration-300 bg-white text-slate-900 hover:bg-white/90 hover:-translate-y-0.5 active:translate-y-0 shadow-[0_10px_30px_rgba(255,255,255,0.25)] hover:shadow-[0_16px_40px_rgba(255,255,255,0.35)] ring-1 ring-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white overflow-hidden"
+                    >
+                      {/* 버튼 내부 샤인 효과 */}
+                      <span className="absolute inset-0 bg-gradient-to-r from-white to-white opacity-0 group-hover:opacity-20 transition-opacity duration-300" />
+                       
+                      {/* 버튼 텍스트 */}
+                      <span className="relative flex items-center gap-2">
+                        다른 루트 둘러보기
+                        <svg 
+                          className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1.5" 
+                          fill="none" 
+                          viewBox="0 0 24 24" 
+                          stroke="currentColor"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        </svg>
+                      </span>
+                      {/* 외곽 하이라이트 */}
+                      <span className="pointer-events-none absolute -inset-px rounded-full ring-1 ring-white/40" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+              </div>
+              
+              {/* 블랙 섹션과 푸터 자연 연결용 스페이서 */}
+              <div className="bg-black h-15 -mx-3 sm:-mx-4 md:-mx-6 lg:-mx-8 xl:-mx-10" />
+               
+              {/* (이 섹션 전용) 시간 기반 지연 없이 뷰포트 진입 시 트랜지션 */}
             </section>
         </div>
       </main>
+      <Footer />
     </div>
   )
 }

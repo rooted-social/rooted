@@ -81,11 +81,11 @@ export function Header() {
           {/* 좌측: 로고 (Desktop 캡슐) */}
           <Link href="/" className="hidden md:flex items-center hover:opacity-95">
             <span
-              className="inline-flex items-center gap-2 rounded-xl border px-6 py-3 h-12 transition-transform duration-200 hover:-translate-y-0.5 shadow-[0_0_14px_rgba(148,163,184,0.28)] hover:shadow-[0_0_20px_rgba(148,163,184,0.4)] border-slate-300"
+              className="inline-flex items-center gap-2 rounded-md border px-6 py-3 h-11 transition-transform duration-200 hover:-translate-y-0.5 shadow-[0_0_14px_rgba(148,163,184,0.28)] hover:shadow-[0_0_20px_rgba(148,163,184,0.4)] border-slate-300"
               style={capsuleStyle}
             >
-              <Image src="/logos/logo_icon.png" alt="Rooted 아이콘" width={28} height={28} className="w-7 h-7" priority />
-              <span className="relative" style={{ width: 80, height: 20 }}>
+              <Image src="/logos/logo_icon.png" alt="Rooted 아이콘" width={24} height={24} className="w-6 h-6" priority />
+              <span className="relative" style={{ width: 72, height: 18 }}>
                 <Image src="/logos/logo_main.png" alt="Rooted" fill priority sizes="100px" className="object-contain" />
               </span>
             </span>
@@ -129,7 +129,7 @@ export function Header() {
           {!isCommunityRootPage && (
           <nav className="hidden md:flex items-center">
             <div
-              className="h-12 px-6 rounded-xl text-slate-900 border border-slate-300 shadow-[0_0_14px_rgba(148,163,184,0.28)] hover:shadow-[0_0_20px_rgba(148,163,184,0.4)] flex items-center"
+              className="h-11 px-6 rounded-md text-slate-900 border border-slate-300 shadow-[0_0_14px_rgba(148,163,184,0.28)] hover:shadow-[0_0_20px_rgba(148,163,184,0.4)] flex items-center"
               style={capsuleStyle}
             >
               <ul className="flex items-center gap-3 text-base">
@@ -156,7 +156,7 @@ export function Header() {
                     href="/pricing"
                     className={`px-3 py-1 rounded-lg inline-block transition-colors duration-200 transform transition-transform ${isActive('/pricing') ? 'text-slate-900 font-bold scale-[1.05]' : 'text-slate-900 hover:text-slate-900'} hover:scale-103`}
                   >
-                    요금제
+                    가격 안내
                   </Link>
                 </li>
               </ul>
@@ -167,7 +167,7 @@ export function Header() {
           {/* 우측: 알림+루트+프로필 통합 캡슐 */}
           <div className="hidden md:flex items-center">
             <div
-              className="relative inline-flex items-center gap-2 rounded-xl border border-slate-300 px-3 h-12 shadow-[0_0_14px_rgba(148,163,184,0.28)] hover:shadow-[0_0_20px_rgba(148,163,184,0.4)]"
+              className="relative inline-flex items-center gap-2 rounded-md border border-slate-300 px-3.5 h-11 shadow-[0_0_14px_rgba(148,163,184,0.28)] hover:shadow-[0_0_20px_rgba(148,163,184,0.4)]"
               style={capsuleStyle}
               ref={desktopDropdownRef}
             >
@@ -376,7 +376,7 @@ export function Header() {
             <li>
               <Link href="/pricing" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-5 py-4 text-slate-800 font-semibold">
                 <CreditCard className="w-5 h-5 text-slate-500" />
-                요금제
+                가격 안내
               </Link>
             </li>
           </ul>

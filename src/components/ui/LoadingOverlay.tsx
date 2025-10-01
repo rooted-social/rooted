@@ -27,7 +27,7 @@ export default function LoadingOverlay({ show, text = '커뮤니티 입장 중..
 
   return (
     <div className={`fixed inset-0 z-[100] ${animateIn ? 'opacity-100' : 'opacity-0'} transition-opacity duration-200`} aria-live="polite" aria-busy={show}>
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" />
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px]" />
       <div className="relative h-full w-full grid place-items-center select-none">
         <div className={`rounded-2xl border border-white/10 bg-white/10 backdrop-blur-md px-6 py-5 shadow-2xl ${animateIn ? 'scale-100' : 'scale-95'} transition-transform duration-200`}>
           <div className="flex items-center gap-3">
