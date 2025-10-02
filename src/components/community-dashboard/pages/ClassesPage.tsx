@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import Image from "next/image"
 // Card components were not used; remove to reduce bundle size
 import { Button } from "@/components/ui/button"
@@ -63,13 +64,19 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
   const createDialogRef = useRef<HTMLDivElement | null>(null)
   const editDialogRef = useRef<HTMLDivElement | null>(null)
 
-  const load = async () => {
-    const { categories: cats, classes: cls } = await getClassesOverview(communityId, { categoryId: activeCat || undefined, userId: user?.id || null })
-    setCategories(cats)
-    setItems(cls)
-  }
+  const queryClient = useQueryClient()
+  const { data: overviewData, isFetching: loadingOverview } = useQuery({
+    queryKey: ['classes.overview', communityId, activeCat || 'all', user?.id || 'guest'],
+    queryFn: async () => await getClassesOverview(communityId, { categoryId: activeCat || undefined, userId: user?.id || null }),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  })
 
-  useEffect(() => { void load() }, [communityId, activeCat])
+  useEffect(() => {
+    if (!overviewData) return
+    setCategories(overviewData.categories || [])
+    setItems(overviewData.classes || [])
+  }, [overviewData])
   // NOTE: Radix Dialog는 modal 모드로 배경을 inert 처리하므로 별도의 전역 캡처 차단은 사용하지 않음
 
   useEffect(() => {
@@ -182,7 +189,7 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
       setOpenCreate(false)
       setForm({ title: "", description: "", category_id: "", thumbnail_url: "", youtube_url: "" })
       // 즉시 목록에 반영
-      await load()
+      await queryClient.invalidateQueries({ queryKey: ['classes.overview', communityId] })
     } catch (e) {
       toast.error('클래스 생성에 실패했습니다')
     }
@@ -217,7 +224,7 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
       toast.success('클래스가 수정되었습니다')
       setOpenEdit(false)
       setEditing(null)
-      await load()
+      await queryClient.invalidateQueries({ queryKey: ['classes.overview', communityId] })
     } catch (e) {
       toast.error('클래스 수정에 실패했습니다')
     }
@@ -235,7 +242,7 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
       toast.success('클래스가 삭제되었습니다')
       setOpenDelete(false)
       setDeleteTarget(null)
-      await load()
+      await queryClient.invalidateQueries({ queryKey: ['classes.overview', communityId] })
     } catch (e) {
       toast.error('클래스 삭제에 실패했습니다')
     }

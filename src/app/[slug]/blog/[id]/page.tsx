@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useParams, useSearchParams } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
-import { getCommunity } from "@/lib/communities"
+import { getCommunityPageById } from "@/lib/communities"
 import { incrementBlogViews, toggleBlogLike, addBlogComment, updateBlogComment, deleteBlogComment, deleteBlogPost } from "@/lib/blog"
 import { getAuthToken } from "@/lib/supabase"
 import { Input } from "@/components/ui/input"
@@ -15,6 +15,8 @@ import { getAvatarUrl } from "@/lib/profiles"
 import { useAuthData } from "@/components/auth/AuthProvider"
 import { CalendarDays, Heart, MessageCircle, Eye, ArrowLeft, Settings } from "lucide-react"
 // Animated background 제거
+import SectionTitle from "@/components/SectionTitle"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 // 본문 이미지 최적화: R2 업로드 시 생성한 -sm/-md/-lg.webp 변형을 srcset/sizes로 연결
 function optimizeContentImages(html: string): string {
@@ -74,40 +76,48 @@ export default function BlogDetailPage() {
   const { profile } = useAuthData()
   const [canEdit, setCanEdit] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const queryClient = useQueryClient()
+  const viewIncrementedRef = useRef(false)
   const refetchDetail = async () => {
-    try {
-      const token = await getAuthToken().catch(() => null)
-      const res = await fetch(`/api/blog/detail?id=${encodeURIComponent(String(id))}`, { cache: 'no-store', headers: token ? { authorization: `Bearer ${token}` } : undefined })
-      if (!res.ok) return
-      const data = await res.json()
-      setCounts(data.counts || { views: 0, likes: 0, comments: 0 })
-      setComments(data.comments || [])
-      setLiked(!!data.liked)
-    } catch {}
+    await queryClient.invalidateQueries({ queryKey: ['blogDetail', id] })
   }
+  const fetchBlogDetail = async (postId: string) => {
+    const token = await getAuthToken().catch(() => null)
+    const res = await fetch(`/api/blog/detail?id=${encodeURIComponent(String(postId))}`, { headers: token ? { authorization: `Bearer ${token}` } : undefined })
+    if (!res.ok) throw new Error('failed to load blog detail')
+    return res.json()
+  }
+  const { data: detailData, isLoading: loadingDetail } = useQuery({
+    queryKey: ['blogDetail', id],
+    queryFn: () => fetchBlogDetail(String(id)),
+    enabled: !!id,
+    staleTime: 30000,
+    retry: 1,
+    refetchOnWindowFocus: false,
+  })
+
   useEffect(() => {
-    let mounted = true
-    ;(async () => {
-      try {
-        const token = await getAuthToken().catch(() => null)
-        const res = await fetch(`/api/blog/detail?id=${encodeURIComponent(String(id))}`, { headers: token ? { authorization: `Bearer ${token}` } : undefined })
-        if (!res.ok) throw new Error('failed to load blog detail')
-        const data = await res.json()
-        if (!mounted) return
-        setPost(data.post)
-        setCounts(data.counts)
-        setLiked(!!data.liked)
-        setComments(data.comments || [])
-        setCanEdit(!!data.isOwner)
-        // 내 아바타는 이미 data.comments에 포함되는 경우가 많지만, 별도로 가져오지 않고 유지
-        // 조회수 증가는 렌더링을 막지 않도록 비동기 처리
-        incrementBlogViews(String(id)).catch(() => {})
-      } catch (e) {
-        console.error(e)
-      }
-    })()
-    return () => { mounted = false }
-  }, [slug, id])
+    if (!detailData) return
+    setPost(detailData.post)
+    setCounts(detailData.counts)
+    setLiked(!!detailData.liked)
+    setComments(detailData.comments || [])
+    setCanEdit(!!detailData.isOwner)
+    if (!viewIncrementedRef.current) {
+      viewIncrementedRef.current = true
+      incrementBlogViews(String(id)).catch(() => {})
+    }
+  }, [detailData, id])
+
+  // 페이지 메타에서 페이지명 가져오기 (모바일 헤더용)
+  const { data: pageMeta } = useQuery({
+    queryKey: ['communityPage', pageId],
+    queryFn: () => getCommunityPageById(pageId),
+    enabled: !!pageId,
+    staleTime: 300000,
+    refetchOnWindowFocus: false,
+  })
+  const pageTitle = pageMeta?.title ?? '포스트'
 
   if (!post) return <div className="min-h-[40vh]" />
 
@@ -142,17 +152,17 @@ export default function BlogDetailPage() {
             </Link>
           </Button>
           <div className="flex-1 text-center">
-            <span className="text-sm font-semibold text-slate-900">포스트</span>
+            <span className="text-sm font-semibold text-slate-900">{pageTitle}</span>
           </div>
           <div className="w-16" /> {/* 우측 공간 확보 */}
         </div>
       </div>
 
       {/* 메인 콘텐츠 */}
-      <div className="relative z-10 max-w-4xl mx-auto px-4 py-10 pt-20 md:pt-12">
+      <div className="relative z-10 max-w-4xl mx-auto px-4 py-10 pt-8 md:pt-10">
         {/* 커버/타이틀 + 본문 */}
         <div className="relative">
-          {/* 타이틀 - 중앙 정렬 */}
+          {/* 게시글 타이틀 */}
           <h1 className="text-[22px] md:text-[34px] font-extrabold tracking-[-0.02em] text-slate-900 leading-tight text-center mb-4">
             {post.title}
           </h1>

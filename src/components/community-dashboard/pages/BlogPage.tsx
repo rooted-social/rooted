@@ -161,13 +161,8 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
           <Image src={bannerUrl} alt={title} fill className="object-cover" />
         </div>
       )}
-      <div className="text-center mt-2">
-        <h1 className="text-[28px] md:text-[36px] font-extrabold tracking-[-0.02em] text-slate-900 leading-tight">
-          {title}
-        </h1>
-        {description && (
-          <p className="mt-2 text-sm md:text-base text-slate-600 max-w-2xl mx-auto">{description}</p>
-        )}
+      <div className="mt-5">
+        <SectionTitle title={title} description={description} />
         {slug && (
           <div className="mt-3 px-0 flex justify-end">
             <Button asChild size="sm" className="h-auto whitespace-nowrap cursor-pointer rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border-0 font-semibold px-3 py-2 text-sm"

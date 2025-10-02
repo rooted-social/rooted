@@ -45,7 +45,7 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
   const [confirmTarget, setConfirmTarget] = useState<{ type: 'page'; id: string; title?: string } | null>(null)
   const [dragOverItemId, setDragOverItemId] = useState<string | null>(null)
   const [isOwner, setIsOwner] = useState<boolean>(false)
-  // 최근 7일 내 신규 글 표시 맵
+  // 최근 2일 내 신규 글 표시 맵
   const [newPageMap, setNewPageMap] = useState<Record<string, boolean>>({})
   const [hasNewFeed, setHasNewFeed] = useState<boolean>(false)
   // 모바일 오버레이 열고 닫힘 애니메이션 상태

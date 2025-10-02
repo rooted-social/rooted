@@ -116,7 +116,7 @@ export function CommunityTopbar({ slug, name, active, onChangeAction, imageUrl, 
           <div className="flex items-center gap-2">
             <button
               onClick={() => onChangeAction("home")}
-              className={`px-4 py-2 text-sm font-medium rounded-full cursor-pointer transition-all duration-200 ${
+              className={`px-4 py-2 text-sm font-medium rounded-xl cursor-pointer transition-all duration-200 ${
                 active === "home" ? (brandColor ? "shadow-sm" : "bg-slate-900 text-white shadow-sm") : "text-slate-700 hover:bg-slate-100 hover:shadow-sm hover:scale-105"
               }`}
               style={active === 'home' && brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor) } : undefined}
@@ -125,7 +125,7 @@ export function CommunityTopbar({ slug, name, active, onChangeAction, imageUrl, 
             </button>
             <button
               onClick={() => onChangeAction("classes")}
-              className={`px-4 py-2 text-sm font-medium rounded-full cursor-pointer transition-all duration-200 ${
+              className={`px-4 py-2 text-sm font-medium rounded-xl cursor-pointer transition-all duration-200 ${
                 active === "classes" ? (brandColor ? "shadow-sm" : "bg-slate-900 text-white shadow-sm") : "text-slate-700 hover:bg-slate-100 hover:shadow-sm hover:scale-105"
               }`}
               style={active === 'classes' && brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor) } : undefined}
@@ -134,7 +134,7 @@ export function CommunityTopbar({ slug, name, active, onChangeAction, imageUrl, 
             </button>
             <button
               onClick={() => onChangeAction("calendar")}
-              className={`px-4 py-2 text-sm font-medium rounded-full cursor-pointer transition-all duration-200 ${
+              className={`px-4 py-2 text-sm font-medium rounded-xl cursor-pointer transition-all duration-200 ${
                 active === "calendar" ? (brandColor ? "shadow-sm" : "bg-slate-900 text-white shadow-sm") : "text-slate-700 hover:bg-slate-100 hover:shadow-sm hover:scale-105"
               }`}
               style={active === 'calendar' && brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor) } : undefined}
@@ -143,7 +143,7 @@ export function CommunityTopbar({ slug, name, active, onChangeAction, imageUrl, 
             </button>
             <button
               onClick={() => onChangeAction("members")}
-              className={`px-4 py-2 text-sm font-medium rounded-full cursor-pointer transition-all duration-200 ${
+              className={`px-4 py-2 text-sm font-medium rounded-xl cursor-pointer transition-all duration-200 ${
                 active === "members" ? (brandColor ? "shadow-sm" : "bg-slate-900 text-white shadow-sm") : "text-slate-700 hover:bg-slate-100 hover:shadow-sm hover:scale-105"
               }`}
               style={active === 'members' && brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor) } : undefined}
@@ -153,7 +153,7 @@ export function CommunityTopbar({ slug, name, active, onChangeAction, imageUrl, 
             {isOwner && (
               <button
                 onClick={() => onChangeAction("settings")}
-                className={`px-4 py-2 text-sm font-medium rounded-full cursor-pointer transition-all duration-200 ${
+                className={`px-4 py-2 text-sm font-medium rounded-xl cursor-pointer transition-all duration-200 ${
                   active === "settings" ? (brandColor ? "shadow-sm" : "bg-slate-900 text-white shadow-sm") : "text-slate-700 hover:bg-slate-100 hover:shadow-sm hover:scale-105"
                 }`}
                 style={active === 'settings' && brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor) } : undefined}
@@ -351,7 +351,7 @@ export function CommunityTopbar({ slug, name, active, onChangeAction, imageUrl, 
                   </button>
                   <Link
                     href="/notifications"
-                    className="w-9 h-9 grid place-items-center"
+                    className="relative w-9 h-9 grid place-items-center"
                   >
                     <Bell className="w-5 h-5 text-slate-700" />
                     {unreadCount > 0 && (
@@ -475,7 +475,7 @@ export function CommunityTopbar({ slug, name, active, onChangeAction, imageUrl, 
                   </button>
                   <Link
                     href="/notifications"
-                    className="w-9 h-9 grid place-items-center"
+                    className="relative w-9 h-9 grid place-items-center"
                   >
                     <Bell className="w-5 h-5 text-slate-700" />
                     {unreadCount > 0 && (
@@ -568,10 +568,10 @@ export function CommunityTopbar({ slug, name, active, onChangeAction, imageUrl, 
           <div className="flex items-center gap-2">
             <div className="flex-1 flex items-center gap-2 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-800">
               <LinkIcon className="w-4 h-4 text-slate-500" />
-              <span className="truncate">{`https://rooted.kr/${routeSlug || ''}`}</span>
+              <span className="truncate">{`rooted.kr/${routeSlug || ''}`}</span>
             </div>
             <button
-              onClick={async () => { try { await navigator.clipboard.writeText(`https://rooted.kr/${routeSlug || ''}`); toast.success('복사가 완료됐어요!') } catch { toast.error('복사에 실패했습니다') } }}
+              onClick={async () => { try { await navigator.clipboard.writeText(`rooted.kr/${routeSlug || ''}`); toast.success('복사가 완료됐어요!') } catch { toast.error('복사에 실패했습니다') } }}
               className="px-3 py-2 rounded-xl bg-black text-white text-sm font-semibold hover:bg-black/90 cursor-pointer"
             >
               복사

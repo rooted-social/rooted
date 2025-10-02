@@ -269,7 +269,7 @@ export function Header() {
                         try { await supabase.auth.signOut() } catch {}
                         try { await fetch('/api/auth/clear', { method: 'POST' }) } catch {}
                         setShowProfileDropdown(false)
-                        router.push('/login')
+                        router.push('/')
                       }}
                     >
                       로그아웃

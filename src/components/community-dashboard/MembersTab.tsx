@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { normalizeProfileAvatarUrl } from "@/lib/r2"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -35,26 +36,27 @@ export function MembersTab({ communityId, ownerId }: MembersTabProps) {
   const [isOwner, setIsOwner] = useState<boolean>(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
-  const load = async () => {
-    setLoading(true)
-    try {
-      const { members: m, pending: p, isOwner: o } = await getMembersOverview(communityId)
-      setIsOwner(o)
-      setPending(o ? p : [])
-      const sorted = [...m].sort((a,b)=> (b.is_owner?1:0) - (a.is_owner?1:0))
-      setMembers(sorted)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => { void load() }, [communityId, ownerId])
+  const queryClient = useQueryClient()
+  const { data: memberData, isFetching: loadingMembers } = useQuery({
+    queryKey: ['members.overview', communityId],
+    queryFn: async () => await getMembersOverview(communityId),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  })
+  useEffect(() => {
+    if (!memberData) return
+    setIsOwner(!!memberData.isOwner)
+    setPending(memberData.isOwner ? (memberData.pending || []) : [])
+    const sorted = [...(memberData.members || [])].sort((a: any,b: any)=> (b.is_owner?1:0) - (a.is_owner?1:0))
+    setMembers(sorted)
+    setLoading(false)
+  }, [memberData])
 
   const onRemove = async (userId: string) => {
     if (!isOwner) return
     try {
       await removeCommunityMember(communityId, userId)
-      await load()
+      await queryClient.invalidateQueries({ queryKey: ['members.overview', communityId] })
       setMenuFor(null)
     } catch (err: any) {
       console.error('removeCommunityMember error:', err)
@@ -202,7 +204,7 @@ export function MembersTab({ communityId, ownerId }: MembersTabProps) {
                     size="sm"
                     variant="outline"
                     className="h-9 px-3 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
-                    onClick={async ()=>{ await removeCommunityMember(communityId, p.user_id); await load() }}
+                    onClick={async ()=>{ await removeCommunityMember(communityId, p.user_id); await queryClient.invalidateQueries({ queryKey: ['members.overview', communityId] }) }}
                   >
                     <X className="w-4 h-4 mr-1"/>
                     거절
@@ -213,7 +215,7 @@ export function MembersTab({ communityId, ownerId }: MembersTabProps) {
                     onClick={async ()=>{
                       try {
                         await supabase.rpc('approve_member', { p_community_id: communityId, p_target_user_id: p.user_id })
-                        await load()
+                        await queryClient.invalidateQueries({ queryKey: ['members.overview', communityId] })
                       } catch (err) {
                         console.error('approve_member error:', err)
                         alert('승인 처리 중 오류가 발생했습니다.')

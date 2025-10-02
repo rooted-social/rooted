@@ -30,11 +30,11 @@ export async function GET(req: NextRequest) {
       return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 })
     }
 
-    // Posts (count + page)
+    // Posts (count + page) — select only used columns to reduce payload
     let base = supabase.from('posts')
     let qCount = base.select('*', { count: 'exact', head: true }).eq('community_id', communityId)
     let q = base
-      .select('*')
+      .select('id,title,content,created_at,user_id,page_id,category_id,pinned,views')
       .eq('community_id', communityId)
       .order('pinned', { ascending: false })
       .order('created_at', { ascending: false })

@@ -57,7 +57,9 @@ export function PageContent({ pageId }: PageContentProps) {
   if ((!type || type === 'feed') && communityId) {
     return (
       <div className="space-y-3">
-        <SectionTitle title={title} description={desc} />
+        <div className="pt-4">
+          <SectionTitle title={title} description={desc} />
+        </div>
         <BoardTab communityId={communityId} pageId={pageId} variant="contentOnly" />
       </div>
     )
@@ -69,7 +71,9 @@ export function PageContent({ pageId }: PageContentProps) {
   // 알 수 없는 타입: 피드로 폴백
   return (
     <div className="space-y-3">
-      <SectionTitle title={title} description={desc} />
+      <div className="pt-4">
+        <SectionTitle title={title} description={desc} />
+      </div>
       {communityId && <BoardTab communityId={communityId} pageId={pageId} variant="contentOnly" />}
     </div>
   )

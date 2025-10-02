@@ -19,12 +19,11 @@ export default async function CommunityDashboardPage({ params }: { params: Promi
   try {
     if (community?.id) {
       const headers = session?.access_token ? { authorization: `Bearer ${session.access_token}` } : undefined
-      const [pagesRes, homeRes] = await Promise.all([
-        fetch(`${base}/api/community/pages?communityId=${encodeURIComponent(community.id)}`, { headers, next: { revalidate: 120 } }),
-        fetch(`${base}/api/dashboard/home?communityId=${encodeURIComponent(community.id)}`, { headers, next: { revalidate: 60 } }),
-      ])
-      if (pagesRes.ok) pages = await pagesRes.json()
-      if (homeRes.ok) home = await homeRes.json()
+      const homeRes = await fetch(`${base}/api/dashboard/home?communityId=${encodeURIComponent(community.id)}`, { headers, next: { revalidate: 60 } })
+      if (homeRes.ok) {
+        home = await homeRes.json()
+        pages = Array.isArray(home?.pages) ? home.pages : []
+      }
     }
   } catch {}
 

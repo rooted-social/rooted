@@ -16,7 +16,7 @@ export function SectionTitle({ title, description, className }: SectionTitleProp
         <span className="opacity-90 line-clamp-1">{title}</span>
       </div>
       {description && (
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-slate-900">
           {description}
         </p>
       )}
