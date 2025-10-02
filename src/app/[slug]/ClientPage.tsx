@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useParams, useRouter } from 'next/navigation'
 import NextImage from 'next/image'
 import dynamic from 'next/dynamic'
@@ -125,26 +126,29 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
     }
   }, [community, initial, user])
 
-  // 사용자 로그인/변경 시 membership을 최신 응답으로 동기화
+  // 사용자 로그인/변경 시 membership을 React Query로 동기화(중복 호출 방지)
+  const shouldFetchMembership = !!community?.id && !!user?.id && initial?.membership == null
+  const membershipQ = useQuery({
+    queryKey: ['community.membership', community?.id, user?.id],
+    queryFn: async () => {
+      const res = await fetch(`/api/community/detail?slug=${encodeURIComponent(slug)}`, { cache: 'no-store', headers: { 'x-user-id': String(user?.id) } })
+      if (!res.ok) return { role: null as any }
+      const body = await res.json()
+      return { role: (body?.membership as any)?.role as any }
+    },
+    enabled: shouldFetchMembership,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+    select: (d: any) => d.role as ('pending' | string | null),
+  })
+
   useEffect(() => {
-    if (!community?.id || !user?.id) return
-    // SSR 초기 렌더에서 membership을 이미 전달받았다면 즉시 재조회 생략
-    if (initial?.membership != null) return
-    let cancelled = false
-    ;(async () => {
-      try {
-        const res = await fetch(`/api/community/detail?slug=${encodeURIComponent(slug)}`, { cache: 'no-store', headers: { 'x-user-id': user.id } })
-        if (!res.ok) return
-        const body = await res.json()
-        if (cancelled) return
-        const role = (body?.membership as any)?.role
-        if (role === 'pending') { setIsPending(true); setIsMember(false) }
-        else if (role) { setIsMember(true); setIsPending(false) }
-        else { setIsMember(false); setIsPending(false) }
-      } catch {}
-    })()
-    return () => { cancelled = true }
-  }, [user?.id, community?.id, slug, initial?.membership])
+    if (!shouldFetchMembership) return
+    const role = membershipQ.data
+    if (role === 'pending') { setIsPending(true); setIsMember(false) }
+    else if (role) { setIsMember(true); setIsPending(false) }
+    else if (role === null) { setIsMember(false); setIsPending(false) }
+  }, [membershipQ.data, shouldFetchMembership])
 
   // checkMembership 제거 (API에서 제공)
 
@@ -277,7 +281,7 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
                           onClick={() => setMainIdx(images.findIndex(x => x.key === img.key))} 
                           className="relative aspect-[4/3] w-full overflow-hidden rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400 cursor-pointer hover:scale-105 hover:shadow-md transition-all duration-200"
                         >
-                          <NextImage src={img.url} alt={`community-thumb-${i}`} fill className="object-cover" sizes="(max-width: 1024px) 20vw, 12vw" />
+                          <NextImage src={img.url} alt={`community-thumb-${i}`} fill className="object-cover" sizes="(max-width: 640px) 28vw, (max-width: 1024px) 16vw, 10vw" />
                         </button>
                       ))}
                     </div>
@@ -290,24 +294,26 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
               <Card className="hover:shadow-sm transition-all duration-300 border border-slate-300">
                 <CardContent className="space-y-4 sm:space-y-6 pb-3 sm:pb-5">
                   {/* 리더 소개 */}
-                  <div className="pt-4 sm:pt-5 pb-2">
-                  <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
-                    <div className="relative">
-                      <Avatar className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0">
-                        <AvatarImage src={community!.profiles.avatar_url || ''} alt={community!.profiles.full_name || community!.profiles.username} />
-                        <AvatarFallback className="bg-slate-200 text-slate-600 font-semibold text-sm">{(community!.profiles.full_name || community!.profiles.username)[0]}</AvatarFallback>
-                      </Avatar>
-                      <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-yellow-500 grid place-items-center shadow-md">
-                        <Crown className="w-3.5 h-3.5 text-white" />
+                  <div className="pt-3 sm:pt-3 pb-0">
+                    <div className="flex flex-col items-center text-center mb-0 sm:mb-0">
+                      <div className="relative">
+                        <Avatar className="w-16 h-16 sm:w-20 sm:h-20 ring-2 ring-white shadow-md">
+                          <AvatarImage src={community!.profiles.avatar_url || ''} alt={community!.profiles.full_name || community!.profiles.username} />
+                          <AvatarFallback className="bg-slate-200 text-slate-600 font-semibold text-base">
+                            {(community!.profiles.full_name || community!.profiles.username)[0]}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-yellow-500 grid place-items-center shadow-md">
+                          <Crown className="w-4 h-4 text-white" />
+                        </div>
+                      </div>
+                      <div className="mt-2 max-w-full">
+                        <div className="text-base sm:text-lg font-semibold text-slate-900">
+                          {community!.profiles.full_name}
+                        </div>
                       </div>
                     </div>
-                    <div className="min-w-0">
-                      <div className="text-base sm:text-lg font-semibold text-slate-900 truncate">{community!.profiles.full_name}</div>
-                    </div>
-                  </div>
-                    {community!.profiles.bio && (
-                      <p className="text-slate-700 text-sm sm:text-base leading-relaxed">{community!.profiles.bio}</p>
-                    )}
+                    {/* 리더 소개글 제거 */}
                   </div>
 
                   <div className="h-px bg-slate-200 mt-4" />

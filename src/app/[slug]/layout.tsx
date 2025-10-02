@@ -1,10 +1,11 @@
 "use client"
 
 import { useParams, usePathname } from "next/navigation"
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useMemo, useReducer, useRef, useState } from "react"
 import { CommunityTopbar } from "@/components/community-dashboard/CommunityTopbar"
 import { CommunitySidebar } from "@/components/community-dashboard/CommunitySidebar"
-import { useCommunityBySlug } from "@/hooks/useCommunity"
+// import { useCommunityBySlug } from "@/hooks/useCommunity"
+import { useQuery } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
 import { useAuthData } from "@/components/auth/AuthProvider"
 import { supabase } from "@/lib/supabase"
@@ -19,10 +20,21 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
   const pathname = usePathname()
   const router = useRouter()
   const { user } = useAuthData()
-  const [communityName, setCommunityName] = useState<string>("")
-  const [communityIcon, setCommunityIcon] = useState<string | null>(null)
-  const [communityId, setCommunityId] = useState<string | null>(null)
-  const [ownerId, setOwnerId] = useState<string | null>(null)
+  type CommunityState = { id: string | null; name: string; icon: string | null; ownerId: string | null }
+  type CommunityAction = { type: 'set'; payload: Partial<CommunityState> } | { type: 'icon'; payload: string }
+  const [community, dispatchCommunity] = useReducer(
+    (state: CommunityState, action: CommunityAction): CommunityState => {
+      switch (action.type) {
+        case 'set':
+          return { ...state, ...action.payload }
+        case 'icon':
+          return { ...state, icon: action.payload }
+        default:
+          return state
+      }
+    },
+    { id: null, name: "", icon: null, ownerId: null }
+  )
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false)
   // 제거된 로컬 로딩 상태: Topbar가 사라지는 문제 방지
   const [guardChecked, setGuardChecked] = useState<boolean>(false)
@@ -77,69 +89,77 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
     setActive(getActiveTab())
   }, [pathname])
 
-  const communityQ = useCommunityBySlug(shouldFetchCommunity ? String(slug) : undefined)
+  // 커뮤니티 간략 정보: 필요한 필드만 조회(id, name, icon/image, owner_id)
+  const communityBriefQ = useQuery({
+    queryKey: ['community.brief', slug],
+    queryFn: async () => {
+      if (!shouldFetchCommunity) return null
+      const { data } = await supabase
+        .from('communities')
+        .select('id,name,icon_url,image_url,owner_id')
+        .eq('slug', String(slug))
+        .maybeSingle()
+      return data as any
+    },
+    enabled: !!slug && shouldFetchCommunity,
+    staleTime: 120_000,
+    refetchOnWindowFocus: false,
+    select: (raw: any) => {
+      if (!raw) return null
+      return {
+        id: raw?.id || null,
+        name: raw?.name || String(slug),
+        icon: raw?.icon_url || raw?.image_url || null,
+        ownerId: raw?.owner_id || null,
+      } as CommunityState
+    }
+  })
   useEffect(() => {
-    const data = communityQ.data as any
-    if (!data) return
-    setCommunityName(data.name || String(slug))
-    setCommunityIcon(data?.icon_url || data?.image_url || null)
-    setCommunityId(data?.id || null)
-    setOwnerId(data?.owner_id || null)
-  }, [communityQ.data, slug])
+    const brief = communityBriefQ.data as CommunityState | null
+    if (!brief) return
+    dispatchCommunity({ type: 'set', payload: brief })
+  }, [communityBriefQ.data])
 
   // 멤버십 가드: 커뮤니티 대시보드/내부 탭은 멤버 또는 오너만 접근 가능
+  // 멤버십 체크를 React Query로 이전 (캐싱/재검증 자동화)
+  const dashboardArea = useMemo(() => !!pathname && (
+    pathname.includes('/dashboard') || pathname.includes('/classes') || pathname.includes('/calendar') ||
+    pathname.includes('/members') || pathname.includes('/settings') || pathname.includes('/stats') || pathname.includes('/blog')
+  ), [pathname])
+
+  const membershipQ = useQuery({
+    queryKey: ['membership', community.id, user?.id],
+    queryFn: async () => {
+      if (!community.id || !user?.id) return { ok: false as const }
+      const { data } = await supabase
+        .from('community_members')
+        .select('role')
+        .eq('community_id', community.id)
+        .eq('user_id', user.id)
+        .maybeSingle()
+      const role = (data as any)?.role as string | undefined
+      return { ok: !!data && role !== 'pending', role }
+    },
+    enabled: dashboardArea && !!community.id && !!user,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  })
+
   useEffect(() => {
-    const run = async () => {
-      // 아직 커뮤니티/경로 정보가 없으면 대기
-      if (!pathname || !slug) return
-      const isDashboardArea = pathname?.includes('/dashboard') || 
-        pathname?.includes('/classes') || pathname?.includes('/calendar') || 
-        pathname?.includes('/members') || pathname?.includes('/settings') ||
-        pathname?.includes('/stats') || pathname?.includes('/blog')
-      if (!isDashboardArea) {
-        setGuardChecked(true)
-        return
-      }
-
-      // 커뮤니티 ID 로드 대기
-      if (!communityId) return
-
-      // 오너는 통과
-      if (user && ownerId && user.id === ownerId) {
-        setGuardChecked(true)
-        return
-      }
-
-      // 비로그인 또는 멤버 아님 → 공개 커뮤니티 랜딩으로 보내기
-      if (!user) {
-        router.replace(`/${slug}`)
-        return
-      }
-
-      try {
-        const { data, error } = await supabase
-          .from('community_members')
-          .select('id, role')
-          .eq('community_id', communityId)
-          .eq('user_id', user.id)
-          .maybeSingle()
-        const role = (data as any)?.role as string | undefined
-        if (!data || role === 'pending') {
-          router.replace(`/${slug}`)
-          return
-        }
-        setGuardChecked(true)
-      } catch {
-        router.replace(`/${slug}`)
-      }
-    }
-    void run()
-  }, [pathname, slug, communityId, ownerId, user, router])
+    if (!dashboardArea) { setGuardChecked(true); return }
+    if (!pathname || !slug) return
+    if (!community.id) return
+    if (user && community.ownerId && user.id === community.ownerId) { setGuardChecked(true); return }
+    if (!user) { router.replace(`/${slug}`); return }
+    if (membershipQ.isLoading) return
+    if (membershipQ.data?.ok) { setGuardChecked(true); return }
+    router.replace(`/${slug}`)
+  }, [dashboardArea, pathname, slug, community.id, community.ownerId, user, membershipQ.isLoading, membershipQ.data, router])
 
   useEffect(() => {
     const handler = (e: any) => {
       const url = e?.detail?.url as string | undefined
-      if (url) setCommunityIcon(url)
+      if (url) dispatchCommunity({ type: 'icon', payload: url })
     }
     window.addEventListener('community-icon-updated', handler)
     return () => window.removeEventListener('community-icon-updated', handler)
@@ -205,12 +225,12 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
   // 가드 통과 후에도 준비 신호가 없으면 최대 대기 시간 후 자동 해제 (안전장치, 홈 대시보드 한정)
   useEffect(() => {
     if (!isHomeDashboardPage) return
-    if (!guardChecked || !communityId) return
+    if (!guardChecked || !community.id) return
     if (initialReady) return
     if (readyTimeoutRef.current) clearTimeout(readyTimeoutRef.current)
     readyTimeoutRef.current = setTimeout(() => setInitialReady(true), 4000)
     return () => { if (readyTimeoutRef.current) clearTimeout(readyTimeoutRef.current) }
-  }, [isHomeDashboardPage, guardChecked, communityId, initialReady])
+  }, [isHomeDashboardPage, guardChecked, community.id, initialReady])
 
   // 세션 내 1회 표시 정책: 세션 스토리지에서 플래그를 읽어 초기화
   useEffect(() => {
@@ -225,13 +245,13 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
   // 홈 대시보드 최초 1회 로딩 완료 후 재진입 시에는 로딩을 보여주지 않음 + 세션 저장
   useEffect(() => {
     if (!isHomeDashboardPage) return
-    if (!guardChecked || !communityId) return
+    if (!guardChecked || !community.id) return
     if (!initialReady) return
     setHasShownHomeLoading(true)
     try { if (typeof window !== 'undefined') window.sessionStorage.setItem(`rooted:homeLoadingShown:${slug}`, '1') } catch {}
-  }, [isHomeDashboardPage, guardChecked, communityId, initialReady, slug])
+  }, [isHomeDashboardPage, guardChecked, community.id, initialReady, slug])
 
-  const showBlockingLoading = isHomeDashboardPage && !hasShownHomeLoading && (communityQ.isLoading || !guardChecked || !communityId || !initialReady)
+  const showBlockingLoading = isHomeDashboardPage && !hasShownHomeLoading && (communityBriefQ.isLoading || !guardChecked || !community.id || !initialReady)
 
   return (
     <div className="min-h-screen">
@@ -239,12 +259,12 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
       {isCommunityDashboardPage && guardChecked && (
         <CommunityTopbar 
           slug={String(slug)} 
-          name={communityName} 
+          name={community.name} 
           active={active} 
           onChangeAction={handleTabChange} 
-          imageUrl={communityIcon || undefined}
-          ownerId={ownerId}
-          communityId={communityId}
+          imageUrl={community.icon || undefined}
+          ownerId={community.ownerId}
+          communityId={community.id}
           onToggleSidebar={() => {
             // 대시보드가 아니면 레이아웃 레벨에서 모바일 사이드바 오버레이 토글
             if (!pathname?.includes('/dashboard')) {
@@ -258,10 +278,10 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
         />
       )}
       {/* 비-대시보드 탭에서도 모바일 사이드바 오버레이 제공 (데스크톱에서는 숨김) */}
-      {isCommunityDashboardPage && guardChecked && !pathname?.includes('/dashboard') && communityId && (
+      {isCommunityDashboardPage && guardChecked && !pathname?.includes('/dashboard') && community.id && (
         <CommunitySidebar
-          communityId={communityId}
-          ownerId={ownerId}
+          communityId={community.id}
+          ownerId={community.ownerId}
           active={{ type: 'home' }}
           onSelectHome={() => { router.push(`/${slug}/dashboard`); setIsMobileSidebarOpen(false) }}
           onSelectFeed={() => { router.push(`/${slug}/dashboard`); setIsMobileSidebarOpen(false) }}
@@ -269,8 +289,8 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
           isOpen={isMobileSidebarOpen}
           onClose={() => setIsMobileSidebarOpen(false)}
           hideDesktop
-          communityName={communityName}
-          communityIconUrl={communityIcon}
+          communityName={community.name}
+          communityIconUrl={community.icon}
         />
       )}
       {/* 대시보드 영역은 가드 완료 후 렌더 */}

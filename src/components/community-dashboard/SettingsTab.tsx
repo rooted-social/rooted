@@ -446,12 +446,16 @@ export function SettingsTab({ communityId, mode }: SettingsTabProps) {
               </div>
             </CardHeader>
             <CardContent className="space-y-2.5 px-2 sm:px-4 pb-4">
-              <p className="text-xs text-slate-600">권장 비율: (예: 16:4 ~ 21:9) 가로로 긴 배너가 대시보드 홈 상단에 노출됩니다.</p>
+              <p className="text-xs text-slate-600">권장 비율: 16:4, 가로로 긴 배너가 대시보드 홈 상단에 노출됩니다.</p>
               <div className="rounded-2xl overflow-hidden border border-slate-200 bg-slate-50">
                 {values.banner_url ? (
-                  <img src={values.banner_url} alt="banner" className="w-full h-40 md:h-56 lg:h-60 object-cover" />
+                  <div className="relative w-full" style={{ aspectRatio: '16 / 4' }}>
+                    <img src={values.banner_url} alt="banner" className="absolute inset-0 w-full h-full object-cover" />
+                  </div>
                 ) : (
-                  <div className="w-full h-40 md:h-56 lg:h-60 flex items-center justify-center text-slate-500 text-sm">루트를 대표하는 배너 이미지를 등록해보세요!</div>
+                  <div className="relative w-full" style={{ aspectRatio: '16 / 4' }}>
+                    <div className="absolute inset-0 flex items-center justify-center text-slate-500 text-sm">루트를 대표하는 배너 이미지를 등록해보세요! (16:4)</div>
+                  </div>
                 )}
               </div>
             </CardContent>

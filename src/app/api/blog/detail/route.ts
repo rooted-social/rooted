@@ -58,17 +58,15 @@ export async function GET(req: NextRequest) {
       .maybeSingle()
 
     // 좋아요/댓글 카운트 및 liked 여부, 댓글 목록
-    const [likesRes, commentsRes, likedRes, commentsListRes] = await Promise.all([
-      supabase.from('community_page_blog_likes').select('post_id').eq('post_id', id),
-      supabase.from('community_page_blog_comments').select('post_id').eq('post_id', id),
+    const [likesCountRes, likedRes, commentsListRes] = await Promise.all([
+      supabase.from('community_page_blog_likes').select('*', { count: 'exact', head: true }).eq('post_id', id),
       supabase.from('community_page_blog_likes').select('id').eq('post_id', id).eq('user_id', authUserId).maybeSingle(),
       supabase.from('community_page_blog_comments').select('id, post_id, user_id, content, created_at').eq('post_id', id).order('created_at', { ascending: true }),
     ])
 
-    const likeCount = (likesRes.data || []).length
-    const commentCount = (commentsRes.data || []).length
-
+    const likeCount = likesCountRes.count || 0
     const cRows = (commentsListRes.data || []) as any[]
+    const commentCount = cRows.length
     const cUserIds = Array.from(new Set(cRows.map(r => r.user_id)))
     let cProfileMap: Record<string, any> = {}
     if (cUserIds.length > 0) {

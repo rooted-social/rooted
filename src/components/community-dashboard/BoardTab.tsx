@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useRef } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -67,6 +68,8 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [isOwner, setIsOwner] = useState<boolean>(false)
   const [editOpen, setEditOpen] = useState<boolean>(false)
+  const queryClient = useQueryClient()
+  const [refreshTick, setRefreshTick] = useState(0)
 
   // 브랜드 컬러는 컨텍스트에서 제공 (중복 DB 요청 제거)
 
@@ -90,48 +93,60 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
     return chars.length > max ? chars.slice(0, max).join('') + '…' : chars.join('')
   }
 
-  const load = async () => {
-    setLoading(true)
-    try {
+  // Feed query (키 기반 dedupe + 캐시)
+  const { data: feedData, isLoading: feedLoading } = useQuery({
+    queryKey: ['feed', communityId, page, pageId ?? 'null', refreshTick],
+    queryFn: async () => {
       const offset = (page - 1) * pageSize
-      const { posts: data, likeCounts: likeMap, commentCounts: cMap, totalCount: tc } = await fetchFeed(communityId, { pageId, limit: pageSize, offset })
-      setPosts(data as any)
-      setTotalCount(tc || 0)
-      // 실제 카테고리는 서버에서 가져오기(존재 시)
-      try {
-        const serverCategories = await getCategories(communityId)
-        if (serverCategories && serverCategories.length > 0) {
-          setCategories(serverCategories.map(c => ({ id: c.id, name: c.name, parent_id: c.parent_id || null })))
-        } else {
-          setCategories([])
-        }
-      } catch { setCategories([]) }
-      // 좋아요 카운트 로드: N회 요청 → 1회 요청으로 집계
-      setLikeCounts(likeMap)
+      return await fetchFeed(communityId, { pageId, limit: pageSize, offset, force: refreshTick > 0 })
+    },
+    staleTime: 120000,
+    retry: 1,
+    refetchOnWindowFocus: false,
+  })
+
+  // Categories query (존재 시 로드)
+  const { data: categoryData } = useQuery({
+    queryKey: ['categories', communityId],
+    queryFn: async () => {
+      try { return await getCategories(communityId) } catch { return [] as any[] }
+    },
+    staleTime: 300000,
+    refetchOnWindowFocus: false,
+  })
+
+  // Query 결과를 로컬 상태에 반영 (기존 렌더 로직 유지)
+  useEffect(() => {
+    setLoading(feedLoading)
+  }, [feedLoading])
+
+  useEffect(() => {
+    if (!feedData) return
+    const { posts: data, likeCounts: likeMap, commentCounts: cMap, totalCount: tc } = feedData as any
+    setPosts(data as any)
+    setTotalCount(tc || 0)
+    setLikeCounts(likeMap || {})
+    setCommentCountsMap(cMap || {})
+    ;(async () => {
       try {
         const ids = (data || []).map((pp: any) => pp.id)
-        const map = await getHasLikedMap(ids)
-        setLikedMap(map)
+        if (ids.length > 0) {
+          const map = await getHasLikedMap(ids)
+          setLikedMap(map)
+        } else {
+          setLikedMap({})
+        }
       } catch {}
-      setCommentCountsMap(cMap)
-    } catch (err: any) {
-      // 서버 에러 등으로 피드 로드 실패 시 안전하게 빈 목록 표시
-      setPosts([])
-      setTotalCount(0)
-      toast.error(err?.message || '피드를 불러오지 못했습니다.')
-    } finally {
-      setLoading(false)
-    }
-  }
+    })()
+  }, [feedData])
 
-  // StrictMode 중복 호출 방지: communityId + page + pageId 단위로 dedupe
-  const lastFetchKeyRef = useRef<string | null>(null)
   useEffect(() => {
-    const key = `${communityId}:${page}:${pageId ?? 'null'}`
-    if (lastFetchKeyRef.current === key) return
-    lastFetchKeyRef.current = key
-    load()
-  }, [communityId, page, pageId])
+    const rows = (categoryData || []) as any[]
+    if (rows.length > 0) setCategories(rows.map(c => ({ id: c.id, name: c.name, parent_id: c.parent_id || null })))
+    else setCategories([])
+  }, [categoryData])
+
+  // StrictMode 중복 호출 로직은 React Query 키 기반으로 대체
 
   useEffect(() => {
     // 내 프로필 이미지 로드(로그인 사용자 기준)
@@ -156,13 +171,8 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
       setTitle("")
       setContent("")
       setOpen(false)
-      // 새 글 즉시 반영: 캐시 우회 강제 새로고침
-      try {
-        const { posts: data, likeCounts: likeMap, commentCounts: cMap } = await fetchFeed(communityId, { pageId, force: true })
-        setPosts(data as any)
-        setLikeCounts(likeMap)
-        setCommentCountsMap(cMap)
-      } catch { await load() }
+      // 새 글 즉시 반영: 피드 쿼리 무효화
+      await queryClient.invalidateQueries({ queryKey: ['feed'] })
       toast.success("게시글이 작성되었습니다.")
     } catch (err: any) {
       toast.error(err?.message || '글 작성 중 오류가 발생했습니다.')
@@ -177,7 +187,7 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
       setTitle("")
       setContent("")
       setEditOpen(false)
-      await load()
+      await queryClient.invalidateQueries({ queryKey: ['feed'] })
       toast.success('게시글이 수정되었습니다.')
     } catch (err: any) {
       toast.error(err?.message || '수정 중 오류가 발생했습니다.')
@@ -187,13 +197,8 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
   const handleDelete = async (postId: string) => {
     try {
       await deletePost(postId)
-      // 삭제 직후 즉시 반영: 강제 새로고침
-      try {
-        const { posts: data, likeCounts: likeMap, commentCounts: cMap } = await fetchFeed(communityId, { pageId, force: true })
-        setPosts(data as any)
-        setLikeCounts(likeMap)
-        setCommentCountsMap(cMap)
-      } catch { await load() }
+      // 삭제 직후 즉시 반영: 피드 쿼리 무효화
+      await queryClient.invalidateQueries({ queryKey: ['feed'] })
       toast.success('게시글이 삭제되었습니다.')
     } catch (err: any) {
       toast.error(err?.message || '삭제 중 오류가 발생했습니다.')
@@ -288,7 +293,7 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
   }
 
   const loadComments = async (postId: string) => {
-    const { getComments, createComment } = await import("@/lib/communities")
+    const { getComments } = await import("@/lib/communities")
     const cs = await getComments(postId)
     setComments(prev => ({ ...prev, [postId]: cs }))
     setCommentCountsMap(prev => ({ ...prev, [postId]: (cs || []).length }))
@@ -298,12 +303,26 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
     const text = commentInputs[postId]?.trim()
     if (!text) return
     try {
+      // 낙관적 추가
+      const tempId = `temp-${Date.now()}`
+      const optimistic = {
+        id: tempId,
+        content: text,
+        created_at: new Date().toISOString(),
+        author: { full_name: '나', username: 'me', avatar_url: meAvatar, updated_at: null },
+      }
+      setComments(prev => ({ ...prev, [postId]: [...(prev[postId] || []), optimistic] }))
+      setCommentCountsMap(prev => ({ ...prev, [postId]: (prev[postId] ?? 0) + 1 }))
+      setCommentInputs(prev => ({ ...prev, [postId]: '' }))
+
       const { createComment } = await import("@/lib/communities")
       await createComment({ post_id: postId, content: text })
-      setCommentInputs(prev => ({ ...prev, [postId]: '' }))
+      // 서버 확정본으로 재동기화
       await loadComments(postId)
       toast.success('댓글이 등록되었습니다.')
     } catch (err: any) {
+      // 롤백
+      await loadComments(postId)
       toast.error(err?.message || '댓글 작성 중 오류가 발생했습니다.')
     }
   }
@@ -348,12 +367,8 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
                         setInlineContent("")
                         setExpanded(false)
                         
-                        try {
-                          const { posts: data, likeCounts: likeMap, commentCounts: cMap } = await fetchFeed(communityId, { pageId, force: true })
-                          setPosts(data as any)
-                          setLikeCounts(likeMap)
-                          setCommentCountsMap(cMap)
-                        } catch { await load() }
+                        await queryClient.invalidateQueries({ queryKey: ['feed'] })
+                        setRefreshTick(t => t + 1)
                         toast.success('게시글이 작성되었습니다.')
                       } catch (err: any) {
                         if (err?.message?.includes('로그인')) toast.error('로그인이 필요합니다.')
@@ -381,12 +396,8 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
                         setInlineContent("")
                         setExpanded(false)
                         
-                        try {
-                          const { posts: data, likeCounts: likeMap, commentCounts: cMap } = await fetchFeed(communityId, { pageId, force: true })
-                          setPosts(data as any)
-                          setLikeCounts(likeMap)
-                          setCommentCountsMap(cMap)
-                        } catch { await load() }
+                        await queryClient.invalidateQueries({ queryKey: ['feed'] })
+                        setRefreshTick(t => t + 1)
                         toast.success('게시글이 작성되었습니다.')
                       } catch (err: any) {
                         if (err?.message?.includes('로그인')) toast.error('로그인이 필요합니다.')
@@ -521,7 +532,8 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
                       setTitle("")
                       setContent("")
                       setOpen(false)
-                      await load()
+                      await queryClient.invalidateQueries({ queryKey: ['feed'] })
+                      setRefreshTick(t => t + 1)
                     }}
                     disabled={!title.trim() || !content.trim()}
                     className="rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 px-6"
@@ -684,11 +696,11 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
                                   rows={3}
                                 />
                                 <div className="flex justify-end gap-3">
-                                  <Button size="sm" variant="outline" className="rounded-2xl" onClick={async (e) => { e.stopPropagation(); const { updateComment } = await import('@/lib/communities'); const text = (commentEditInputs[c.id] ?? c.content) || ''; if (!text.trim()) return; await updateComment(c.id, { content: text }); await loadComments(p.id); (e.currentTarget.closest('[data-slot=dialog-content]')?.querySelector('[data-slot=dialog-close]') as HTMLElement)?.click(); toast.success('댓글이 수정되었습니다.') }}>
+                                  <Button size="sm" variant="outline" className="rounded-2xl" onClick={async (e) => { e.stopPropagation(); const { updateComment } = await import('@/lib/communities'); const text = (commentEditInputs[c.id] ?? c.content) || ''; if (!text.trim()) return; const prev = comments[p.id] || []; setComments(prevMap => ({ ...prevMap, [p.id]: prev.map(x => x.id === c.id ? { ...x, content: text } : x) })); await updateComment(c.id, { content: text }); await loadComments(p.id); (e.currentTarget.closest('[data-slot=dialog-content]')?.querySelector('[data-slot=dialog-close]') as HTMLElement)?.click(); toast.success('댓글이 수정되었습니다.') }}>
                                     <Edit3 className="w-4 h-4 mr-2" />
                                     수정
                                   </Button>
-                                  <Button size="sm" variant="destructive" className="rounded-2xl" onClick={async (e) => { e.stopPropagation(); const { deleteComment } = await import('@/lib/communities'); await deleteComment(c.id); await loadComments(p.id); toast.success('댓글이 삭제되었습니다.') }}>
+                                  <Button size="sm" variant="destructive" className="rounded-2xl" onClick={async (e) => { e.stopPropagation(); const { deleteComment } = await import('@/lib/communities'); const prev = comments[p.id] || []; setComments(prevMap => ({ ...prevMap, [p.id]: prev.filter(x => x.id !== c.id) })); setCommentCountsMap(m => ({ ...m, [p.id]: Math.max(0, (m[p.id] ?? prev.length) - 1) })); await deleteComment(c.id); await loadComments(p.id); toast.success('댓글이 삭제되었습니다.') }}>
                                     <Trash2 className="w-4 h-4 mr-2" />
                                     삭제
                                   </Button>

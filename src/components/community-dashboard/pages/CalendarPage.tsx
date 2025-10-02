@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -51,19 +52,20 @@ export default function CalendarPage({ communityId }: { communityId: string }) {
   const todayEvents = useMemo(() => events.filter(e => e.start_at.slice(0,10) === todayStr), [events, todayStr])
   const upcoming = useMemo(() => events.filter(e => e.start_at.slice(0,10) > todayStr).sort((a,b)=> a.start_at.localeCompare(b.start_at)).slice(0,5), [events, todayStr])
 
-  const load = async () => {
-    setLoading(true)
-    try {
-      const { events: list, isOwner, brandColor } = await getCalendarOverview(communityId)
-      setEvents(list as any)
-      setIsOwner(isOwner)
-      setBrandColor(brandColor)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => { void load() }, [communityId])
+  const queryClient = useQueryClient()
+  const { data: calData, isFetching: loadingOverview } = useQuery({
+    queryKey: ['calendar.overview', communityId, user?.id || 'guest'],
+    queryFn: async () => await getCalendarOverview(communityId),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  })
+  useEffect(() => {
+    if (!calData) return
+    setEvents(calData.events || [])
+    setIsOwner(!!calData.isOwner)
+    setBrandColor(calData.brandColor || null)
+    setLoading(false)
+  }, [calData])
 
   // 오너 판별은 overview에서 함께 처리
 
@@ -83,7 +85,7 @@ export default function CalendarPage({ communityId }: { communityId: string }) {
     })
     setOpen(false)
     setForm(prev => ({ ...prev, title: "", description: "" }))
-    await load()
+    await queryClient.invalidateQueries({ queryKey: ['calendar.overview', communityId] })
   }
 
   // 매우 간단한 월 캘린더 렌더링
@@ -414,12 +416,12 @@ export default function CalendarPage({ communityId }: { communityId: string }) {
                   </div>
                   {isOwner && (
                     <div className="flex items-center gap-2">
-                      <EditEventButton event={detail} onUpdated={async()=>{ await load(); }} />
+                      <EditEventButton event={detail} onUpdated={async()=>{ await queryClient.invalidateQueries({ queryKey: ['calendar.overview', communityId] }); }} />
                       <Button 
                         size="sm" 
                         variant="destructive" 
                         className="cursor-pointer rounded-2xl hover:scale-105 transition-transform"
-                        onClick={async()=>{ try { await deleteCommunityEvent(detail.id); setDetail(null); await load() } catch(e){} }}
+                        onClick={async()=>{ try { await deleteCommunityEvent(detail.id); setDetail(null); await queryClient.invalidateQueries({ queryKey: ['calendar.overview', communityId] }) } catch(e){} }}
                       >
                         삭제
                       </Button>

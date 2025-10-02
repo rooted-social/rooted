@@ -105,6 +105,18 @@ export async function GET(req: NextRequest) {
       canManage,
       upcomingEvents: Array.isArray(eventsRows) ? eventsRows : [],
       recentActivity: recent,
+      // 추가: 페이지 목록을 함께 반환하여 클라이언트/서버에서 왕복 1회로 통합
+      pages: await (async () => {
+        try {
+          const { data: pages } = await supabase
+            .from('community_pages')
+            .select('id,title,group_id,position,type')
+            .eq('community_id', communityId)
+            .order('group_id', { ascending: true, nullsFirst: true })
+            .order('position', { ascending: true })
+          return pages || []
+        } catch { return [] }
+      })(),
     }
     return new Response(JSON.stringify(payload), { 
       status: 200, 

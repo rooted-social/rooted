@@ -182,7 +182,7 @@ export default function HomePage() {
           </div>
           <div className="mt-5 overflow-hidden">
             <p className="text-slate-100 text-base sm:text-lg will-change-transform reveal-line" style={{ animationDelay: '280ms' }}>
-              멤버십, 이벤트, 클래스, 멤버 관리를 — 한 곳에서.
+              멤버십, 클래스, 일정, 멤버 관리를 — 한 곳에서.
             </p>
           </div>
           <div className="mt-8 overflow-visible relative z-[60]">

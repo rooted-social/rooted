@@ -96,8 +96,19 @@ export function HomeTab({ communityId, slug, initial }: HomeTabProps) {
       {/* 상단 전체 배너 */}
       {settings?.banner_url && (
         <div className="lg:col-span-3 -mt-0 md:mt-0">
-          <div className="relative w-full overflow-hidden rounded-3xl border border-slate-200/50 shadow-sm">
-            <div className="relative w-full h-40 md:h-56 lg:h-60">
+          <div className="relative w-full overflow-hidden rounded-xl border border-slate-200/50 shadow-sm">
+            {/* 모바일: 세로 여유(16:3), 데스크탑: 16:4 */}
+            <div className="relative w-full md:hidden" style={{ aspectRatio: '16 / 4.5' }}>
+              <Image
+                src={settings.banner_url}
+                alt="커뮤니티 배너"
+                fill
+                sizes="100vw"
+                className="object-cover"
+                priority
+              />
+            </div>
+            <div className="relative w-full hidden md:block" style={{ aspectRatio: '16 / 3.5' }}>
               <Image
                 src={settings.banner_url}
                 alt="커뮤니티 배너"
@@ -114,7 +125,7 @@ export function HomeTab({ communityId, slug, initial }: HomeTabProps) {
       {(() => { const brandColor = settings?.brand_color || contextBrandColor || undefined; return (
       <div className="lg:col-span-2 space-y-6 min-w-0 max-w-full">
         {/* 1) Our Mission */}
-        <div className="rounded-3xl shadow-sm bg-white/60 backdrop-blur-md border" style={{ borderColor: withAlpha(brandColor || '#0f172a', 0.18) }}>
+        <div className="rounded-xl shadow-sm bg-white/60 backdrop-blur-md border" style={{ borderColor: withAlpha(brandColor || '#0f172a', 0.18) }}>
           <div className="p-6">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center border shadow-sm" style={{ backgroundColor: withAlpha(brandColor || '#0f172a', 0.08), borderColor: withAlpha(brandColor || '#0f172a', 0.25) }}>
@@ -264,7 +275,7 @@ function NoticesSection({
 
   return (
     <>
-              <div className="rounded-3xl shadow-sm bg-white/60 backdrop-blur-md border" style={{ borderColor: withAlpha(brandColor || '#0f172a', 0.18) }}>
+              <div className="rounded-xl shadow-sm bg-white/60 backdrop-blur-md border" style={{ borderColor: withAlpha(brandColor || '#0f172a', 0.18) }}>
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
@@ -496,7 +507,7 @@ function UpcomingEventsCard({ items, brandColor }: { items: { id: string; title:
   }, [open, selected, user?.id])
 
   return (
-    <div className="rounded-3xl shadow-sm bg-white/60 backdrop-blur-md border" style={{ borderColor: withAlpha(brandColor || '#0f172a', 0.18) }}>
+    <div className="rounded-xl shadow-sm bg-white/60 backdrop-blur-md border" style={{ borderColor: withAlpha(brandColor || '#0f172a', 0.18) }}>
       <div className="p-6">
         <div className="flex items-center gap-2 mb-6">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center border shadow-sm" style={{ backgroundColor: withAlpha(brandColor || '#0f172a', 0.08), borderColor: withAlpha(brandColor || '#0f172a', 0.25) }}>
@@ -687,7 +698,7 @@ function RecentActivityCard({ items: rawItems, slug, brandColor }: { items: { id
   }
 
   return (
-    <div className="rounded-3xl shadow-sm bg-white/60 backdrop-blur-md border" style={{ borderColor: withAlpha(brandColor || '#0f172a', 0.18) }}>
+    <div className="rounded-xl shadow-sm bg-white/60 backdrop-blur-md border" style={{ borderColor: withAlpha(brandColor || '#0f172a', 0.18) }}>
       <div className="p-6">
         <div className="flex items-center gap-2 mb-6">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center border shadow-sm" style={{ backgroundColor: withAlpha(brandColor || '#0f172a', 0.08), borderColor: withAlpha(brandColor || '#0f172a', 0.25) }}>
