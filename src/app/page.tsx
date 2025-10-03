@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 // 기존 AnimatedBackground 제거
 // HeroOrbs 제거
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import { useAuthData } from "@/components/auth/AuthProvider"
 import HeroConnections from "@/components/HeroConnections"
 import { fetchExploreCommunities } from "@/lib/dashboard"
@@ -28,6 +29,7 @@ export default function HomePage() {
   const ctaRef = useRef<HTMLDivElement>(null)
   const [popularVisible, setPopularVisible] = useState(false)
   const popularRef = useRef<HTMLDivElement>(null)
+  const [desiredSlug, setDesiredSlug] = useState("")
 
   useEffect(() => {
     ;(async () => {
@@ -120,6 +122,23 @@ export default function HomePage() {
     return () => observer.disconnect()
   }, [])
 
+  const generateSlug = (name: string) =>
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
+
+  const handleCreateCta = () => {
+    const target = desiredSlug ? `/create?slug=${encodeURIComponent(desiredSlug)}` : "/create"
+    if (user) {
+      router.push(target)
+      return
+    }
+    try { if (typeof window !== 'undefined') localStorage.setItem('rooted:return_to', target) } catch {}
+    router.push('/signup')
+  }
+
   // 인기 섹션 타이틀: 스크롤 진입 시 애니메이션
   useEffect(() => {
     const el = popularRef.current
@@ -174,32 +193,54 @@ export default function HomePage() {
 
         {/* 콘텐츠 */}
         <div className="relative z-30 text-center px-6 max-w-3xl">
+          {/* 상단 뱃지 (히어로 상단) */}
+          <div className="overflow-hidden">
+            <div className="inline-block will-change-transform reveal-line" style={{ animationDelay: '20ms' }}>
+              <div className="relative inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-white/70 bg-gradient-to-r from-slate-50/95 via-slate-100/95 to-slate-200/90 text-slate-800 text-sm font-semibold mb-4 ring-1 ring-white/60 backdrop-blur-sm shadow-[0_0_0_3px_rgba(255,255,255,0.02),_0_10px_30px_rgba(2,6,23,0.06)]">
+                <span className="inline-block size-1.5 rounded-full bg-slate-500/90" />
+                <span>Connect deeply, Grow widely</span>
+                <span className="pointer-events-none absolute inset-0 overflow-hidden rounded-full">
+                  <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-60 animate-[shine_1.8s_linear_infinite]" />
+                </span>
+              </div>
+            </div>
+          </div>
           <div className="overflow-hidden">
             <h1 className="text-white text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight leading-[1.05]">
-              <span className="block will-change-transform reveal-line" style={{ animationDelay: '40ms' }}>Your Community</span>
-              <span className="block will-change-transform reveal-line" style={{ animationDelay: '160ms' }}>Platform</span>
+              <span className="block will-change-transform reveal-line" style={{ animationDelay: '80ms' }}>Your Community</span>
+              <span className="block will-change-transform reveal-line" style={{ animationDelay: '200ms' }}>Platform</span>
             </h1>
           </div>
           <div className="mt-5 overflow-hidden">
-            <p className="text-slate-100 text-base sm:text-lg will-change-transform reveal-line" style={{ animationDelay: '280ms' }}>
-              멤버십, 클래스, 일정, 멤버 관리를 — 한 곳에서.
+            <p className="text-slate-100 text-base sm:text-lg will-change-transform reveal-line" style={{ animationDelay: '380ms' }}>
+              멤버십, 클래스, 소통, 일정, 멤버 관리 — 한 곳에서.
             </p>
           </div>
           <div className="mt-8 overflow-visible relative z-[60]">
-            <button
-              onClick={() => router.push(user ? '/create' : '/login')}
-              className="group relative z-[60] inline-flex items-center gap-2 px-8 sm:px-9 py-3.5 rounded-2xl font-semibold cursor-pointer transition-all duration-300 text-slate-900 bg-white/95 hover:bg-white/100 backdrop-blur-xl backdrop-saturate-150 border border-white/70 ring-1 ring-white/70 hover:ring-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 shadow-[0_10px_36px_rgba(255,255,255,0.18),_0_18px_60px_rgba(2,6,23,0.10)] hover:shadow-[0_14px_48px_rgba(255,255,255,0.24),_0_26px_80px_rgba(2,6,23,0.14)] hover:-translate-y-0.5 active:translate-y-0 overflow-hidden will-change-transform reveal-line"
-              style={{ animationDelay: '340ms' }}
-            >
-              {/* glow behind */}
-              <span className="pointer-events-none absolute -inset-1 rounded-full bg-white/40 blur-lg opacity-70 group-hover:opacity-90 transition-opacity duration-300" />
-              {/* label */}
-              <span className="relative z-10">나의 커뮤니티 생성하기</span>
-              {/* shimmer sweep */}
-              <span className="pointer-events-none absolute inset-0 overflow-hidden rounded-full z-10">
-                <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/80 to-transparent opacity-80 group-hover:animate-[shine_1.1s_ease-out]" />
-              </span>
-            </button>
+            <div className="mx-auto w-full max-w-xl flex flex-col sm:flex-row items-stretch gap-2 sm:gap-3 will-change-transform reveal-line" style={{ animationDelay: '440ms' }}>
+              <div className="flex-1">
+                <div className="flex items-center overflow-hidden rounded-2xl bg-white/95 backdrop-blur-xl border border-white/70 ring-1 ring-white/70 focus-within:ring-2 focus-within:ring-white/90">
+                  <span className="pl-4 pr-0 text-slate-500 select-none">rooted.kr/</span>
+                  <Input
+                    value={desiredSlug}
+                    onChange={(e)=> setDesiredSlug(generateSlug(e.target.value))}
+                    placeholder="your-community"
+                    className="h-12 border-0 bg-transparent pl-0 pr-3 focus-visible:ring-0 focus:outline-none text-slate-900 placeholder:text-slate-400"
+                  />
+                </div>
+              </div>
+              <button
+                onClick={handleCreateCta}
+                className="group relative z-[60] inline-flex items-center justify-center gap-2 px-6 sm:px-7 h-12 rounded-2xl font-semibold cursor-pointer transition-all duration-300 text-white bg-sky-500 hover:bg-sky-400 border border-sky-300/60 ring-1 ring-sky-300/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200 shadow-[0_3px_12px_rgba(14,165,233,0.30),_0_10px_60px_rgba(14,165,233,0.25)] hover:shadow-[0_5px_10px_rgba(14,165,233,0.30),_0_10px_20px_rgba(14,165,233,0.35)] hover:-translate-y-0.5 active:translate-y-0 overflow-hidden w-full sm:w-auto"
+              >
+                {/* outer glow */}
+                <span className="pointer-events-none absolute -inset-1 rounded-2xl bg-sky-300/30 blur-lg" />
+                {/* sweep shimmer */}
+                <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/60 to-transparent opacity-80 group-hover:animate-[shine_1.1s_ease-out] rounded-2xl" />
+                {/* label */}
+                <span className="relative z-10">내 커뮤니티 생성하기</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -213,6 +254,7 @@ export default function HomePage() {
             60% { opacity: 1; }
             100% { transform: translateY(0%); opacity: 1; }
           }
+          @keyframes shine { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
           .reveal-line {
             animation: reveal 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
           }
