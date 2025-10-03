@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { createCommunity } from "@/lib/communities"
 import { checkSlugAvailable } from "@/lib/community-utils"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import AnimatedBackground from "@/components/AnimatedBackground"
 import { COMMUNITY_CATEGORIES } from '@/lib/constants'
 import { Sparkles, FlaskConical, Sprout } from "lucide-react"
@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 export default function CreatePage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [isCreating, setIsCreating] = useState(false)
   const [slugCheckLoading, setSlugCheckLoading] = useState(false)
   const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null)
@@ -53,6 +54,15 @@ export default function CreatePage() {
   const generateSlug = (name: string) =>
     name.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "")
 
+  // 쿼리의 slug 프리필 처리
+  useEffect(() => {
+    const s = searchParams?.get('slug') || ""
+    if (s) {
+      setFormData(prev => ({ ...prev, slug: generateSlug(s) }))
+      setSlugAvailable(null)
+    }
+  }, [searchParams])
+
   const performCreate = async () => {
     if (!formData.name.trim() || !formData.description.trim() || !formData.slug.trim()) return
     if (slugAvailable === false) return
@@ -77,8 +87,8 @@ export default function CreatePage() {
   return (
     <div className="min-h-screen relative">
       <AnimatedBackground />
-      <main className="relative px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 pt-10 pb-24 z-10">
-        <div className="w-full max-w-3xl mx-auto">
+      <main className="relative px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 pt-10 md:pt-20 pb-24 z-10">
+        <div className="w-full max-w-4xl mx-auto">
           <div className="mb-6 text-center">
             <div className="flex items-center justify-center gap-3 mb-2">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-500 flex items-center justify-center shadow-lg ring-2 ring-white/60">
@@ -86,7 +96,7 @@ export default function CreatePage() {
               </div>
               <h1 className="text-3xl font-bold text-slate-900 tracking-tight">새 루트 만들기</h1>
             </div>
-            <p className="text-slate-600 mt-1">진정한 커뮤니티로 연결과 성장을 시작하세요!</p>
+            <p className="text-slate-600 mt-2">이제는 한 곳에서 커뮤니티를 관리해보세요!</p>
           </div>
 
           <Card className="backdrop-blur-sm bg-white/80 border-2 border-slate-500 shadow-xl rounded-3xl">

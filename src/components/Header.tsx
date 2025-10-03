@@ -37,8 +37,11 @@ export function Header() {
   const isActive = (href: string) => pathname === href
   // 특정 페이지에서는 캡슐을 화이트 톤으로 전환
   const useWhiteCapsule = pathname === '/explore' || pathname === '/features' || pathname === '/pricing' || pathname === '/dashboard' || pathname === '/create' || pathname === '/notifications' || isCommunityRootPage
-  const gradientBg = 'linear-gradient(135deg, #f8fafc 0%, #e5e7eb 20%, #cbd5e1 50%, #f1f5f9 75%, #d1d5db 100%)'
-  const capsuleStyle = useWhiteCapsule ? { backgroundColor: '#ffffff' } : { background: gradientBg }
+  const isHome = pathname === '/'
+  const gradientBg = isHome
+    ? 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.95) 25%, rgba(241,245,249,0.95) 50%, rgba(226,232,240,0.95) 75%, rgba(241,245,249,0.95) 100%)'
+    : 'linear-gradient(135deg, #f8fafc 0%, #e5e7eb 20%, #cbd5e1 50%, #f1f5f9 75%, #d1d5db 100%)'
+  const capsuleStyle = (useWhiteCapsule || isHome) ? { backgroundColor: '#ffffff' } : { background: gradientBg }
 
   // 스크롤 방향에 따라 헤더를 부드럽게 숨김/표시 (Hooks는 조건부 호출 금지 - early return 이전에 선언)
   useEffect(() => {
@@ -64,6 +67,25 @@ export function Header() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [showCommunityDropdown, showProfileDropdown, mobileOpen])
 
+  // 드롭다운 영역 밖 클릭 시 닫기 (데스크탑/모바일 공통)
+  useEffect(() => {
+    const onGlobalPointerDown = (e: MouseEvent | TouchEvent) => {
+      if (!(showCommunityDropdown || showProfileDropdown)) return
+      const root = desktopDropdownRef.current
+      const target = e.target as Node | null
+      if (root && target && !root.contains(target)) {
+        setShowCommunityDropdown(false)
+        setShowProfileDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', onGlobalPointerDown, { capture: true })
+    document.addEventListener('touchstart', onGlobalPointerDown, { capture: true })
+    return () => {
+      document.removeEventListener('mousedown', onGlobalPointerDown, { capture: true } as any)
+      document.removeEventListener('touchstart', onGlobalPointerDown, { capture: true } as any)
+    }
+  }, [showCommunityDropdown, showProfileDropdown])
+
   if (isAuthRoute || isCommunityDashboardPage) return null
 
   return (
@@ -71,25 +93,15 @@ export function Header() {
       {/* 외부 클릭으로 데스크탑 드롭다운 닫기 */}
       {(showCommunityDropdown || showProfileDropdown) && (
         <div
-          className="hidden md:block fixed inset-0 z-40"
+          className="fixed inset-0 z-40"
           onClick={() => { setShowCommunityDropdown(false); setShowProfileDropdown(false) }}
           aria-hidden
         />
       )}
-      <div className="mx-auto max-w-7xl px-4 lg:px-6">
+      <div className="mx-auto max-w-7xl px-4 lg:px-12">
         <div className="h-12 md:h-20 grid grid-cols-3 items-center md:flex md:justify-between">
-          {/* 좌측: 로고 (Desktop 캡슐) */}
-          <Link href="/" className="hidden md:flex items-center hover:opacity-95">
-            <span
-              className="inline-flex items-center gap-2 rounded-md border px-6 py-3 h-11 transition-transform duration-200 hover:-translate-y-0.5 shadow-[0_0_14px_rgba(148,163,184,0.28)] hover:shadow-[0_0_20px_rgba(148,163,184,0.4)] border-slate-300"
-              style={capsuleStyle}
-            >
-              <Image src="/logos/logo_icon.png" alt="Rooted 아이콘" width={24} height={24} className="w-6 h-6" priority />
-              <span className="relative" style={{ width: 72, height: 18 }}>
-                <Image src="/logos/logo_main.png" alt="Rooted" fill priority sizes="100px" className="object-contain" />
-              </span>
-            </span>
-          </Link>
+          {/* 좌측: 로고 (Desktop) - 통합 캡슐로 이동, 기존 캡슐 숨김 */}
+          <Link href="/" className="hidden" />
 
           {/* 모바일: 좌측 영역 */}
           {isCommunityRootPage ? (
@@ -125,158 +137,166 @@ export function Header() {
             <div className="md:hidden" />
           )}
 
-          {/* 중앙: 메뉴 (커뮤니티 상세 루트 페이지에서는 데스크탑에서 숨김) */}
-          {!isCommunityRootPage && (
-          <nav className="hidden md:flex items-center">
-            <div
-              className="h-11 px-6 rounded-md text-slate-900 border border-slate-300 shadow-[0_0_14px_rgba(148,163,184,0.28)] hover:shadow-[0_0_20px_rgba(148,163,184,0.4)] flex items-center"
-              style={capsuleStyle}
-            >
-              <ul className="flex items-center gap-3 text-base">
-                <li>
-                  <Link
-                    href="/explore"
-                    className={`px-3 py-1 rounded-lg inline-block transition-colors duration-200 transform transition-transform ${isActive('/explore') ? 'text-slate-900 font-bold scale-[1.05]' : 'text-slate-900 hover:text-slate-900'} hover:scale-103`}
-                  >
-                    루트 둘러보기
-                  </Link>
-                </li>
-                <li aria-hidden className="h-5 w-px bg-slate-300/70" />
-                <li>
-                  <Link
-                    href="/features"
-                    className={`px-3 py-1 rounded-lg inline-block transition-colors duration-200 transform transition-transform ${isActive('/features') ? 'text-slate-900 font-bold scale-[1.05]' : 'text-slate-900 hover:text-slate-900'} hover:scale-103`}
-                  >
-                    서비스
-                  </Link>
-                </li>
-                <li aria-hidden className="h-5 w-px bg-slate-300/70" />
-                <li>
-                  <Link
-                    href="/pricing"
-                    className={`px-3 py-1 rounded-lg inline-block transition-colors duration-200 transform transition-transform ${isActive('/pricing') ? 'text-slate-900 font-bold scale-[1.05]' : 'text-slate-900 hover:text-slate-900'} hover:scale-103`}
-                  >
-                    가격 안내
-                  </Link>
-                </li>
-              </ul>
-            </div>
-          </nav>
-          )}
+          {/* 중앙: 메뉴 (Desktop) - 통합 캡슐로 이동, 기존 캡슐 숨김 */}
+          {!isCommunityRootPage && (<nav className="hidden" />)}
 
-          {/* 우측: 알림+루트+프로필 통합 캡슐 */}
-          <div className="hidden md:flex items-center">
-            <div
-              className="relative inline-flex items-center gap-2 rounded-md border border-slate-300 px-3.5 h-11 shadow-[0_0_14px_rgba(148,163,184,0.28)] hover:shadow-[0_0_20px_rgba(148,163,184,0.4)]"
-              style={capsuleStyle}
-              ref={desktopDropdownRef}
-            >
-              {user && (
-                <Link href="/notifications" className="relative p-2 rounded-full hover:bg-white/50 transition-colors cursor-pointer">
-                  <Bell className="w-5 h-5 text-slate-900" />
-                  {unreadCount > 0 && <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-red-500" />}
-                </Link>
-              )}
-              {user && <div className="h-6 w-px bg-slate-300/70" />}
-              {user && (
-                <>
-                  <button
-                    onClick={() => { setShowCommunityDropdown(v => !v); setShowProfileDropdown(false) }}
-                    className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full hover:bg-white/50 transition-colors cursor-pointer"
-                    aria-haspopup="menu"
-                    aria-expanded={showCommunityDropdown}
-                    title="내 커뮤니티로 이동"
-                  >
-                    <span className="text-sm text-slate-900">My 루트</span>
-                    <ChevronDown className="w-4 h-4 text-slate-600" />
-                  </button>
-                  {showCommunityDropdown && (
-                    <div className="absolute right-0 top-full mt-2 w-72 bg-white border border-slate-200 rounded-xl shadow-lg z-50">
-                      <div className="p-3">
-                        <div className="text-xs text-slate-500 mb-2">나의 루트</div>
-                        <div className="space-y-1 max-h-64 overflow-y-auto">
-                          {myCommunities.map((community) => (
-                            <Link
-                              key={community.id}
-                              href={`/${community.communities?.slug}/dashboard`}
-                              className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors"
-                              onClick={() => setShowCommunityDropdown(false)}
-                            >
-                              <div className="w-8 h-8 rounded-md overflow-hidden bg-slate-100">
-                                {(community.communities as any)?.icon_url || community.communities?.image_url ? (
-                                  <Image src={(community.communities as any).icon_url || (community.communities as any).image_url} alt="icon" width={32} height={32} className="object-cover" />
-                                ) : (
-                                  <div className="w-full h-full bg-slate-900 text-white flex items-center justify-center">
-                                    <span className="text-xs font-medium">{community.communities?.name?.[0]}</span>
-                                  </div>
-                                )}
-                              </div>
-                              <span className="text-sm font-medium text-slate-700 truncate">{community.communities?.name}</span>
-                            </Link>
-                          ))}
-                        </div>
-                        <div className="pt-3">
-                          <Link
-                            href="/explore"
-                            className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-black text-white px-3 py-2 text-sm font-semibold hover:bg-black/90 transition-colors"
-                            onClick={() => setShowCommunityDropdown(false)}
-                          >
-                            다른 커뮤니티 둘러보기
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-              {user && <div className="h-6 w-px bg-slate-300/70" />}
-              {loading ? (
-                <div className="w-8 h-8 rounded-full bg-slate-200 animate-pulse" />
-              ) : user ? (
-                <button
-                  onClick={() => { setShowProfileDropdown(v => !v); setShowCommunityDropdown(false) }}
-                  className="flex items-center gap-2 px-1.5 py-1 rounded-full hover:bg-white/50 transition-colors cursor-pointer"
-                  aria-haspopup="menu"
-                  aria-expanded={showProfileDropdown}
-                  title="프로필 옵션"
-                >
-                  <Avatar className="w-8 h-8">
-                    <AvatarImage src={getAvatarUrl(profile?.avatar_url, profile?.updated_at)} alt="프로필 이미지" />
-                    <AvatarFallback className="text-xs">
-                      {profile?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || '?'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="hidden sm:block text-sm text-slate-900 max-w-[160px] truncate">{profile?.full_name || '사용자'}</span>
-                </button>
-              ) : (
-                <Link href={`/login?next=${encodeURIComponent(pathname || '/')}`} className="inline-flex items-center gap-2 px-3 py-2 rounded-full hover:bg-white/50 transition-colors text-slate-900">
-                  <LogIn className="w-4 h-4" />
-                  <span className="text-sm">로그인</span>
-                </Link>
-              )}
-              {showProfileDropdown && (
-                <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-lg z-50">
-                  <div className="p-2">
-                    <button
-                      className="w-full px-3 py-2 rounded-lg hover:bg-slate-50 text-sm text-center cursor-pointer"
-                      onClick={() => { setShowProfileDropdown(false); router.push('/dashboard') }}
-                    >
-                      프로필 페이지 이동
-                    </button>
-                    <button
-                      className="w-full px-3 py-2 rounded-lg hover:bg-red-50 text-sm text-center text-red-600 cursor-pointer"
-                      onClick={async () => {
-                        try { await supabase.auth.signOut() } catch {}
-                        try { await fetch('/api/auth/clear', { method: 'POST' }) } catch {}
-                        setShowProfileDropdown(false)
-                        router.push('/')
-                      }}
-                    >
-                      로그아웃
-                    </button>
-                  </div>
+          {/* 우측: 통합 캡슐로 이동, 기존 캡슐 숨김 */}
+          <div className="hidden" />
+
+          {/* Desktop: 통합 캡슐 (좌/중/우 정렬) */}
+          <div className="hidden md:flex items-center w-full">
+            <div className={`w-full rounded-lg border h-12 px-3.5 flex items-center gap-3 relative ${isHome ? 'border-white/90 shadow-[0_0_38px_rgba(255,255,255,0.32)] hover:shadow-[0_0_36px_rgba(255,255,255,0.52)] ring-1 ring-white/60 hover:ring-white/80' : 'border-slate-300 shadow-[0_0_14px_rgba(148,163,184,0.28)] hover:shadow-[0_0_20px_rgba(148,163,184,0.4)]'}`} style={capsuleStyle} ref={desktopDropdownRef}>
+              {/* Left: Logo */}
+              <Link href="/" className="flex items-center hover:opacity-95">
+                <Image src="/logos/logo_icon.png" alt="Rooted 아이콘" width={24} height={24} className="w-6 h-6" priority />
+                <span className="relative ml-2" style={{ width: 72, height: 18 }}>
+                  <Image src="/logos/logo_main.png" alt="Rooted" fill priority sizes="100px" className="object-contain" />
+                </span>
+              </Link>
+
+              {/* Center: Menu (absolute center regardless of left/right widths) */}
+              {!isCommunityRootPage && (
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
+                  <ul className="flex items-center gap-3 text-base">
+                    <li>
+                      <Link
+                        href="/explore"
+                        className={`px-3 py-1 rounded-lg inline-block transition-[transform,color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${isActive('/explore') ? 'text-slate-900 font-bold scale-[1.03]' : 'text-slate-900 hover:text-slate-900'} hover:scale-[1.035] hover:-translate-y-[1px]`}
+                      >
+                        루트 둘러보기
+                      </Link>
+                    </li>
+                    <li aria-hidden className="h-5 w-px bg-slate-300/70" />
+                    <li>
+                      <Link
+                        href="/features"
+                        className={`px-3 py-1 rounded-lg inline-block transition-[transform,color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${isActive('/features') ? 'text-slate-900 font-bold scale-[1.03]' : 'text-slate-900 hover:text-slate-900'} hover:scale-[1.035] hover:-translate-y-[1px]`}
+                      >
+                        서비스
+                      </Link>
+                    </li>
+                    <li aria-hidden className="h-5 w-px bg-slate-300/70" />
+                    <li>
+                      <Link
+                        href="/pricing"
+                        className={`px-3 py-1 rounded-lg inline-block transition-[transform,color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${isActive('/pricing') ? 'text-slate-900 font-bold scale-[1.03]' : 'text-slate-900 hover:text-slate-900'} hover:scale-[1.035] hover:-translate-y-[1px]`}
+                      >
+                        가격 안내
+                      </Link>
+                    </li>
+                  </ul>
                 </div>
               )}
+
+              {/* Right: Actions */}
+              <div className="relative ml-auto inline-flex items-center gap-2">
+                {user && (
+                  <Link href="/notifications" className="relative p-2 rounded-full hover:bg-white/50 transition-[transform,background-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform cursor-pointer hover:scale-[1.06] hover:-translate-y-[1px]">
+                    <Bell className="w-5 h-5 text-slate-900" />
+                    {unreadCount > 0 && <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-red-500" />}
+                  </Link>
+                )}
+                {user && <div className="h-6 w-px bg-slate-300/70" />}
+                {user && (
+                  <>
+                    <button
+                      onClick={() => { setShowCommunityDropdown(v => !v); setShowProfileDropdown(false) }}
+                      className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full hover:bg-white/50 transition-[transform,background-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform cursor-pointer hover:scale-[1.04] hover:-translate-y-[1px]"
+                      aria-haspopup="menu"
+                      aria-expanded={showCommunityDropdown}
+                      title="내 커뮤니티로 이동"
+                    >
+                      <span className="text-sm text-slate-900">My 루트</span>
+                      <ChevronDown className="w-4 h-4 text-slate-600" />
+                    </button>
+                    {showCommunityDropdown && (
+                      <div className="absolute right-0 top-full mt-2 w-72 bg-white border border-slate-200 rounded-xl shadow-lg z-50">
+                        <div className="p-3">
+                          <div className="text-xs text-slate-500 mb-2">나의 루트</div>
+                          <div className="space-y-1 max-h-64 overflow-y-auto">
+                            {myCommunities.map((community) => (
+                              <Link
+                                key={community.id}
+                                href={`/${community.communities?.slug}/dashboard`}
+                                className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors"
+                                onClick={() => setShowCommunityDropdown(false)}
+                              >
+                                <div className="w-8 h-8 rounded-md overflow-hidden bg-slate-100">
+                                  {(community.communities as any)?.icon_url || community.communities?.image_url ? (
+                                    <Image src={(community.communities as any).icon_url || (community.communities as any).image_url} alt="icon" width={32} height={32} className="object-cover" />
+                                  ) : (
+                                    <div className="w-full h-full bg-slate-900 text-white flex items-center justify-center">
+                                      <span className="text-xs font-medium">{community.communities?.name?.[0]}</span>
+                                    </div>
+                                  )}
+                                </div>
+                                <span className="text-sm font-medium text-slate-700 truncate">{community.communities?.name}</span>
+                              </Link>
+                            ))}
+                          </div>
+                          <div className="pt-3">
+                            <Link
+                              href="/explore"
+                              className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-black text-white px-3 py-2 text-sm font-semibold hover:bg-black/90 transition-colors"
+                              onClick={() => setShowCommunityDropdown(false)}
+                            >
+                              다른 커뮤니티 둘러보기
+                            </Link>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+                {user && <div className="h-6 w-px bg-slate-300/70" />}
+                {loading ? (
+                  <div className="w-8 h-8 rounded-full bg-slate-200 animate-pulse" />
+                ) : user ? (
+                  <button
+                    onClick={() => { setShowProfileDropdown(v => !v); setShowCommunityDropdown(false) }}
+                    className="flex items-center gap-2 px-1.5 py-1 rounded-full hover:bg-white/50 transition-[transform,background-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform cursor-pointer hover:scale-[1.04] hover:-translate-y-[1px]"
+                    aria-haspopup="menu"
+                    aria-expanded={showProfileDropdown}
+                    title="프로필 옵션"
+                  >
+                    <Avatar className="w-8 h-8">
+                      <AvatarImage src={getAvatarUrl(profile?.avatar_url, profile?.updated_at)} alt="프로필 이미지" />
+                      <AvatarFallback className="text-xs">
+                        {profile?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || '?'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="hidden sm:block text-sm text-slate-900 max-w-[160px] truncate">{profile?.full_name || '사용자'}</span>
+                  </button>
+                ) : (
+                  <Link href={`/login?next=${encodeURIComponent(pathname || '/')}`} className="inline-flex items-center gap-2 px-3 py-2 rounded-full hover:bg-white/50 transition-[transform,background-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform text-slate-900 hover:scale-[1.04] hover:-translate-y-[1px]">
+                    <LogIn className="w-4 h-4" />
+                    <span className="text-sm">로그인</span>
+                  </Link>
+                )}
+                {showProfileDropdown && (
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-lg z-50">
+                    <div className="p-2">
+                      <button
+                        className="w-full px-3 py-2 rounded-lg hover:bg-slate-50 text-sm text-center cursor-pointer"
+                        onClick={() => { setShowProfileDropdown(false); router.push('/dashboard') }}
+                      >
+                        프로필 페이지 이동
+                      </button>
+                      <button
+                        className="w-full px-3 py-2 rounded-lg hover:bg-red-50 text-sm text-center text-red-600 cursor-pointer"
+                        onClick={async () => {
+                          try { await supabase.auth.signOut() } catch {}
+                          try { await fetch('/api/auth/clear', { method: 'POST' }) } catch {}
+                          setShowProfileDropdown(false)
+                          router.push('/')
+                        }}
+                      >
+                        로그아웃
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
