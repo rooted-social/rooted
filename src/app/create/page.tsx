@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
@@ -85,6 +85,7 @@ export default function CreatePage() {
   }
 
   return (
+    <Suspense>
     <div className="min-h-screen relative">
       <AnimatedBackground />
       <main className="relative px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 pt-10 md:pt-20 pb-24 z-10">
@@ -318,6 +319,7 @@ export default function CreatePage() {
         </DialogContent>
       </Dialog>
     </div>
+    </Suspense>
   )
 }
 
