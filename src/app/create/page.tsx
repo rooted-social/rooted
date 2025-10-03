@@ -20,7 +20,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 // 이 페이지는 쿼리 파라미터 의존 및 클라이언트 상태 기반으로 동작하므로
 // 정적 프리렌더를 비활성화하여 빌드 타임 오류를 방지
 export const dynamic = 'force-dynamic'
-export const revalidate = 0
 
 export default function CreatePage() {
   const router = useRouter()
