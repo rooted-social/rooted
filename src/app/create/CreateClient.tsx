@@ -88,7 +88,7 @@ export default function CreateClient() {
     <div className="min-h-screen relative">
       <AnimatedBackground />
       <main className="relative px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 pt-10 md:pt-20 pb-24 z-10">
-        <div className="w-full max-w-4xl mx-auto">
+        <div className="w-full max-w-5xl mx-auto">
           <div className="mb-6 text-center">
             <div className="flex items-center justify-center gap-3 mb-2">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-500 flex items-center justify-center shadow-lg ring-2 ring-white/60">
@@ -144,7 +144,7 @@ export default function CreateClient() {
                 </Button>
               </div>
               <p className={`text-xs mt-1 ${slugAvailable === false ? 'text-red-600' : slugAvailable === true ? 'text-sky-600' : 'text-slate-500'}`}>
-                (영문 혹은 숫자 입력) URL은 추후 변경이 불가능하니 신중하게 선택하세요!
+                최소 3자 이상, 영문 혹은 숫자 입력. (URL은 추후 변경이 불가능하니 신중하게 선택하세요!)
                 {slugAvailable !== null && (
                   <span className="ml-2 font-medium">{slugAvailable ? '사용 가능한 URL입니다.' : '이미 사용 중인 URL입니다.'}</span>
                 )}

@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   const supabase = await createServerClient()
 
   try {
-    let q = supabase.from('communities').select('*').eq('is_disabled', false)
+    let q = supabase.from('communities').select('*').eq('is_disabled', false).eq('is_public', true as any)
     // 정렬: 인기순(member_count desc) 또는 최신순(created_at desc)
     if (sort === 'popular') {
       // member_count 내림차순, null은 뒤로

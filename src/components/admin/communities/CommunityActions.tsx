@@ -11,6 +11,7 @@ export default function CommunityActions({ community }: { community: any }) {
   const [open, setOpen] = useState(false)
   const [reason, setReason] = useState('')
   const [loading, setLoading] = useState(false)
+  const [toggling, setToggling] = useState(false)
   const router = useRouter()
 
   const disable = async () => {
@@ -46,8 +47,29 @@ export default function CommunityActions({ community }: { community: any }) {
     }
   }
 
+  const togglePublic = async () => {
+    setToggling(true)
+    try {
+      const res = await fetch(`/api/admin/communities/${community.id}/visibility`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ is_public: !community.is_public }),
+      })
+      if (!res.ok) throw new Error('visibility failed')
+      toast.success(!community.is_public ? '공개로 변경되었습니다' : '비공개로 변경되었습니다')
+      router.refresh()
+    } catch {
+      toast.error('공개 설정 변경에 실패했습니다')
+    } finally {
+      setToggling(false)
+    }
+  }
+
   return (
     <div className="flex gap-2">
+      <Button variant="outline" size="sm" onClick={togglePublic} disabled={toggling}>
+        {community.is_public ? '비공개' : '공개'}
+      </Button>
       {community.is_disabled ? (
         <Button variant="outline" size="sm" onClick={enable} disabled={loading}>해제</Button>
       ) : (

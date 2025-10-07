@@ -198,7 +198,7 @@ export default function HomePage() {
             <div className="inline-block will-change-transform reveal-line" style={{ animationDelay: '20ms' }}>
               <div className="relative inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-white/70 bg-gradient-to-r from-slate-50/95 via-slate-100/95 to-slate-200/90 text-slate-800 text-sm font-semibold mb-4 ring-1 ring-white/60 backdrop-blur-sm shadow-[0_0_0_3px_rgba(255,255,255,0.02),_0_10px_30px_rgba(2,6,23,0.06)]">
                 <span className="inline-block size-1.5 rounded-full bg-slate-500/90" />
-                <span>Connect deeply, Grow widely</span>
+                <span>Connect & Grow</span>
                 <span className="pointer-events-none absolute inset-0 overflow-hidden rounded-full">
                   <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-60 animate-[shine_1.8s_linear_infinite]" />
                 </span>
@@ -383,7 +383,7 @@ export default function HomePage() {
                 <div className="absolute inset-0 -top-12 -bottom-12 bg-gradient-to-b from-transparent via-white/10 to-transparent pointer-events-none" />
                 
                 {/* 콘텐츠 */}
-                <div className="relative z-10 text-center max-w-5xl mx-auto px-4">
+                <div className="relative z-10 text-center max-w-6xl mx-auto px-2">
                   {/* 상단 뱃지 */}
                   <div className={`relative inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-slate-300/70 bg-gradient-to-r from-slate-50/95 via-slate-100/95 to-slate-200/90 text-slate-800 text-sm font-semibold mb-6 ring-1 ring-white/60 backdrop-blur-sm shadow-[0_0_0_3px_rgba(255,255,255,0.02),_0_10px_30px_rgba(2,6,23,0.06)] transition-all duration-1000 ease-out ${ctaVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-6 scale-95'}`}>
                     <span className="inline-block size-1.5 rounded-full bg-slate-500/90" />

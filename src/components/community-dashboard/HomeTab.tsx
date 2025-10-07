@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Image from "next/image"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -11,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { updateNotice, deleteNotice, createNotice } from "@/lib/communities"
 import { fetchHomeData } from '@/lib/dashboard'
-import { Target, FileText, BookOpen, Newspaper, CalendarClock, Rss, StickyNote, Calendar, Bell, Activity, Settings, Edit3, Trash2, MoreVertical, SquarePen, MapPin } from "lucide-react"
+import { Target, FileText, BookOpen, Newspaper, CalendarClock, Rss, StickyNote, Calendar, Bell, Activity, Settings, Edit3, Trash2, MoreVertical, SquarePen, MapPin, Plus } from "lucide-react"
 import { toast } from "sonner"
 import { getAuthToken } from '@/lib/supabase'
 import { useAuthData } from '@/components/auth/AuthProvider'
@@ -20,9 +21,10 @@ import { withAlpha } from "@/utils/color"
 import { useCommunityContext } from "@/components/community-dashboard/CommunityContext"
 // 클라이언트 직접 Supabase 조회 제거
 
-interface HomeTabProps { communityId: string; slug?: string; initial?: { settings?: any; notices?: any[]; canManage?: boolean; upcomingEvents?: any[]; recentActivity?: any[] } }
+interface HomeTabProps { communityId: string; slug?: string; ownerId?: string | null; initial?: { settings?: any; notices?: any[]; canManage?: boolean; upcomingEvents?: any[]; recentActivity?: any[] } }
 
-export function HomeTab({ communityId, slug, initial }: HomeTabProps) {
+export function HomeTab({ communityId, slug, ownerId, initial }: HomeTabProps) {
+  const router = useRouter()
   const [settings, setSettings] = useState<CommunitySettings | null>(null)
   const [notices, setNotices] = useState<Notice[]>([])
   // const [posts, setPosts] = useState<Post[]>([])
@@ -32,6 +34,8 @@ export function HomeTab({ communityId, slug, initial }: HomeTabProps) {
   const [recentActivity, setRecentActivity] = useState<{ id: string; kind: 'feed'|'blog'|'note'|'event'|'class'; title: string; created_at: string; href?: string; meta?: string }[]>([])
   // 홈 탭 내 통계 섹션은 별도 페이지로 이동됨
   const { brandColor: contextBrandColor } = useCommunityContext()
+  const { user } = useAuthData()
+  const isOwner = !!user && !!ownerId && user.id === ownerId
 
   useEffect(() => {
     if (initial && (initial.settings || initial.notices)) {
@@ -93,8 +97,8 @@ export function HomeTab({ communityId, slug, initial }: HomeTabProps) {
 
   return (
     <section className="grid gap-6 lg:grid-cols-3 overflow-x-hidden">
-      {/* 상단 전체 배너 */}
-      {settings?.banner_url && (
+      {/* 상단 전체 배너 / 빈 상태 */}
+      {settings?.banner_url ? (
         <div className="lg:col-span-3 -mt-0 md:mt-0">
           <div className="relative w-full overflow-hidden rounded-xl border border-slate-200/50 shadow-sm">
             {/* 모바일: 세로 여유(16:3), 데스크탑: 16:4 */}
@@ -120,6 +124,35 @@ export function HomeTab({ communityId, slug, initial }: HomeTabProps) {
             </div>
           </div>
         </div>
+      ) : (
+        isOwner ? (
+          <div className="lg:col-span-3 -mt-0 md:mt-0">
+            <button
+              onClick={() => slug && router.push(`/${slug}/settings`) }
+              className="relative w-full overflow-hidden rounded-xl border border-dashed border-slate-300 bg-white/60 hover:bg-white/80 transition-colors shadow-sm cursor-pointer"
+              title="배너 이미지를 추가해보세요"
+            >
+              {/* 모바일 비율 */}
+              <div className="relative w-full md:hidden" style={{ aspectRatio: '16 / 4.5' }}>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="inline-flex items-center gap-2 text-slate-500">
+                    <Plus className="w-5 h-5" />
+                    <span className="text-sm font-medium">배너 이미지를 추가해보세요</span>
+                  </div>
+                </div>
+              </div>
+              {/* 데스크탑 비율 */}
+              <div className="relative w-full hidden md:block" style={{ aspectRatio: '16 / 3.5' }}>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="inline-flex items-center gap-2 text-slate-500">
+                    <Plus className="w-5 h-5" />
+                    <span className="text-sm font-medium">배너 이미지를 추가해보세요</span>
+                  </div>
+                </div>
+              </div>
+            </button>
+          </div>
+        ) : null
       )}
       {/* 좌측 메인 컨텐츠 */}
       {(() => { const brandColor = settings?.brand_color || contextBrandColor || undefined; return (
