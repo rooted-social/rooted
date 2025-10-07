@@ -7,6 +7,8 @@ export default async function AdminOverviewPage() {
   await assertSuperAdminOrNotFound()
   const supabase = await createServerClient()
   const { data } = await supabase.from('admin_kpis').select('*').maybeSingle()
+  const { count: feedbackCount } = await supabase.from('feedbacks').select('*', { count: 'exact', head: true })
+  const { count: betaCount } = await supabase.from('beta_applicants').select('*', { count: 'exact', head: true })
   const kpis = data || { users_total: 0, communities_total: 0, reports_pending: 0 }
 
   return (
@@ -22,6 +24,14 @@ export default async function AdminOverviewPage() {
       <div className="rounded-lg border p-4">
         <div className="text-sm text-gray-500">Reports Pending</div>
         <div className="mt-2 text-2xl font-semibold">{kpis.reports_pending}</div>
+      </div>
+      <div className="rounded-lg border p-4">
+        <div className="text-sm text-gray-500">Feedback</div>
+        <div className="mt-2 text-2xl font-semibold">{feedbackCount || 0}</div>
+      </div>
+      <div className="rounded-lg border p-4">
+        <div className="text-sm text-gray-500">Beta Testers</div>
+        <div className="mt-2 text-2xl font-semibold">{betaCount || 0}</div>
       </div>
     </div>
   )

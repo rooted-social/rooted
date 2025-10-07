@@ -15,7 +15,7 @@ export default async function AdminCommunitiesPage({ searchParams }: { searchPar
   const offset = (page - 1) * pageSize
 
   const supabase = await createServerClient()
-  let query = supabase.from('communities').select('id, name, slug, owner_id, is_disabled, member_count, created_at', { count: 'exact' })
+  let query = supabase.from('communities').select('id, name, slug, owner_id, is_disabled, is_public, member_count, created_at', { count: 'exact' })
   if (q) query = query.ilike('name', `%${q}%`)
   if (status === 'active') query = query.eq('is_disabled', false)
   if (status === 'disabled') query = query.eq('is_disabled', true)
@@ -69,6 +69,7 @@ export default async function AdminCommunitiesPage({ searchParams }: { searchPar
               <th className="px-2 py-2">Owner</th>
               <th className="px-2 py-2">Members</th>
               <th className="px-2 py-2">Status</th>
+              <th className="px-2 py-2">Public</th>
               <th className="px-2 py-2">Created</th>
               <th className="px-2 py-2">Actions</th>
             </tr>
@@ -81,6 +82,13 @@ export default async function AdminCommunitiesPage({ searchParams }: { searchPar
                 <td className="px-2 py-2">{memberCountMap[c.id] ?? c.member_count ?? '-'}</td>
                 <td className="px-2 py-2">
                   {c.is_disabled ? <span className="rounded bg-red-100 px-2 py-1 text-xs text-red-700">Disabled</span> : <span className="rounded bg-green-100 px-2 py-1 text-xs text-green-700">Active</span>}
+                </td>
+                <td className="px-2 py-2">
+                  {c.is_public ? (
+                    <span className="rounded bg-blue-100 px-2 py-1 text-xs text-blue-700">Public</span>
+                  ) : (
+                    <span className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-700">Private</span>
+                  )}
                 </td>
                 <td className="px-2 py-2">{new Date(c.created_at).toLocaleDateString()}</td>
                 <td className="px-2 py-2"><CommunityActions community={c} /></td>

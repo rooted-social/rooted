@@ -112,7 +112,7 @@ export default function ClientDashboardPage({ slug, initial }: { slug: string; i
             <div className="relative z-10 max-w-full overflow-x-hidden">
               {active === 'home' && (
                 activeHome.type === 'home' ? (
-                  <HomeTab communityId={communityId} slug={slug} initial={initial?.home} />
+                  <HomeTab communityId={communityId} slug={slug} ownerId={ownerId} initial={initial?.home} />
                 ) : activeHome.type === 'feed' ? (
                   <BoardTab communityId={communityId} ownerId={ownerId} variant="contentOnly" />
                 ) : (

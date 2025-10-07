@@ -19,6 +19,7 @@ export function Header() {
   const [showCommunityDropdown, setShowCommunityDropdown] = useState(false)
   const [showProfileDropdown, setShowProfileDropdown] = useState(false)
   const desktopDropdownRef = useRef<HTMLDivElement | null>(null)
+  const mobileDropdownRef = useRef<HTMLDivElement | null>(null)
   const [hideOnScroll, setHideOnScroll] = useState(false)
   const lastYRef = useRef(0)
   const tickingRef = useRef(false)
@@ -71,12 +72,20 @@ export function Header() {
   useEffect(() => {
     const onGlobalPointerDown = (e: MouseEvent | TouchEvent) => {
       if (!(showCommunityDropdown || showProfileDropdown)) return
-      const root = desktopDropdownRef.current
+      const desktopRoot = desktopDropdownRef.current
+      const mobileRoot = mobileDropdownRef.current
       const target = e.target as Node | null
-      if (root && target && !root.contains(target)) {
-        setShowCommunityDropdown(false)
-        setShowProfileDropdown(false)
+      // 데스크탑 캡슐 영역 또는 모바일 드롭다운 내부 클릭은 무시
+      if (
+        target && (
+          (desktopRoot && desktopRoot.contains(target)) ||
+          (mobileRoot && mobileRoot.contains(target))
+        )
+      ) {
+        return
       }
+      setShowCommunityDropdown(false)
+      setShowProfileDropdown(false)
     }
     document.addEventListener('mousedown', onGlobalPointerDown, { capture: true })
     document.addEventListener('touchstart', onGlobalPointerDown, { capture: true })
@@ -149,8 +158,8 @@ export function Header() {
               {/* Left: Logo */}
               <Link href="/" className="flex items-center hover:opacity-95">
                 <Image src="/logos/logo_icon.png" alt="Rooted 아이콘" width={24} height={24} className="w-6 h-6" priority />
-                <span className="relative ml-2" style={{ width: 72, height: 18 }}>
-                  <Image src="/logos/logo_main.png" alt="Rooted" fill priority sizes="100px" className="object-contain" />
+                <span className="relative ml-1" style={{ width: 82, height: 24 }}>
+                  <Image src="/logos/logo_main.png" alt="Rooted" fill priority sizes="110px" className="object-contain" />
                 </span>
               </Link>
 
@@ -182,6 +191,15 @@ export function Header() {
                         className={`px-3 py-1 rounded-lg inline-block transition-[transform,color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${isActive('/pricing') ? 'text-slate-900 font-bold scale-[1.03]' : 'text-slate-900 hover:text-slate-900'} hover:scale-[1.035] hover:-translate-y-[1px]`}
                       >
                         가격 안내
+                      </Link>
+                    </li>
+                    <li aria-hidden className="h-5 w-px bg-slate-300/70" />
+                    <li>
+                      <Link
+                        href="/feedback"
+                        className={`px-3 py-1 rounded-lg inline-block transition-[transform,color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${isActive('/feedback') ? 'text-slate-900 font-bold scale-[1.03]' : 'text-slate-900 hover:text-slate-900'} hover:scale-[1.035] hover:-translate-y-[1px]`}
+                      >
+                        피드백
                       </Link>
                     </li>
                   </ul>
@@ -324,7 +342,7 @@ export function Header() {
                   </Avatar>
                 </button>
                 {showCommunityDropdown && (
-                  <div className="fixed top-12 right-2 z-50 w-64 bg-white border border-slate-200 rounded-xl shadow-xl">
+                  <div ref={mobileDropdownRef} className="fixed top-12 right-2 z-50 w-64 bg-white border border-slate-200 rounded-xl shadow-xl">
                     <div className="p-3">
                       <div className="text-xs text-slate-500 mb-2">나의 커뮤니티</div>
                       <div className="space-y-1 max-h-64 overflow-y-auto">
@@ -397,6 +415,12 @@ export function Header() {
               <Link href="/pricing" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-5 py-4 text-slate-800 font-semibold">
                 <CreditCard className="w-5 h-5 text-slate-500" />
                 가격 안내
+              </Link>
+            </li>
+            <li>
+              <Link href="/feedback" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-5 py-4 text-slate-800 font-semibold">
+                <Sparkles className="w-5 h-5 text-slate-500" />
+                피드백
               </Link>
             </li>
           </ul>
