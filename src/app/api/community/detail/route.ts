@@ -15,7 +15,8 @@ export async function GET(req: NextRequest) {
     // 1) 슬러그로 커뮤니티 조회 (단일 쿼리)
     const { data: community, error: commErr } = await supabase
       .from('communities')
-      .select('*')
+      // 최초 접근 성능: 꼭 필요한 필드만 선조회 (추가 정보는 별도 API에서 확장)
+      .select('id, name, slug, category, image_url, icon_url, owner_id, created_at, updated_at')
       .eq('slug', slug)
       .single()
     if (commErr || !community) {
@@ -28,7 +29,7 @@ export async function GET(req: NextRequest) {
         try {
           const { data } = await supabase
             .from('profiles')
-            .select('id, username, full_name, bio, avatar_url')
+            .select('id, username, full_name, avatar_url')
             .eq('id', (community as any).owner_id)
             .single()
           return data || null

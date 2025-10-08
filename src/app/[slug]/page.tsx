@@ -13,6 +13,8 @@ export default async function CommunityDetailPage({ params }: { params: Promise<
     const res = await fetch(`${base}/api/community/detail?slug=${encodeURIComponent(slug)}`, {
       // 서버 렌더링 시 membership까지 함께 계산되도록 사용자 ID 전달
       headers: user?.id ? { 'x-user-id': user.id } : undefined,
+      // 비로그인(공개 뷰)에는 강한 캐시 적용, 로그인 시에는 재검증 중심
+      cache: user?.id ? 'no-store' : 'force-cache',
       next: { revalidate: 120 },
     })
     if (res.ok) initial = await res.json()

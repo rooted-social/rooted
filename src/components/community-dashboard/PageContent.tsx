@@ -35,7 +35,11 @@ export function PageContent({ pageId }: PageContentProps) {
           // 폴백: 타입 컬럼이 없거나 비어있을 때 테이블 존재로 추정
           try {
             const supa = (await import('@/lib/supabase')).supabase
-            const { data: blogProbe } = await supa.from('community_page_blog_posts').select('id').eq('page_id', pageId).limit(1)
+            const { data: blogProbe } = await supa
+              .from('community_page_blog_posts')
+              .select('id', { count: 'exact', head: true })
+              .eq('page_id', pageId)
+              .limit(1)
             if ((blogProbe as any)?.length > 0) setType('blog')
             else setType('feed')
           } catch {
