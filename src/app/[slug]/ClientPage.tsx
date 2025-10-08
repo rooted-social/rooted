@@ -60,7 +60,6 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
   )
   const [imageModal, setImageModal] = useState<{ open: boolean; url: string }>({ open: false, url: '' })
   const [mountBg, setMountBg] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
 
   const getCategoryColor = (category: string) => {
     const colorMap: { [key: string]: string } = {
@@ -76,32 +75,17 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
 
   // SSR 초기 데이터는 초기 state로 반영되며, 추가 클라이언트 로딩은 수행하지 않음
 
-  // 모바일 감지 및 AnimatedBackground 지연 마운트 (모바일에서는 비활성화)
+  // AnimatedBackground 지연 마운트 (모바일/데스크탑 동일 적용)
   useEffect(() => {
-    const check = () => {
-      if (typeof window === 'undefined') return
-      setIsMobile(window.innerWidth < 768)
-    }
-    check()
-    if (typeof window !== 'undefined') {
-      window.addEventListener('resize', check)
-    }
-    return () => {
-      if (typeof window !== 'undefined') window.removeEventListener('resize', check)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (isMobile) return
     let timeout: any
     const cb = () => setMountBg(true)
-    if ('requestIdleCallback' in window) {
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
       ;(window as any).requestIdleCallback(cb, { timeout: 1000 })
     } else {
       timeout = setTimeout(cb, 400)
     }
     return () => { if (timeout) clearTimeout(timeout) }
-  }, [isMobile])
+  }, [])
 
   // 비로그인 공개 상세 진입 시, 돌아올 경로를 저장하여 로그인/회원가입 후 복귀하도록 함
   useEffect(() => {
@@ -198,7 +182,7 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
   if (!community) {
     return (
       <div className="min-h-screen relative overflow-hidden">
-        {!isMobile && <AnimatedBackground />}
+        {mountBg && <AnimatedBackground />}
         <main className="relative px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 pt-5 pb-24 z-10">
           <div className="w-full">
             <h1 className="text-xl sm:text-2xl font-semibold text-slate-900 mb-3">커뮤니티를 찾을 수 없습니다</h1>
