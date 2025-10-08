@@ -15,8 +15,8 @@ export async function GET(req: NextRequest) {
     // 1) 슬러그로 커뮤니티 조회 (단일 쿼리)
     const { data: community, error: commErr } = await supabase
       .from('communities')
-      // 최초 접근 성능: 꼭 필요한 필드만 선조회 (추가 정보는 별도 API에서 확장)
-      .select('id, name, slug, category, image_url, icon_url, owner_id, created_at, updated_at')
+      // 최초 접근 성능을 유지하되, 소개 및 가입정책은 초기 렌더에 필요하므로 포함
+      .select('id, name, description, slug, category, image_url, icon_url, owner_id, join_policy, created_at, updated_at')
       .eq('slug', slug)
       .single()
     if (commErr || !community) {
