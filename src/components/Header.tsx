@@ -136,8 +136,8 @@ export function Header() {
           {!isCommunityRootPage ? (
             <div className="md:hidden flex items-center justify-center">
               <Link href="/" className="flex items-center">
-                <Image src="/logos/logo_icon.png" alt="Rooted" width={28} height={28} className="w-7 h-7" priority />
-                <span className="relative ml-1" style={{ width: 100, height: 20 }}>
+                <Image src="/logos/logo_icon.png" alt="Rooted" width={28} height={28} className="w-6 h-5" priority />
+                <span className="relative -ml-1" style={{ width: 90, height: 18 }}>
                   <Image src="/logos/logo_main.png" alt="Rooted" fill priority sizes="100px" className="object-contain" />
                 </span>
               </Link>
@@ -157,8 +157,8 @@ export function Header() {
             <div className={`w-full rounded-lg border h-12 px-3.5 flex items-center gap-3 relative ${isHome ? 'border-white/90 shadow-[0_0_38px_rgba(255,255,255,0.32)] hover:shadow-[0_0_36px_rgba(255,255,255,0.52)] ring-1 ring-white/60 hover:ring-white/80' : 'border-slate-300 shadow-[0_0_14px_rgba(148,163,184,0.28)] hover:shadow-[0_0_20px_rgba(148,163,184,0.4)]'}`} style={capsuleStyle} ref={desktopDropdownRef}>
               {/* Left: Logo */}
               <Link href="/" className="flex items-center hover:opacity-95">
-                <Image src="/logos/logo_icon.png" alt="Rooted 아이콘" width={24} height={24} className="w-6 h-6" priority />
-                <span className="relative ml-1" style={{ width: 82, height: 24 }}>
+                <Image src="/logos/logo_icon.png" alt="Rooted 아이콘" width={24} height={24} className="w-7 h-6" priority />
+                <span className="relative ml-0" style={{ width: 82, height: 24 }}>
                   <Image src="/logos/logo_main.png" alt="Rooted" fill priority sizes="110px" className="object-contain" />
                 </span>
               </Link>

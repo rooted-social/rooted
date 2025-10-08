@@ -49,6 +49,7 @@ export default function Footer() {
             <ul className="mt-3 space-y-2 text-sm text-slate-400">
               <li><Link className="hover:text-white" href="/privacy">개인정보 처리방침</Link></li>
               <li><Link className="hover:text-white" href="/terms">이용약관</Link></li>
+              <li><Link className="hover:text-white" href="/refund-policy">취소 및 환불 규정</Link></li>
             </ul>
           </div>
         </div>

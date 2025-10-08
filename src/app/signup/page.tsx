@@ -160,7 +160,7 @@ export default function SignUpPage() {
         </CardContent>
       </Card>
 
-      <div className="mt-6 text-xs text-slate-600">
+      <div className="mt-6 text-sm text-slate-600">
         <Link href="/terms" className="hover:underline">이용약관</Link>
         <span className="px-2">|</span>
         <Link href="/privacy" className="hover:underline">개인정보처리방침</Link>

@@ -53,7 +53,7 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
   const [isPending, setIsPending] = useState<boolean>(initialRole === 'pending')
   const { user } = useAuthData()
   const [services, setServices] = useState<{ id: string; label: string }[]>(initial?.services || [])
-  const [images, setImages] = useState<GalleryItem[]>((initial?.images || []).slice(0, 10))
+  const [images, setImages] = useState<GalleryItem[]>((initial?.images || []).slice(0, 6))
   const [mainIdx, setMainIdx] = useState<number>(0)
   const [stats, setStats] = useState<{ memberCount: number; postCount: number; commentCount: number; classCount: number }>(
     (initial as any)?.stats || { memberCount: 0, postCount: 0, commentCount: 0, classCount: 0 }
@@ -93,13 +93,14 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
 
   useEffect(() => {
     if (isMobile) return
+    let timeout: any
     const cb = () => setMountBg(true)
-    if (typeof (window as any).requestIdleCallback === 'function') {
-      ;(window as any).requestIdleCallback(cb)
+    if ('requestIdleCallback' in window) {
+      ;(window as any).requestIdleCallback(cb, { timeout: 1000 })
     } else {
-      const t = setTimeout(cb, 200)
-      return () => clearTimeout(t)
+      timeout = setTimeout(cb, 400)
     }
+    return () => { if (timeout) clearTimeout(timeout) }
   }, [isMobile])
 
   // 비로그인 공개 상세 진입 시, 돌아올 경로를 저장하여 로그인/회원가입 후 복귀하도록 함
@@ -254,7 +255,7 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
                       className="relative aspect-[16/9] w-full overflow-hidden rounded-xl cursor-pointer hover:opacity-95 transition-opacity"
                       onClick={() => setImageModal({ open: true, url: images[mainIdx]?.url })}
                     >
-                      <NextImage src={images[mainIdx]?.url} alt="community-main" fill className="object-cover" sizes="(max-width: 1024px) 100vw, 66vw" priority />
+                      <NextImage src={images[mainIdx]?.url} alt="community-main" fill className="object-cover" sizes="(max-width: 768px) 100vw, (max-width: 1280px) 66vw, 800px" priority placeholder="blur" blurDataURL="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" />
                       {images.length > 1 && (
                         <>
                           <button
@@ -281,7 +282,7 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
                           onClick={() => setMainIdx(images.findIndex(x => x.key === img.key))} 
                           className="relative aspect-[4/3] w-full overflow-hidden rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400 cursor-pointer hover:scale-105 hover:shadow-md transition-all duration-200"
                         >
-                          <NextImage src={img.url} alt={`community-thumb-${i}`} fill className="object-cover" sizes="(max-width: 640px) 28vw, (max-width: 1024px) 16vw, 10vw" />
+                          <NextImage src={img.url} alt={`community-thumb-${i}`} fill className="object-cover" sizes="(max-width: 640px) 28vw, (max-width: 1024px) 16vw, 10vw" loading="lazy" />
                         </button>
                       ))}
                     </div>
