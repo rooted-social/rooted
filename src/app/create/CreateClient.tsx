@@ -124,7 +124,7 @@ export default function CreateClient() {
                 <Input
                   id="slug"
                   type="text"
-                  placeholder="ex) rooted"
+                  placeholder="ex) your-community"
                   value={formData.slug}
                   onChange={(e) => updateFormData("slug", generateSlug(e.target.value))}
                   pattern="[a-z0-9-]+"
