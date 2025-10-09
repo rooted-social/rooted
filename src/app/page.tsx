@@ -13,7 +13,7 @@ import { fetchExploreCommunities } from "@/lib/dashboard"
 import Image from "next/image"
 import { getVersionedUrl } from "@/lib/utils"
 import type { Community } from "@/types/community"
-import { Flame, Users, FileText, Megaphone, CalendarDays, GraduationCap, BarChart3 } from "lucide-react"
+import { Flame, Users, FileText, Megaphone, CalendarDays, GraduationCap, BarChart3, ChevronRight, Check, HelpCircle } from "lucide-react"
 import Footer from "@/components/Footer"
 
 export default function HomePage() {
@@ -30,6 +30,10 @@ export default function HomePage() {
   const [popularVisible, setPopularVisible] = useState(false)
   const popularRef = useRef<HTMLDivElement>(null)
   const [desiredSlug, setDesiredSlug] = useState("")
+  const [featuresVisible, setFeaturesVisible] = useState(false)
+  const featuresRef = useRef<HTMLDivElement>(null)
+  const [whoWhyVisible, setWhoWhyVisible] = useState(false)
+  const whoWhyRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     ;(async () => {
@@ -105,10 +109,15 @@ export default function HomePage() {
     setIsDragging(false)
   }
 
-  // CTA 섹션: 뷰포트 진입 시 한 번만 노출 애니메이션
+  // CTA 섹션: 뷰포트 진입 시 한 번만 노출 애니메이션 (모바일 호환 강화)
   useEffect(() => {
     const el = ctaRef.current
     if (!el) return
+    // Fallback: 지원 안 하거나 매우 작은 화면에서 관찰이 지연될 경우 대비
+    if (typeof IntersectionObserver === 'undefined') {
+      setCtaVisible(true)
+      return
+    }
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -116,10 +125,25 @@ export default function HomePage() {
           observer.disconnect()
         }
       },
-      { root: null, threshold: 0.4 }
+      { root: null, threshold: 0.15, rootMargin: '0px 0px -10% 0px' }
     )
     observer.observe(el)
-    return () => observer.disconnect()
+
+    // 추가 스크롤 체크(일부 모바일 브라우저에서 관찰이 느릴 때)
+    const check = () => {
+      const r = el.getBoundingClientRect()
+      if (r.top < (typeof window !== 'undefined' ? window.innerHeight * 0.9 : 0)) {
+        setCtaVisible(true)
+        window.removeEventListener('scroll', check)
+      }
+    }
+    window.addEventListener('scroll', check, { passive: true })
+    check()
+
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('scroll', check)
+    }
   }, [])
 
   const generateSlug = (name: string) =>
@@ -139,7 +163,7 @@ export default function HomePage() {
     router.push('/signup')
   }
 
-  // 인기 섹션 타이틀: 스크롤 진입 시 애니메이션
+  // 인기 섹션 타이틀: 스크롤 진입 시 애니메이션 (옵션 완화)
   useEffect(() => {
     const el = popularRef.current
     if (!el) return
@@ -150,7 +174,41 @@ export default function HomePage() {
           observer.disconnect()
         }
       },
-      { root: null, threshold: 0.4 }
+      { root: null, threshold: 0.15, rootMargin: '0px 0px -10% 0px' }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  // 블랙 섹션의 기능 그리드: 뷰포트 진입 시 애니메이션 (옵션 완화)
+  useEffect(() => {
+    const el = featuresRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setFeaturesVisible(true)
+          observer.disconnect()
+        }
+      },
+      { root: null, threshold: 0.12, rootMargin: '0px 0px -10% 0px' }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  // Who & Why 섹션 애니메이션 진입
+  useEffect(() => {
+    const el = whoWhyRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setWhoWhyVisible(true)
+          observer.disconnect()
+        }
+      },
+      { root: null, threshold: 0.15, rootMargin: '0px 0px -8% 0px' }
     )
     observer.observe(el)
     return () => observer.disconnect()
@@ -231,14 +289,20 @@ export default function HomePage() {
               </div>
               <button
                 onClick={handleCreateCta}
-                className="group relative z-[60] inline-flex items-center justify-center gap-2 px-6 sm:px-7 h-12 rounded-2xl font-semibold cursor-pointer transition-all duration-300 text-white bg-sky-500 hover:bg-sky-400 border border-sky-300/60 ring-1 ring-sky-300/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200 shadow-[0_3px_12px_rgba(14,165,233,0.30),_0_10px_60px_rgba(14,165,233,0.25)] hover:shadow-[0_5px_10px_rgba(14,165,233,0.30),_0_10px_20px_rgba(14,165,233,0.35)] hover:-translate-y-0.5 active:translate-y-0 overflow-hidden w-full sm:w-auto"
+                className="group relative z-[60] inline-flex items-center justify-center gap-2 px-7 h-12 rounded-2xl font-semibold cursor-pointer transition-all duration-300 text-cyan-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70 hover:-translate-y-0.5 active:translate-y-0 overflow-hidden w-full sm:w-auto"
               >
-                {/* outer glow */}
-                <span className="pointer-events-none absolute -inset-1 rounded-2xl bg-sky-300/30 blur-lg" />
-                {/* sweep shimmer */}
-                <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/60 to-transparent opacity-80 group-hover:animate-[shine_1.1s_ease-out] rounded-2xl" />
+                {/* base glass */}
+                <span className="pointer-events-none absolute inset-0 rounded-2xl bg-slate-900/45 backdrop-blur-[2px]" />
+                {/* neon border + glow */}
+                <span className="pointer-events-none absolute inset-0 rounded-2xl border border-white-200/60" />
+                <span className="pointer-events-none absolute -inset-px rounded-2xl [box-shadow:0_0_0_1px_rgba(34,211,238,0.35),0_0_14px_rgba(34,211,238,0.42),inset_0_0_26px_rgba(34,211,238,0.16)] group-hover:[box-shadow:0_0_0_1px_rgba(34,211,238,0.45),0_0_22px_rgba(34,211,238,0.62),inset_0_0_36px_rgba(34,211,238,0.22)] transition-all duration-300" />
+                {/* sweeping shine (stays at end using forwards) */}
+                <span className="pointer-events-none absolute inset-0 -translate-x-full bg-[linear-gradient(120deg,transparent,rgba(255,255,255,0.8),transparent)] opacity-70 group-hover:animate-[shine_0.8s_ease-out_forwards] rounded-2xl" />
+                {/* persistent filled shine after sweep (appears slightly after hover) */}
+                <span className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-r from-white-300/10 via-white-200/12 to-white-300/10 opacity-0 transition-opacity duration-300 group-hover:opacity-25 group-hover:delay-[1100ms]" />
                 {/* label */}
-                <span className="relative z-10">내 커뮤니티 생성하기</span>
+                <span className="relative z-10 text-white transition-colors duration-200 group-hover:text-white-900">내 커뮤니티 생성하기</span>
+                <ChevronRight className="relative z-10 w-4 h-4 text-cyan-100/90 transition-all duration-200 group-hover:text-white-900 group-hover:translate-x-0.5" />
               </button>
             </div>
           </div>
@@ -255,6 +319,12 @@ export default function HomePage() {
             100% { transform: translateY(0%); opacity: 1; }
           }
           @keyframes shine { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+          @keyframes glint {
+            0% { transform: translateX(0); opacity: 0; }
+            10% { opacity: 1; }
+            60% { transform: translateX(140px); opacity: 1; }
+            100% { transform: translateX(200px); opacity: 0; }
+          }
           .reveal-line {
             animation: reveal 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
           }
@@ -439,6 +509,210 @@ export default function HomePage() {
                       {/* 외곽 하이라이트 */}
                       <span className="pointer-events-none absolute -inset-px rounded-full ring-1 ring-white/40" />
                     </button>
+                  </div>
+
+                  {/* 기능 하이라이트 섹션 */}
+                  <div ref={featuresRef} className="mt-18">
+                    <div className={`relative mx-auto max-w-6xl transition-all duration-700 ease-out ${featuresVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
+                      {/* 섬세한 상단 헤어라인 */}
+                      <div aria-hidden className="h-px w-full bg-gradient-to-r from-transparent via-white/20 to-transparent mb-5" />
+                      {/* 섹션 서브 타이틀 */}
+                      <div className={`mb-7 text-center text-[13px] tracking-[0.18em] uppercase ${featuresVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'} transition-all duration-700 text-white/70`}>Features</div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 sm:gap-x-8 lg:gap-x-10 gap-y-6 sm:gap-y-10 lg:gap-y-14 text-left">
+                        {/* 1. 멤버십ㆍ수익화 */}
+                        <div className={`relative ${featuresVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'} transition-all duration-700`} style={{ transitionDelay: featuresVisible ? '60ms' : '0ms' }}>
+                          <div className="relative rounded-2xl border border-white/15 bg-gradient-to-b from-white/5 to-transparent p-5 sm:p-6 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+                            <span className="absolute -inset-1 rounded-2xl pointer-events-none [mask-image:radial-gradient(60%_40%_at_50%_0%,rgba(255,255,255,0.25),transparent)]" />
+                            <div className="mb-1 text-[11px] uppercase tracking-wider text-white/55">Membership</div>
+                            <div className="mb-4 flex items-center gap-3 text-white">
+                              <Users className="w-5 h-5 text-white/85" />
+                              <h4 className="text-lg font-semibold text-white">멤버십ㆍ수익화</h4>
+                            </div>
+                            <ul className="mt-3 space-y-2 text-sm text-white/75">
+                              <li className="flex items-start gap-2"><Check className="mt-0.5 w-4 h-4 text-white/80" /><span>멤버 관리</span></li>
+                              <li className="flex items-start gap-2"><Check className="mt-0.5 w-4 h-4 text-white/80" /><span>결제/구독 기반 수익화</span></li>
+                              <li className="flex items-start gap-2"><Check className="mt-0.5 w-4 h-4 text-white/80" /><span>초대/가입 승인흐름</span></li>
+                            </ul>
+                          </div>
+                        </div>
+
+                        {/* 2. 콘텐츠 */}
+                        <div className={`relative ${featuresVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'} transition-all duration-700`} style={{ transitionDelay: featuresVisible ? '120ms' : '0ms' }}>
+                          <div className="relative rounded-2xl border border-white/15 bg-gradient-to-b from-white/5 to-transparent p-5 sm:p-6 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+                            <span className="absolute -inset-1 rounded-2xl pointer-events-none [mask-image:radial-gradient(60%_40%_at_50%_0%,rgba(255,255,255,0.25),transparent)]" />
+                            <div className="mb-1 text-[11px] uppercase tracking-wider text-white/55">Content</div>
+                            <div className="mb-4 flex items-center gap-3 text-white">
+                              <FileText className="w-5 h-5 text-white/85" />
+                              <h4 className="text-lg font-semibold text-white">콘텐츠</h4>
+                            </div>
+                            <ul className="mt-3 space-y-2 text-sm text-white/75">
+                              <li className="flex items-start gap-2"><Check className="mt-0.5 w-4 h-4 text-white/80" /><span>피드/포스트/댓글</span></li>
+                              <li className="flex items-start gap-2"><Check className="mt-0.5 w-4 h-4 text-white/80" /><span>파일/이미지 업로드</span></li>
+                              <li className="flex items-start gap-2"><Check className="mt-0.5 w-4 h-4 text-white/80" /><span>검색/알림/좋아요</span></li>
+                            </ul>
+                          </div>
+                        </div>
+
+                        {/* 3. 공지ㆍ소통 */}
+                        <div className={`relative ${featuresVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'} transition-all duration-700`} style={{ transitionDelay: featuresVisible ? '180ms' : '0ms' }}>
+                          <div className="relative rounded-2xl border border-white/15 bg-gradient-to-b from-white/5 to-transparent p-5 sm:p-6 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+                            <span className="absolute -inset-1 rounded-2xl pointer-events-none [mask-image:radial-gradient(60%_40%_at_50%_0%,rgba(255,255,255,0.25),transparent)]" />
+                            <div className="mb-1 text-[11px] uppercase tracking-wider text-white/55">Communication</div>
+                            <div className="mb-4 flex items-center gap-3 text-white">
+                              <Megaphone className="w-5 h-5 text-white/85" />
+                              <h4 className="text-lg font-semibold text-white">공지ㆍ소통</h4>
+                            </div>
+                            <ul className="mt-3 space-y-2 text-sm text-white/75">
+                              <li className="flex items-start gap-2"><Check className="mt-0.5 w-4 h-4 text-white/80" /><span>공지/알림</span></li>
+                              <li className="flex items-start gap-2"><Check className="mt-0.5 w-4 h-4 text-white/80" /><span>메시지(추후 예정)</span></li>
+                              <li className="flex items-start gap-2"><Check className="mt-0.5 w-4 h-4 text-white/80" /><span>커뮤니티 가이드라인</span></li>
+                            </ul>
+                          </div>
+                        </div>
+
+                        {/* 4. 일정 관리 */}
+                        <div className={`relative ${featuresVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'} transition-all duration-700`} style={{ transitionDelay: featuresVisible ? '240ms' : '0ms' }}>
+                          <div className="relative rounded-2xl border border-white/15 bg-gradient-to-b from-white/5 to-transparent p-5 sm:p-6 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+                            <span className="absolute -inset-1 rounded-2xl pointer-events-none [mask-image:radial-gradient(60%_40%_at_50%_0%,rgba(255,255,255,0.25),transparent)]" />
+                            <div className="mb-1 text-[11px] uppercase tracking-wider text-white/55">Events</div>
+                            <div className="mb-4 flex items-center gap-3 text-white">
+                              <CalendarDays className="w-5 h-5 text-white/85" />
+                              <h4 className="text-lg font-semibold text-white">일정 관리</h4>
+                            </div>
+                            <ul className="mt-3 space-y-2 text-sm text-white/75">
+                              <li className="flex items-start gap-2"><Check className="mt-0.5 w-4 h-4 text-white/80" /><span>일정 등록 및 공유</span></li>
+                              <li className="flex items-start gap-2"><Check className="mt-0.5 w-4 h-4 text-white/80" /><span>이벤트 참여 및 체크인</span></li>
+                              <li className="flex items-start gap-2"><Check className="mt-0.5 w-4 h-4 text-white/80" /><span>대시보드 이벤트 항목 추가</span></li>
+                            </ul>
+                          </div>
+                        </div>
+
+                        {/* 5. 클래스 운영 */}
+                        <div className={`relative ${featuresVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'} transition-all duration-700`} style={{ transitionDelay: featuresVisible ? '300ms' : '0ms' }}>
+                          <div className="relative rounded-2xl border border-white/15 bg-gradient-to-b from-white/5 to-transparent p-5 sm:p-6 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+                            <span className="absolute -inset-1 rounded-2xl pointer-events-none [mask-image:radial-gradient(60%_40%_at_50%_0%,rgba(255,255,255,0.25),transparent)]" />
+                            <div className="mb-1 text-[11px] uppercase tracking-wider text-white/55">Classes</div>
+                            <div className="mb-4 flex items-center gap-3 text-white">
+                              <GraduationCap className="w-5 h-5 text-white/85" />
+                              <h4 className="text-lg font-semibold text-white">클래스 운영</h4>
+                            </div>
+                            <ul className="mt-3 space-y-2 text-sm text-white/75">
+                              <li className="flex items-start gap-2"><Check className="mt-0.5 w-4 h-4 text-white/80" /><span>강의 및 자료 등록</span></li>
+                              <li className="flex items-start gap-2"><Check className="mt-0.5 w-4 h-4 text-white/80" /><span>수강 여부 관리</span></li>
+                              <li className="flex items-start gap-2"><Check className="mt-0.5 w-4 h-4 text-white/80" /><span>결제/쿠폰 (추후 예정)</span></li>
+                            </ul>
+                          </div>
+                        </div>
+
+                        {/* 6. 통합 대시보드 */}
+                        <div className={`relative ${featuresVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'} transition-all duration-700`} style={{ transitionDelay: featuresVisible ? '360ms' : '0ms' }}>
+                          <div className="relative rounded-2xl border border-white/15 bg-gradient-to-b from-white/5 to-transparent p-5 sm:p-6 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+                            <span className="absolute -inset-1 rounded-2xl pointer-events-none [mask-image:radial-gradient(60%_40%_at_50%_0%,rgba(255,255,255,0.25),transparent)]" />
+                            <div className="mb-1 text-[11px] uppercase tracking-wider text-white/55">Dashboard</div>
+                            <div className="mb-4 flex items-center gap-3 text-white">
+                              <BarChart3 className="w-5 h-5 text-white/85" />
+                              <h4 className="text-lg font-semibold text-white">통합 대시보드</h4>
+                            </div>
+                            <ul className="mt-3 space-y-2 text-sm text-white/75">
+                              <li className="flex items-start gap-2"><Check className="mt-0.5 w-4 h-4 text-white/80" /><span>활동/참여/매출 분석</span></li>
+                              <li className="flex items-start gap-2"><Check className="mt-0.5 w-4 h-4 text-white/80" /><span>성장 지표/리텐션</span></li>
+                              <li className="flex items-start gap-2"><Check className="mt-0.5 w-4 h-4 text-white/80" /><span>대시보드 커스터마이징</span></li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 대상/고민 섹션 - 다른 레이아웃으로 생동감 부여 (항상 펼침) */}
+                  <div ref={whoWhyRef} className={`mt-18 transition-all duration-900 ease-out ${whoWhyVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
+                    <div className="mx-auto max-w-6xl">
+                      {/* 상단 헤어라인 구분선 */}
+                      <div aria-hidden className="h-px w-full bg-gradient-to-r from-transparent via-white/20 to-transparent mb-10" />
+                      {/* 섹션 헤더: 배지 + 타이틀 + 서브타이틀 */}
+                      <div className="text-center mb-8">
+                        {/* 배지: Popular 스타일과 동일 */}
+                        <div className={`relative inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-slate-300/70 bg-gradient-to-r from-slate-50/95 via-slate-100/95 to-slate-200/90 text-slate-800 shadow-sm ring-1 ring-white/60 backdrop-blur-sm shadow-[0_0_0_3px_rgba(255,255,255,0.02),_0_10px_30px_rgba(2,6,23,0.06)]`}>
+                          <span className="text-[13px] font-semibold tracking-wide">Who & Why</span>
+                          <span className="pointer-events-none absolute inset-0 overflow-hidden rounded-full">
+                            <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-60 animate-[shine_1.8s_linear_infinite]" />
+                          </span>
+                        </div>
+                        <h3 className="mt-4 text-2xl sm:text-3xl font-bold text-white">누구에게, 왜 필요한가</h3>
+                        <p className="mt-2 text-white/80">이제 한 곳에서 당신의 전문성과 노하우를 공유하고 소통하세요.</p>
+                      </div>
+
+                      <div className={`grid grid-cols-1 lg:grid-cols-2 gap-6 transition-all duration-900 ease-out ${whoWhyVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'}`}>
+                        {/* 이런 분들에게 적합해요! - 항상 펼침, 사람 아이콘 */}
+                        <div className={`group relative w-full overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-b from-white/5 to-transparent p-6 text-left shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] transition-all duration-900 ease-out ${whoWhyVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`} style={{ transitionDelay: whoWhyVisible ? '80ms' : '0ms' }}>
+                          <div className="flex items-center gap-3">
+                            <Users className="w-5 h-5 text-white/85" />
+                            <h4 className="text-white font-semibold text-lg">누구에게 필요할까요?</h4>
+                          </div>
+                          <div>
+                            <ul className="mt-4 space-y-3 text-white/90">
+                              <li className="flex gap-3 items-start"><span className="mt-2 size-1.5 rounded-full bg-white/70" />자신만의 커뮤니티를 만들고 싶은 크리에이터</li>
+                              <li className="flex gap-3 items-start"><span className="mt-2 size-1.5 rounded-full bg-white/70" />강의/클래스를 운영하며 수익화를 고민하는 전문가</li>
+                              <li className="flex gap-3 items-start"><span className="mt-2 size-1.5 rounded-full bg-white/70" />단순한 오픈채팅보다 깊은 관계를 원하는 그룹 리더</li>
+                              <li className="flex gap-3 items-start"><span className="mt-2 size-1.5 rounded-full bg-white/70" />팬들과의 연결을 강화하고 싶은 아티스트</li>
+                              <li className="flex gap-3 items-start"><span className="mt-2 size-1.5 rounded-full bg-white/70" />회원들을 모아 꾸준히 소통하고 싶은 모임의 리더</li>
+                              <li className="flex gap-3 items-start"><span className="mt-2 size-1.5 rounded-full bg-white/70" />브랜드나 팀 문화를 함께 성장시키고 싶은 운영자</li>
+                            </ul>
+                          </div>
+                          <span className="pointer-events-none absolute inset-0 rounded-3xl ring-1 ring-white/15" />
+                          <div className="absolute -top-24 -left-24 size-[220px] rounded-full bg-white/10 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+
+                        {/* 이런 고민을 하고 계신가요? - 항상 펼침 */}
+                        <div className={`group relative w-full overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-b from-slate-50/10 to-transparent p-6 text-left shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] transition-all duration-900 ease-out ${whoWhyVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`} style={{ transitionDelay: whoWhyVisible ? '160ms' : '0ms' }}>
+                          <div className="flex items-center gap-3">
+                            <HelpCircle className="w-5 h-5 text-white/85" />
+                            <h4 className="text-white font-semibold text-lg">이런 고민을 하고 계신가요?</h4>
+                          </div>
+                          <div>
+                            <div className="mt-4 space-y-3">
+                              <div className="rounded-xl border border-white/15 bg-white/5 p-3">
+                                <p className="text-sm">“N사의 카페는 너무 복잡하고, K사의 오픈챗은 관리가 힘들다”</p>
+                                <p className="text-sm text-white/70 mt-1">→ 루티드는 직관적이고 깔끔한 커뮤니티 공간을 제공합니다.</p>
+                              </div>
+                              <div className="rounded-xl border border-white/15 bg-white/5 p-3">
+                                <p className="text-sm">“내 콘텐츠를 수익화하고 싶은데 방법을 모르겠다”</p>
+                                <p className="text-sm text-white/70 mt-1">→ 멤버십·커뮤니티 관리 기능으로 쉽게 수익화할 수 있어요.</p>
+                              </div>
+                              <div className="rounded-xl border border-white/15 bg-white/5 p-3">
+                                <p className="text-sm">“나의 멤버들과 진짜 소속감을 키우고 공유하고 싶다”</p>
+                                <p className="text-sm text-white/70 mt-1">→ 진정한 연결감과 지속적인 성장 경험을 지원합니다.</p>
+                              </div>
+                            </div>
+                          </div>
+                          <span className="pointer-events-none absolute inset-0 rounded-3xl ring-1 ring-white/15" />
+                          <div className="absolute -top-24 -right-24 size-[220px] rounded-full bg-white/10 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      </div>
+
+                      {/* 하단 CTA: 내 커뮤니티 생성하기 (Explore 버튼 스타일) */}
+                      <div className={`mt-10 text-center transition-all duration-900 ease-out ${whoWhyVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'}`} style={{ transitionDelay: whoWhyVisible ? '240ms' : '0ms' }}>
+                        <button
+                          onClick={handleCreateCta}
+                          className="group relative inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-semibold cursor-pointer transition-all duration-300 bg-white text-slate-900 hover:bg-white/90 hover:-translate-y-0.5 active:translate-y-0 shadow-[0_10px_30px_rgba(255,255,255,0.25)] hover:shadow-[0_16px_40px_rgba(255,255,255,0.35)] ring-1 ring-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white overflow-hidden"
+                        >
+                          <span className="absolute inset-0 bg-gradient-to-r from-white to-white opacity-0 group-hover:opacity-20 transition-opacity duration-300" />
+                          <span className="relative flex items-center gap-2">
+                            내 커뮤니티 생성하기
+                            <svg 
+                              className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1.5" 
+                              fill="none" 
+                              viewBox="0 0 24 24" 
+                              stroke="currentColor"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                            </svg>
+                          </span>
+                          <span className="pointer-events-none absolute -inset-px rounded-full ring-1 ring-white/40" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

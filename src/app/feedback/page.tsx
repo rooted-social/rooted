@@ -46,7 +46,7 @@ export default function FeedbackPage() {
     <main className="relative min-h-screen pt-10 md:pt-28 pb-24 px-4 sm:px-6 lg:px-8">
       <AnimatedBackground zIndexClass="-z-10" />
       <div className="mx-auto max-w-4xl">
-        <div className="rounded-3xl border border-slate-200/80 bg-white/70 backdrop-blur-md shadow-[0_10px_30px_rgba(15,23,42,0.06)] p-6 sm:p-10">
+        <div className="rounded-3xl border-2 border-slate-200/80 bg-white/70 backdrop-blur-md shadow-[0_10px_30px_rgba(15,23,42,0.06)] p-6 sm:p-10">
           <div className="mb-8 text-center">
             <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Feedback</h1>
             <p className="mt-2 text-slate-600">더 나은 서비스 개선을 위해 의견을 남겨주세요.</p>

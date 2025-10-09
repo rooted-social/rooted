@@ -170,21 +170,14 @@ export function Header() {
                     <li>
                       <Link
                         href="/explore"
-                        className={`px-3 py-1 rounded-lg inline-block transition-[transform,color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${isActive('/explore') ? 'text-slate-900 font-bold scale-[1.03]' : 'text-slate-900 hover:text-slate-900'} hover:scale-[1.035] hover:-translate-y-[1px]`}
+                        className={`px-3 py-1 rounded-lg inline-flex items-center gap-1.5 transition-[transform,color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${isActive('/explore') ? 'text-slate-900 font-bold scale-[1.03]' : 'text-slate-900 hover:text-slate-900'} hover:scale-[1.035] hover:-translate-y-[1px]`}
                       >
+                        <Compass className="w-4 h-4 text-slate-600 transition-colors duration-300" />
                         루트 둘러보기
                       </Link>
                     </li>
                     <li aria-hidden className="h-5 w-px bg-slate-300/70" />
-                    <li>
-                      <Link
-                        href="/features"
-                        className={`px-3 py-1 rounded-lg inline-block transition-[transform,color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${isActive('/features') ? 'text-slate-900 font-bold scale-[1.03]' : 'text-slate-900 hover:text-slate-900'} hover:scale-[1.035] hover:-translate-y-[1px]`}
-                      >
-                        서비스
-                      </Link>
-                    </li>
-                    <li aria-hidden className="h-5 w-px bg-slate-300/70" />
+                    
                     <li>
                       <Link
                         href="/pricing"
@@ -405,12 +398,7 @@ export function Header() {
                 루트 둘러보기
               </Link>
             </li>
-            <li>
-              <Link href="/features" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-5 py-4 text-slate-800 font-semibold">
-                <Sparkles className="w-5 h-5 text-slate-500" />
-                서비스 소개
-              </Link>
-            </li>
+            
             <li>
               <Link href="/pricing" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-5 py-4 text-slate-800 font-semibold">
                 <CreditCard className="w-5 h-5 text-slate-500" />

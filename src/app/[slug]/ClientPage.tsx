@@ -200,7 +200,7 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
     <div className="min-h-screen relative overflow-hidden">
       {/* 배경 애니메이션은 메인 컨텐츠 페인트 후 브라우저 아이들 시간에 마운트 */}
       {mountBg && <AnimatedBackground />}
-      <main className="relative px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 pt-3 md:pt-15 pb-24 z-10">
+      <main className="relative px-2 sm:px-2 md:px-4 lg:px-6 xl:px-8 pt-3 md:pt-15 pb-24 z-10">
         <div className="w-full max-w-6xl mx-auto">
           <Button variant="ghost" className="mb-4 cursor-pointer text-sm sm:text-base hidden" onClick={() => router.push('/explore')}>
             <ArrowLeft className="w-4 h-4 mr-2" /> 다른 루트 둘러보기
