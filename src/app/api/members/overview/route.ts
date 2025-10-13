@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createServerClientWithAuth } from '@/lib/supabase-server'
+import { createAdminClient } from '@/lib/supabase-admin'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -16,24 +17,38 @@ export async function GET(req: NextRequest) {
     const authUserId = user?.id
     if (!authUserId) return new Response(JSON.stringify({ members: [], pending: [], isOwner: false }), { status: 401 })
 
-    const [{ data: comm }, { data: memberRow }] = await Promise.all([
-      supabase.from('communities').select('owner_id').eq('id', communityId).single(),
-      supabase.from('community_members').select('role').eq('community_id', communityId).eq('user_id', authUserId).maybeSingle(),
-    ])
-    const ownerId = (comm as any)?.owner_id || null
-    const isOwner = !!ownerId && ownerId === authUserId
-    const isMember = !!(memberRow as any)?.role && (memberRow as any).role !== 'pending'
-    if (!isOwner && !isMember) return new Response(JSON.stringify({ members: [], pending: [], isOwner: false }), { status: 403 })
+    const superId = process.env.SUPER_ADMIN_USER_ID
+    const isSuper = !!superId && superId === authUserId
+    let ownerId: string | null = null
+    let isOwner = false
+    if (!isSuper) {
+      const [{ data: comm }, { data: memberRow }] = await Promise.all([
+        supabase.from('communities').select('owner_id').eq('id', communityId).single(),
+        supabase.from('community_members').select('role').eq('community_id', communityId).eq('user_id', authUserId).maybeSingle(),
+      ])
+      ownerId = (comm as any)?.owner_id || null
+      isOwner = !!ownerId && ownerId === authUserId
+      const isMember = !!(memberRow as any)?.role && (memberRow as any).role !== 'pending'
+      if (!isOwner && !isMember) return new Response(JSON.stringify({ members: [], pending: [], isOwner: false }), { status: 403 })
+    } else {
+      // super admin은 오너 권한으로 행동
+      const admin = createAdminClient()
+      const { data: comm } = await admin.from('communities').select('owner_id').eq('id', communityId).single()
+      ownerId = (comm as any)?.owner_id || null
+      isOwner = true
+    }
 
     // 멤버 목록 (pending 제외)
-    const { data: memberRows } = await supabase
+    const canUseAdmin = !!process.env.SUPABASE_SERVICE_ROLE_KEY
+    const db = isSuper && canUseAdmin ? createAdminClient() : supabase
+    const { data: memberRows } = await db
       .from('community_members')
       .select('user_id, role')
       .eq('community_id', communityId)
       .or('role.is.null,role.neq.pending')
 
     const userIds = Array.from(new Set((memberRows || []).map((r: any) => r.user_id)))
-    const { data: profiles } = userIds.length > 0 ? await supabase
+    const { data: profiles } = userIds.length > 0 ? await db
       .from('profiles')
       .select('id, full_name, username, avatar_url, updated_at, bio, email')
       .in('id', userIds as any) : { data: [] as any[] }
@@ -49,13 +64,13 @@ export async function GET(req: NextRequest) {
     // 오너일 때만 pending 목록 포함
     let pending: any[] = []
     if (isOwner) {
-      const { data: pendingRows } = await supabase
+      const { data: pendingRows } = await db
         .from('community_members')
         .select('user_id')
         .eq('community_id', communityId)
         .eq('role', 'pending')
       const pIds = Array.from(new Set((pendingRows || []).map((r: any) => r.user_id)))
-      const { data: pProfiles } = pIds.length > 0 ? await supabase
+      const { data: pProfiles } = pIds.length > 0 ? await db
         .from('profiles')
         .select('id, full_name, username, avatar_url, updated_at, bio, email')
         .in('id', pIds as any) : { data: [] as any[] }

@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createServerClientWithAuth } from '@/lib/supabase-server'
+import { createAdminClient } from '@/lib/supabase-admin'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -31,18 +32,25 @@ export async function GET(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     const authUserId = user?.id
     if (!authUserId) return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 })
-    const [{ data: community }, { data: member }] = await Promise.all([
-      supabase.from('communities').select('owner_id').eq('id', communityId).single(),
-      supabase.from('community_members').select('role').eq('community_id', communityId).eq('user_id', authUserId).maybeSingle(),
-    ])
-    const isOwner = community && (community as any).owner_id === authUserId
-    const isMember = member && (member as any).role && (member as any).role !== 'pending'
-    if (!isOwner && !isMember) return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 })
+    const superId = process.env.SUPER_ADMIN_USER_ID
+    const isSuper = !!superId && superId === authUserId
+    let isOwner = false
+    if (!isSuper) {
+      const [{ data: community }, { data: member }] = await Promise.all([
+        supabase.from('communities').select('owner_id').eq('id', communityId).single(),
+        supabase.from('community_members').select('role').eq('community_id', communityId).eq('user_id', authUserId).maybeSingle(),
+      ])
+      isOwner = !!community && (community as any).owner_id === authUserId
+      const isMember = member && (member as any).role && (member as any).role !== 'pending'
+      if (!isOwner && !isMember) return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 })
+    } else { isOwner = true }
 
     // 작성자
     let author: any = null
+    const canUseAdmin = !!process.env.SUPABASE_SERVICE_ROLE_KEY
+    const db = isSuper && canUseAdmin ? createAdminClient() : supabase
     if ((postRow as any).user_id) {
-      const { data: authorRow } = await supabase
+      const { data: authorRow } = await db
         .from('profiles')
         .select('id, full_name, username, avatar_url, updated_at')
         .eq('id', (postRow as any).user_id)
@@ -51,7 +59,7 @@ export async function GET(req: NextRequest) {
     }
 
     // 브랜드 컬러
-    const { data: settings } = await supabase
+    const { data: settings } = await db
       .from('community_settings')
       .select('brand_color')
       .eq('community_id', communityId)
@@ -59,9 +67,9 @@ export async function GET(req: NextRequest) {
 
     // 좋아요/댓글 카운트 및 liked 여부, 댓글 목록
     const [likesCountRes, likedRes, commentsListRes] = await Promise.all([
-      supabase.from('community_page_blog_likes').select('*', { count: 'exact', head: true }).eq('post_id', id),
-      supabase.from('community_page_blog_likes').select('id').eq('post_id', id).eq('user_id', authUserId).maybeSingle(),
-      supabase.from('community_page_blog_comments').select('id, post_id, user_id, content, created_at').eq('post_id', id).order('created_at', { ascending: true }),
+      db.from('community_page_blog_likes').select('*', { count: 'exact', head: true }).eq('post_id', id),
+      db.from('community_page_blog_likes').select('id').eq('post_id', id).eq('user_id', authUserId).maybeSingle(),
+      db.from('community_page_blog_comments').select('id, post_id, user_id, content, created_at').eq('post_id', id).order('created_at', { ascending: true }),
     ])
 
     const likeCount = likesCountRes.count || 0
@@ -70,7 +78,7 @@ export async function GET(req: NextRequest) {
     const cUserIds = Array.from(new Set(cRows.map(r => r.user_id)))
     let cProfileMap: Record<string, any> = {}
     if (cUserIds.length > 0) {
-      const { data: profs } = await supabase
+      const { data: profs } = await db
         .from('profiles')
         .select('id, full_name, username, avatar_url')
         .in('id', cUserIds as any)

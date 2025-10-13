@@ -7,6 +7,7 @@ export async function POST() {
   const isProd = process.env.NODE_ENV === 'production'
   res.cookies.set('sb-access-token', '', { httpOnly: true, secure: isProd, sameSite: 'lax', path: '/', maxAge: 0 })
   res.cookies.set('sb-refresh-token', '', { httpOnly: true, secure: isProd, sameSite: 'lax', path: '/', maxAge: 0 })
+  res.cookies.set('is-super-admin', '', { secure: isProd, sameSite: 'lax', path: '/', maxAge: 0 })
   return res
 }
 

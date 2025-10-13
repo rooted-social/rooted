@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createServerClientWithAuth } from '@/lib/supabase-server'
+import { createAdminClient } from '@/lib/supabase-admin'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -19,18 +20,34 @@ export async function GET(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     const authUserId = user?.id
     if (!authUserId) return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 })
+    const superId = process.env.SUPER_ADMIN_USER_ID
+    const isSuper = !!superId && superId === authUserId
+    let community: any = null
+    let isOwner = false
+    let member: any = null
+    if (!isSuper) {
+      const res = await Promise.all([
+        supabase.from('communities').select('owner_id, slug').eq('id', communityId).single(),
+        supabase.from('community_members').select('role').eq('community_id', communityId).eq('user_id', authUserId).maybeSingle(),
+      ])
+      community = res[0].data
+      member = res[1].data
+      isOwner = community && (community as any).owner_id === authUserId
+      const isMember = member && (member as any).role && (member as any).role !== 'pending'
+      if (!isOwner && !isMember) return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 })
+    } else {
+      // super admin은 커뮤니티 정보를 admin client로 조회
+      const admin = createAdminClient()
+      const { data: comm } = await admin.from('communities').select('owner_id, slug').eq('id', communityId).single()
+      community = comm
+      isOwner = true
+    }
 
-    const [{ data: community }, { data: member }] = await Promise.all([
-      supabase.from('communities').select('owner_id, slug').eq('id', communityId).single(),
-      supabase.from('community_members').select('role').eq('community_id', communityId).eq('user_id', authUserId).maybeSingle(),
-    ])
-    const isOwner = community && (community as any).owner_id === authUserId
-    const isMember = member && (member as any).role && (member as any).role !== 'pending'
-    if (!isOwner && !isMember) return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 })
-
+    const canUseAdmin = !!process.env.SUPABASE_SERVICE_ROLE_KEY
+    const db = isSuper && canUseAdmin ? createAdminClient() : supabase
     const [{ data: settingsRow }, { data: posts }] = await Promise.all([
-      supabase.from('community_settings').select('brand_color').eq('community_id', communityId).maybeSingle(),
-      supabase
+      db.from('community_settings').select('brand_color').eq('community_id', communityId).maybeSingle(),
+      db
         .from('community_page_blog_posts')
         .select('id,title,content,thumbnail_url,created_at,user_id,views,pinned')
         .eq('page_id', pageId)
@@ -45,7 +62,7 @@ export async function GET(req: NextRequest) {
     // 작성자
     let profileMap: Record<string, any> = {}
     if (userIds.length > 0) {
-      const { data: authors } = await supabase
+      const { data: authors } = await db
         .from('profiles')
         .select('id, full_name, username, avatar_url, updated_at')
         .in('id', userIds)
@@ -57,8 +74,8 @@ export async function GET(req: NextRequest) {
     let commentCounts: Record<string, number> = {}
     if (postIds.length > 0) {
       const [likesRes, commentsRes] = await Promise.all([
-        supabase.from('community_page_blog_likes').select('post_id').in('post_id', postIds as any),
-        supabase.from('community_page_blog_comments').select('post_id').in('post_id', postIds as any),
+        db.from('community_page_blog_likes').select('post_id').in('post_id', postIds as any),
+        db.from('community_page_blog_comments').select('post_id').in('post_id', postIds as any),
       ])
       for (const r of (likesRes.data || []) as any[]) likeCounts[r.post_id] = (likeCounts[r.post_id] || 0) + 1
       for (const r of (commentsRes.data || []) as any[]) commentCounts[r.post_id] = (commentCounts[r.post_id] || 0) + 1

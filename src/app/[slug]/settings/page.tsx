@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 import { getCommunity } from "@/lib/communities"
 import { SettingsTab } from "@/components/community-dashboard/SettingsTab"
 import { useAuthData } from "@/components/auth/AuthProvider"
+import { useIsSuperAdmin } from "@/lib/auth/roles-client"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Info, Image as ImageIcon, FileText, Settings as SettingsIcon, ChevronRight } from "lucide-react"
 
@@ -12,6 +13,7 @@ export default function CommunitySettingsPage() {
   const { slug } = useParams<{ slug: string }>()
   const router = useRouter()
   const { user } = useAuthData()
+  const isSuper = useIsSuperAdmin()
   const [communityId, setCommunityId] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(true)
   const [authorized, setAuthorized] = useState<boolean>(false)
@@ -30,7 +32,7 @@ export default function CommunitySettingsPage() {
         // 오너만 접근 허용 (전역 Context 사용)
         const uid = user?.id
         if (!uid) { router.replace(`/${String(slug)}`); return }
-        const isOwner = uid === (community as any)?.owner_id
+        const isOwner = isSuper || (uid === (community as any)?.owner_id)
         setAuthorized(isOwner)
         if (!isOwner) { router.replace(`/${String(slug)}`); return }
       } catch (error) {
@@ -40,7 +42,7 @@ export default function CommunitySettingsPage() {
       }
     })()
     return () => { mounted = false }
-  }, [slug, user?.id])
+  }, [slug, user?.id, isSuper])
 
   if (loading || !authorized) {
     return (

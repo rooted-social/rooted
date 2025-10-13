@@ -8,6 +8,7 @@ import { CommunitySidebar } from "@/components/community-dashboard/CommunitySide
 import { useQuery } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
 import { useAuthData } from "@/components/auth/AuthProvider"
+import { useIsSuperAdmin } from "@/lib/auth/roles-client"
 import { supabase } from "@/lib/supabase"
 import LoadingOverlay from "@/components/ui/LoadingOverlay"
 
@@ -20,6 +21,7 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
   const pathname = usePathname()
   const router = useRouter()
   const { user } = useAuthData()
+  const isSuper = useIsSuperAdmin()
   type CommunityState = { id: string | null; name: string; icon: string | null; ownerId: string | null }
   type CommunityAction = { type: 'set'; payload: Partial<CommunityState> } | { type: 'icon'; payload: string }
   const [community, dispatchCommunity] = useReducer(
@@ -149,12 +151,13 @@ export default function CommunityLayout({ children }: CommunityLayoutProps) {
     if (!dashboardArea) { setGuardChecked(true); return }
     if (!pathname || !slug) return
     if (!community.id) return
+    if (isSuper) { setGuardChecked(true); return }
     if (user && community.ownerId && user.id === community.ownerId) { setGuardChecked(true); return }
     if (!user) { router.replace(`/${slug}`); return }
     if (membershipQ.isLoading) return
     if (membershipQ.data?.ok) { setGuardChecked(true); return }
     router.replace(`/${slug}`)
-  }, [dashboardArea, pathname, slug, community.id, community.ownerId, user, membershipQ.isLoading, membershipQ.data, router])
+  }, [dashboardArea, pathname, slug, community.id, community.ownerId, user, membershipQ.isLoading, membershipQ.data, router, isSuper])
 
   useEffect(() => {
     const handler = (e: any) => {

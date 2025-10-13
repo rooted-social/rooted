@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createServerClient, createServerClientWithAuth } from '@/lib/supabase-server'
+import { createAdminClient } from '@/lib/supabase-admin'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -17,19 +18,25 @@ export async function GET(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     const authUserId = user?.id
     if (!authUserId) return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 })
-    const [{ data: community }, { data: member }] = await Promise.all([
-      supabase.from('communities').select('owner_id').eq('id', communityId).single(),
-      supabase.from('community_members').select('role').eq('community_id', communityId).eq('user_id', authUserId).maybeSingle(),
-    ])
-    const isOwner = community && (community as any).owner_id === authUserId
-    const isMember = member && (member as any).role && (member as any).role !== 'pending'
-    if (!isOwner && !isMember) {
-      return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 })
+    const superId = process.env.SUPER_ADMIN_USER_ID
+    const isSuper = !!superId && superId === authUserId
+    if (!isSuper) {
+      const [{ data: community }, { data: member }] = await Promise.all([
+        supabase.from('communities').select('owner_id').eq('id', communityId).single(),
+        supabase.from('community_members').select('role').eq('community_id', communityId).eq('user_id', authUserId).maybeSingle(),
+      ])
+      const isOwner = community && (community as any).owner_id === authUserId
+      const isMember = member && (member as any).role && (member as any).role !== 'pending'
+      if (!isOwner && !isMember) {
+        return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 })
+      }
     }
 
     // 1) 집계 RPC가 있다면 우선 시도 (단일 호출)
+    const canUseAdmin = !!process.env.SUPABASE_SERVICE_ROLE_KEY
+    const db = isSuper && canUseAdmin ? createAdminClient() : supabase
     try {
-      const { data: agg } = await supabase.rpc('community_dashboard_stats', { p_community_id: communityId })
+      const { data: agg } = await db.rpc('community_dashboard_stats', { p_community_id: communityId })
       if (agg) {
         const payload = {
           memberCount: (agg as any).member_count || 0,
@@ -51,32 +58,32 @@ export async function GET(req: NextRequest) {
 
     // 멤버/게시글/클래스 카운트 + 이벤트 목록 일부
     const [membersRes, postsRes, classesRes, eventsRes] = await Promise.all([
-      supabase.from('community_members').select('*', { count: 'exact', head: true }).eq('community_id', communityId).or('role.is.null,role.neq.pending'),
-      supabase.from('posts').select('*', { count: 'exact', head: true }).eq('community_id', communityId),
-      supabase.from('classes').select('*', { count: 'exact', head: true }).eq('community_id', communityId),
-      supabase.from('community_events').select('id,start_at').eq('community_id', communityId),
+      db.from('community_members').select('*', { count: 'exact', head: true }).eq('community_id', communityId).or('role.is.null,role.neq.pending'),
+      db.from('posts').select('*', { count: 'exact', head: true }).eq('community_id', communityId),
+      db.from('classes').select('*', { count: 'exact', head: true }).eq('community_id', communityId),
+      db.from('community_events').select('id,start_at').eq('community_id', communityId),
     ])
 
     // 댓글 카운트 (post_id 목록을 한 번에 in)
     let commentCount = 0
-    const { data: postIdRows } = await supabase.from('posts').select('id').eq('community_id', communityId)
+    const { data: postIdRows } = await db.from('posts').select('id').eq('community_id', communityId)
     const postIds = (postIdRows || []).map((p: any) => p.id)
     if (postIds.length > 0) {
-      const { count } = await supabase.from('comments').select('*', { count: 'exact', head: true }).in('post_id', postIds)
+      const { count } = await db.from('comments').select('*', { count: 'exact', head: true }).in('post_id', postIds)
       commentCount = count || 0
     }
 
     // 블로그 포스트 카운트
     let blogCount = 0
     try {
-      const { data: blogPages } = await supabase
+      const { data: blogPages } = await db
         .from('community_pages')
         .select('id')
         .eq('community_id', communityId)
         .eq('type', 'blog')
       const ids = (blogPages || []).map((p: any) => p.id)
       if (ids.length > 0) {
-        const { count } = await supabase
+        const { count } = await db
           .from('community_page_blog_posts')
           .select('*', { count: 'exact', head: true })
           .in('page_id', ids)
