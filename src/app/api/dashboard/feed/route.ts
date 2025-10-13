@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createServerClient, createServerClientWithAuth } from '@/lib/supabase-server'
+import { createAdminClient } from '@/lib/supabase-admin'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -24,14 +25,18 @@ export async function GET(req: NextRequest) {
       supabase.from('communities').select('owner_id').eq('id', communityId).single(),
       supabase.from('community_members').select('role').eq('community_id', communityId as string).eq('user_id', authUserId).maybeSingle(),
     ])
-    const isOwner = community && (community as any).owner_id === authUserId
+    const superId = process.env.SUPER_ADMIN_USER_ID
+    const isSuper = !!superId && superId === authUserId
+    const isOwner = isSuper || (community && (community as any).owner_id === authUserId)
     const isMember = member && (member as any).role && (member as any).role !== 'pending'
     if (!isOwner && !isMember) {
       return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 })
     }
 
     // Posts (count + page) — select only used columns to reduce payload
-    let base = supabase.from('posts')
+    const canUseAdmin = !!process.env.SUPABASE_SERVICE_ROLE_KEY
+    const db = isSuper && canUseAdmin ? createAdminClient() : supabase
+    let base = db.from('posts')
     let qCount = base.select('*', { count: 'exact', head: true }).eq('community_id', communityId)
     let q = base
       .select('id,title,content,created_at,user_id,page_id,category_id,pinned,views')
@@ -59,7 +64,7 @@ export async function GET(req: NextRequest) {
     // Profiles
     let profileMap: Record<string, any> = {}
     if (userIds.length > 0) {
-      const { data: profs } = await supabase
+      const { data: profs } = await db
         .from('profiles')
         .select('id, username, full_name, avatar_url, updated_at')
         .in('id', userIds as any)
@@ -71,8 +76,8 @@ export async function GET(req: NextRequest) {
     let commentCounts: Record<string, number> = {}
     if (postIds.length > 0) {
       const [{ data: likeRows }, { data: commentRows }] = await Promise.all([
-        supabase.from('post_likes').select('post_id').in('post_id', postIds as any),
-        supabase.from('comments').select('post_id').in('post_id', postIds as any),
+        db.from('post_likes').select('post_id').in('post_id', postIds as any),
+        db.from('comments').select('post_id').in('post_id', postIds as any),
       ])
       for (const row of (likeRows || []) as any[]) {
         const pid = (row as any).post_id

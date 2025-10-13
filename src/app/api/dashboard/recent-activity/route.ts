@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createServerClient, createServerClientWithAuth } from '@/lib/supabase-server'
+import { createAdminClient } from '@/lib/supabase-admin'
 
 // 최근 활동 API 스켈레톤
 // 반환 형태는 클라이언트의 RecentActivityCard 사용 형태에 맞춤
@@ -21,18 +22,24 @@ export async function GET(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     const authUserId = user?.id
     if (!authUserId) return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 })
-    const [{ data: community }, { data: member }] = await Promise.all([
-      supabase.from('communities').select('owner_id').eq('id', communityId).single(),
-      supabase.from('community_members').select('role').eq('community_id', communityId).eq('user_id', authUserId).maybeSingle(),
-    ])
-    const isOwner = community && (community as any).owner_id === authUserId
-    const isMember = member && (member as any).role && (member as any).role !== 'pending'
-    if (!isOwner && !isMember) {
-      return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 })
+    const superId = process.env.SUPER_ADMIN_USER_ID
+    const isSuper = !!superId && superId === authUserId
+    if (!isSuper) {
+      const [{ data: community }, { data: member }] = await Promise.all([
+        supabase.from('communities').select('owner_id').eq('id', communityId).single(),
+        supabase.from('community_members').select('role').eq('community_id', communityId).eq('user_id', authUserId).maybeSingle(),
+      ])
+      const isOwner = community && (community as any).owner_id === authUserId
+      const isMember = member && (member as any).role && (member as any).role !== 'pending'
+      if (!isOwner && !isMember) {
+        return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 })
+      }
     }
 
     // feed 최근 글 (필요 필드만 선택)
-    const { data: feed } = await supabase
+    const canUseAdmin = !!process.env.SUPABASE_SERVICE_ROLE_KEY
+    const db = isSuper && canUseAdmin ? createAdminClient() : supabase
+    const { data: feed } = await db
       .from('posts')
       .select('id,title,created_at,page_id')
       .eq('community_id', communityId)
@@ -44,7 +51,7 @@ export async function GET(req: NextRequest) {
     try {
       const pageIds = Array.from(new Set(((feed || []).map((p: any) => p.page_id).filter(Boolean))))
       if (pageIds.length > 0) {
-        const { data: pages } = await supabase
+        const { data: pages } = await db
           .from('community_pages')
           .select('id,title')
           .in('id', pageIds as any)
@@ -55,14 +62,14 @@ export async function GET(req: NextRequest) {
     // blog 최근 항목
     let blog: any[] = []
     try {
-      const { data: blogPages } = await supabase
+      const { data: blogPages } = await db
         .from('community_pages')
         .select('id,title')
         .eq('community_id', communityId)
         .eq('type', 'blog')
       const ids = (blogPages || []).map((p: any) => p.id)
       if (ids.length > 0) {
-        const { data: posts } = await supabase
+        const { data: posts } = await db
           .from('community_page_blog_posts')
           .select('id,title,created_at,page_id')
           .in('page_id', ids as any)
@@ -76,14 +83,14 @@ export async function GET(req: NextRequest) {
     // note 최근 항목
     let note: any[] = []
     try {
-      const { data: notePages } = await supabase
+      const { data: notePages } = await db
         .from('community_pages')
         .select('id,title')
         .eq('community_id', communityId)
         .eq('type', 'notes')
       const ids = (notePages || []).map((p: any) => p.id)
       if (ids.length > 0) {
-        const { data: notes } = await supabase
+        const { data: notes } = await db
           .from('community_page_note_items')
           .select('id,title,created_at,page_id')
           .in('page_id', ids as any)
@@ -95,7 +102,7 @@ export async function GET(req: NextRequest) {
     } catch {}
 
     // event / class
-    const { data: events } = await supabase
+    const { data: events } = await db
       .from('community_events')
       .select('id,title,start_at,created_at')
       .eq('community_id', communityId)
@@ -103,7 +110,7 @@ export async function GET(req: NextRequest) {
       .limit(10)
     const evt = (events || []).map((e: any) => ({ id: e.id, kind: 'event', title: `새로운 이벤트가 추가되었습니다 · ${e.title}`, created_at: e.created_at, href: slug ? `/${slug}/dashboard?tab=calendar` : undefined, meta: '이벤트' }))
 
-    const { data: classes } = await supabase
+    const { data: classes } = await db
       .from('classes')
       .select('id,title,created_at')
       .eq('community_id', communityId)

@@ -91,7 +91,20 @@ export default async function AdminCommunitiesPage({ searchParams }: { searchPar
                   )}
                 </td>
                 <td className="px-2 py-2">{new Date(c.created_at).toLocaleDateString()}</td>
-                <td className="px-2 py-2"><CommunityActions community={c} /></td>
+                <td className="px-2 py-2">
+                  <div className="flex items-center gap-2">
+                    <CommunityActions community={c} />
+                    {c.slug ? (
+                      <Link
+                        href={`/${c.slug}/dashboard`}
+                        className="rounded border px-2 py-1 hover:bg-slate-50 cursor-pointer"
+                        title="커뮤니티로 이동"
+                      >
+                        이동
+                      </Link>
+                    ) : null}
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>

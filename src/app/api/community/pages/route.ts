@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createServerClient, createServerClientWithAuth } from '@/lib/supabase-server'
+import { createAdminClient } from '@/lib/supabase-admin'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -17,17 +18,23 @@ export async function GET(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     const authUserId = user?.id
     if (!authUserId) return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 })
-    const [{ data: community }, { data: member }] = await Promise.all([
-      supabase.from('communities').select('owner_id').eq('id', communityId).single(),
-      supabase.from('community_members').select('role').eq('community_id', communityId).eq('user_id', authUserId).maybeSingle(),
-    ])
-    const isOwner = community && (community as any).owner_id === authUserId
-    const isMember = member && (member as any).role && (member as any).role !== 'pending'
-    if (!isOwner && !isMember) {
-      return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 })
+    const superId = process.env.SUPER_ADMIN_USER_ID
+    const isSuper = !!superId && superId === authUserId
+    if (!isSuper) {
+      const [{ data: community }, { data: member }] = await Promise.all([
+        supabase.from('communities').select('owner_id').eq('id', communityId).single(),
+        supabase.from('community_members').select('role').eq('community_id', communityId).eq('user_id', authUserId).maybeSingle(),
+      ])
+      const isOwner = community && (community as any).owner_id === authUserId
+      const isMember = member && (member as any).role && (member as any).role !== 'pending'
+      if (!isOwner && !isMember) {
+        return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 })
+      }
     }
 
-    const { data, error } = await supabase
+    const canUseAdmin = !!process.env.SUPABASE_SERVICE_ROLE_KEY
+    const db = isSuper && canUseAdmin ? createAdminClient() : supabase
+    const { data, error } = await db
       .from('community_pages')
       .select('*')
       .eq('community_id', communityId)

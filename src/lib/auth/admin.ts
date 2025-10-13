@@ -28,6 +28,11 @@ export async function assertSuperAdminOrNotFound() {
   const authUserId = user?.id || cookieSub
   const isSuper = !!authUserId && !!superId && authUserId === superId
   if (!isSuper) notFound()
+  // 슈퍼 어드민 쿠키를 설정하여 클라이언트 가드에서 네트워크 없이 판정 가능
+  try {
+    const isProd = process.env.NODE_ENV === 'production'
+    ;(cookieStore as any)?.set?.('is-super-admin', '1', { path: '/', sameSite: 'lax', secure: isProd })
+  } catch {}
   return { userId: authUserId! }
 }
 
@@ -46,7 +51,25 @@ export async function requireSuperAdminOr404JSON() {
   if (!isSuper) {
     return { ok: false as const, response: new Response(JSON.stringify({ error: 'not found' }), { status: 404 }) }
   }
+  try {
+    const isProd = process.env.NODE_ENV === 'production'
+    ;(cookieStore as any)?.set?.('is-super-admin', '1', { path: '/', sameSite: 'lax', secure: isProd })
+  } catch {}
   return { ok: true as const, userId: authUserId! }
+}
+
+// 서버에서 super admin 여부만 간단히 판정하는 유틸
+export async function isSuperAdminServer(): Promise<{ isSuper: boolean; userId: string | null }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const superId = process.env.SUPER_ADMIN_USER_ID
+  const cookieMaybePromise = cookies() as any
+  const cookieStore = (typeof cookieMaybePromise?.get === 'function') ? cookieMaybePromise : await cookieMaybePromise
+  const sbToken = cookieStore?.get?.('sb-access-token')?.value
+  const cookieSub = decodeJwtSub(sbToken)
+  const authUserId = user?.id || cookieSub
+  const isSuper = !!authUserId && !!superId && authUserId === superId
+  return { isSuper, userId: authUserId || null }
 }
 
 

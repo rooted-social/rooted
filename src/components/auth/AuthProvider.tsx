@@ -100,6 +100,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           body: JSON.stringify({ access_token, refresh_token }),
         }).catch(() => {})
       }
+      // 슈퍼 어드민 쿠키 제거 (로그아웃 시점)
+      if (!access_token && !refresh_token) {
+        fetch('/api/auth/clear', { method: 'POST' }).catch(() => {})
+      }
       queryClient.invalidateQueries({ queryKey: ['auth'] })
       queryClient.invalidateQueries({ queryKey: ['communities', 'mine'] })
       queryClient.invalidateQueries({ queryKey: ['notifications'] })

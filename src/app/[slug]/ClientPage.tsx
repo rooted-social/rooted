@@ -279,20 +279,17 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
               <Card className="hover:shadow-sm transition-all duration-300 border border-slate-300">
                 <CardContent className="space-y-4 sm:space-y-6 pb-3 sm:pb-5">
                   {/* 리더 소개 */}
-                  <div className="pt-3 sm:pt-3 pb-0">
+                  <div className="pt-3 sm:pt-4 pb-0">
                     <div className="flex flex-col items-center text-center mb-0 sm:mb-0">
                       <div className="relative">
-                        <Avatar className="w-16 h-16 sm:w-20 sm:h-20 ring-2 ring-white shadow-md">
+                        <Avatar className="w-30 h-30 sm:w-30 sm:h-30 ring-2 ring-white shadow-md">
                           <AvatarImage src={community!.profiles.avatar_url || ''} alt={community!.profiles.full_name || community!.profiles.username} />
                           <AvatarFallback className="bg-slate-200 text-slate-600 font-semibold text-base">
                             {(community!.profiles.full_name || community!.profiles.username)[0]}
                           </AvatarFallback>
                         </Avatar>
-                        <div className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-yellow-500 grid place-items-center shadow-md">
-                          <Crown className="w-4 h-4 text-white" />
-                        </div>
                       </div>
-                      <div className="mt-2 max-w-full">
+                      <div className="mt-2 -mb-2 max-w-full">
                         <div className="text-base sm:text-lg font-semibold text-slate-900">
                           {community!.profiles.full_name}
                         </div>
@@ -301,7 +298,7 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
                     {/* 리더 소개글 제거 */}
                   </div>
 
-                  <div className="h-px bg-slate-200 mt-4" />
+                  <div className="h-px bg-slate-200 mt-3" />
 
                   {/* 커뮤니티 소개 */}
                   <div>
@@ -318,7 +315,7 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
                     <h3 className="text-sm sm:text-base font-semibold text-slate-900 mb-2 inline-flex items-center"><Users className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2 text-black" />커뮤니티 현황</h3>
                     <div className="p-3 sm:p-4 rounded-xl border border-slate-200 bg-white text-center">
                       <span className="text-sm sm:text-base text-slate-800">
-                        총 <span className="font-bold text-slate-900">{stats.memberCount.toLocaleString()}</span>명의 멤버가 함께하고 있어요!
+                        이미 <span className="font-bold text-slate-900">{stats.memberCount.toLocaleString()}</span>명의 멤버가 함께하고 있어요!
                       </span>
                     </div>
                   </div>

@@ -21,7 +21,9 @@ export async function GET(req: NextRequest) {
       supabase.from('communities').select('owner_id').eq('id', communityId).single(),
       supabase.from('community_members').select('role').eq('community_id', communityId).eq('user_id', authUserId).maybeSingle(),
     ])
-    const isOwner = community && (community as any).owner_id === authUserId
+    const superId = process.env.SUPER_ADMIN_USER_ID
+    const isSuper = !!superId && superId === authUserId
+    const isOwner = isSuper || (community && (community as any).owner_id === authUserId)
     const isMember = member && (member as any).role && (member as any).role !== 'pending'
     if (!isOwner && !isMember) {
       return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 })
@@ -32,7 +34,7 @@ export async function GET(req: NextRequest) {
       supabase.from('notices').select('*').eq('community_id', communityId).order('pinned', { ascending: false }).order('created_at', { ascending: false }).limit(10),
     ])
     // canManage: 소유자 또는 admin 권한
-    const canManage = !!isOwner || ((member as any)?.role === 'admin')
+    const canManage = !!isOwner || isSuper || ((member as any)?.role === 'admin')
 
     // 다가오는 이벤트 5개
     const nowIso = new Date().toISOString()

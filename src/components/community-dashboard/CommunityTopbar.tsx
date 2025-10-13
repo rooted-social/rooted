@@ -9,6 +9,7 @@ import { toast } from "sonner"
 import { Bell, ChevronDown, Menu, Home, BookOpen, Calendar, Users, Settings, BarChart3, Share2, Link as LinkIcon } from "lucide-react"
 import { getAvatarUrl } from "@/lib/utils"
 import { useAuthData } from "@/components/auth/AuthProvider"
+import { useIsSuperAdmin } from "@/lib/auth/roles-client"
 // removed useCommunityBySlug to avoid duplicate fetch with layout
 import { getCommunitySettings } from "@/lib/communities"
 import { getReadableTextColor, withAlpha } from "@/utils/color"
@@ -30,6 +31,7 @@ interface CommunityTopbarProps {
 
 export function CommunityTopbar({ slug, name, active, onChangeAction, imageUrl, onToggleSidebar, ownerId, communityId }: CommunityTopbarProps) {
   const { user, profile, myCommunities, unreadCount } = useAuthData()
+  const isSuper = useIsSuperAdmin()
   const [showCommunityDropdown, setShowCommunityDropdown] = useState(false)
   const [showProfileDropdown, setShowProfileDropdown] = useState(false)
   const [isOwner, setIsOwner] = useState<boolean>(false)
@@ -40,8 +42,9 @@ export function CommunityTopbar({ slug, name, active, onChangeAction, imageUrl, 
   const routeSlug = (params as any)?.slug as string | undefined
 
   useEffect(() => {
+    if (isSuper) { setIsOwner(true); return }
     setIsOwner(!!user && !!ownerId && ownerId === user.id)
-  }, [ownerId, user])
+  }, [ownerId, user, isSuper])
 
   useEffect(() => {
     const id = communityId
