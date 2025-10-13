@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import Script from "next/script";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/Header";
 import { Toaster } from "@/components/ui/sonner";
 import { SidebarPadding } from "@/components/SidebarPadding";
 import Providers from "../components/providers";
+import { GoogleAnalyticsReporter } from "@/components/analytics/GAReporter";
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -56,8 +59,25 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
+      <head>
+        <Script
+          src={`https://www.googletagmanager.com/gtag/js?id=G-F7F9N2KM7P`}
+          strategy="afterInteractive"
+        />
+        <Script id="gtag" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-F7F9N2KM7P', { page_path: window.location.pathname });
+          `}
+        </Script>
+      </head>
       <body className={`${jakarta.className} antialiased`}>
         <Providers>
+          <Suspense fallback={null}>
+            <GoogleAnalyticsReporter />
+          </Suspense>
           {/* 좌측 사이드바 */}
           <Header />
           {/* 본문: 라우트에 따라 좌측 패딩을 동적으로 적용 */}
