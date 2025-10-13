@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
         supabase.from('communities').select('owner_id').eq('id', communityId).single(),
         supabase.from('community_members').select('role').eq('community_id', communityId).eq('user_id', authUserId).maybeSingle(),
       ])
-      isOwner = community && (community as any).owner_id === authUserId
+      isOwner = !!community && (community as any).owner_id === authUserId
       const isMember = member && (member as any).role && (member as any).role !== 'pending'
       if (!isOwner && !isMember) return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 })
     } else { isOwner = true }
