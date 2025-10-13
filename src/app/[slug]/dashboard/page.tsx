@@ -36,10 +36,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   try {
     const supabase = await createServerClient()
     const { data } = await supabase.from('communities').select('name').eq('slug', slug).single()
-    const title = (data as any)?.name || slug
-    return { title }
+    const base = (data as any)?.name || slug
+    return { title: `${base} - 홈` }
   } catch {
-    return { title: slug }
+    return { title: `${slug} - 홈` }
   }
 }
 
