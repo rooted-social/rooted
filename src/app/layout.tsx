@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Script from "next/script";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
@@ -74,7 +75,9 @@ export default function RootLayout({
       </head>
       <body className={`${jakarta.className} antialiased`}>
         <Providers>
-          <GoogleAnalyticsReporter />
+          <Suspense fallback={null}>
+            <GoogleAnalyticsReporter />
+          </Suspense>
           {/* 좌측 사이드바 */}
           <Header />
           {/* 본문: 라우트에 따라 좌측 패딩을 동적으로 적용 */}
