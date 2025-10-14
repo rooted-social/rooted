@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createServerClient } from '@/lib/supabase-server'
 import { r2Client, ListObjectsV2Command, buildPublicR2UrlForBucket, COMMUNITY_IMAGE_BUCKET } from '@/lib/r2'
+import { createAdminClient } from '@/lib/supabase-admin'
 import { resolveUserId } from '@/lib/auth/user'
 import { getCommunityAccess } from '@/lib/community/access'
 
@@ -68,11 +69,20 @@ export async function GET(req: NextRequest) {
       })(),
       (async () => {
         try {
-          const userId = await resolveUserId(req)
-          if (!userId) return null
-          const access = await getCommunityAccess(supabase, (community as any).id, userId, { superAdmin: false })
-          if (!access.role) return null
-          return { role: access.role }
+          let userId = await resolveUserId(req)
+          let access: any = null
+          if (userId) {
+            access = await getCommunityAccess(supabase, (community as any).id, userId, { superAdmin: false })
+          } else {
+            // Fallback: 클라이언트가 x-user-id를 전달한 경우(쿠키 세션 동기화 전)
+            const headerUid = req.headers.get('x-user-id') || undefined
+            if (headerUid) {
+              const admin = createAdminClient()
+              access = await getCommunityAccess(admin as any, (community as any).id, headerUid, { superAdmin: false })
+            }
+          }
+          const role = access?.role as string | undefined
+          return role ? { role } : null
         } catch {
           return null
         }
