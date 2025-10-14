@@ -1,5 +1,8 @@
 import { NextRequest } from 'next/server'
-import { createServerClient, createServerClientWithAuth } from '@/lib/supabase-server'
+import { createServerClientWithAuth } from '@/lib/supabase-server'
+import { resolveUserId } from '@/lib/auth/user'
+import { getJsonCache, putJsonCache } from '@/lib/r2'
+import { getCommunityAccess } from '@/lib/community/access'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -13,28 +16,51 @@ export async function GET(req: NextRequest) {
   const supabase = await createServerClientWithAuth(bearer)
 
   try {
-    // 멤버십 체크: 쿠키 또는 Authorization 헤더 기반 사용자
-    const { data: { user } } = await supabase.auth.getUser()
-    const authUserId = user?.id
+    // 멤버십 체크: SSA/Authorization/Supabase 쿠키 기반 사용자 식별 중앙화
+    const authUserId = await resolveUserId(req)
     if (!authUserId) return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 })
-    const [{ data: community }, { data: member }] = await Promise.all([
-      supabase.from('communities').select('owner_id').eq('id', communityId).single(),
-      supabase.from('community_members').select('role').eq('community_id', communityId).eq('user_id', authUserId).maybeSingle(),
-    ])
     const superId = process.env.SUPER_ADMIN_USER_ID
     const isSuper = !!superId && superId === authUserId
-    const isOwner = isSuper || (community && (community as any).owner_id === authUserId)
-    const isMember = member && (member as any).role && (member as any).role !== 'pending'
-    if (!isOwner && !isMember) {
+    const access = await getCommunityAccess(supabase, communityId, authUserId, { superAdmin: isSuper })
+    if (!access.isOwner && !access.isMember) {
       return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 })
     }
+    // 공개 필드만 캐시: settings, notices, upcomingEvents, pages (권한 필드는 사용자별이므로 캐시 제외)
+    const cacheKey = `home/${communityId}.json`
+    try {
+      const cached = await getJsonCache(cacheKey)
+      if (cached) {
+        // 권한 필드는 런타임에 결합
+        return new Response(JSON.stringify({ ...cached, canManage: access.canManage }), {
+          status: 200,
+          headers: { 'content-type': 'application/json', 'Cache-Control': 'public, max-age=60, s-maxage=60, stale-while-revalidate=300' }
+        })
+      }
+    } catch {}
+
+    // RPC 우선 시도 (단일 호출)
+    try {
+      const { data: rpc } = await supabase.rpc('dashboard_overview', { p_community_id: communityId, p_limit: 10 })
+      if (rpc) {
+        const publicPart = { settings: (rpc as any)?.settings || null, notices: (rpc as any)?.notices || [], upcomingEvents: (rpc as any)?.upcomingEvents || [], pages: (rpc as any)?.pages || [] }
+        await putJsonCache(cacheKey, publicPart, 120)
+        const payload = { ...publicPart, recentActivity: (rpc as any)?.recentActivity || [], canManage: access.canManage }
+        return new Response(JSON.stringify(payload), {
+          status: 200,
+          headers: {
+            'content-type': 'application/json',
+            'Cache-Control': 'public, max-age=60, s-maxage=60, stale-while-revalidate=300',
+          }
+        })
+      }
+    } catch {}
 
     const [settingsRes, noticesRes] = await Promise.all([
       supabase.from('community_settings').select('*').eq('community_id', communityId).maybeSingle(),
       supabase.from('notices').select('*').eq('community_id', communityId).order('pinned', { ascending: false }).order('created_at', { ascending: false }).limit(10),
     ])
-    // canManage: 소유자 또는 admin 권한
-    const canManage = !!isOwner || isSuper || ((member as any)?.role === 'admin')
+    // canManage: 중앙 계산 결과 사용
+    const canManage = access.canManage
 
     // 다가오는 이벤트 5개
     const nowIso = new Date().toISOString()
@@ -120,13 +146,14 @@ export async function GET(req: NextRequest) {
         } catch { return [] }
       })(),
     }
-    return new Response(JSON.stringify(payload), { 
-      status: 200, 
-      headers: { 
+    try { await putJsonCache(cacheKey, { settings: payload.settings, notices: payload.notices, upcomingEvents: payload.upcomingEvents, pages: payload.pages }, 120) } catch {}
+    return new Response(JSON.stringify(payload), {
+      status: 200,
+      headers: {
         'content-type': 'application/json',
         // 60초 캐시 (브라우저/에지)
-        'Cache-Control': 'public, max-age=60, s-maxage=60',
-      } 
+        'Cache-Control': 'public, max-age=60, s-maxage=60, stale-while-revalidate=300',
+      }
     })
   } catch (e: any) {
     return new Response(JSON.stringify({ error: e?.message || 'failed to load home data' }), { status: 500 })

@@ -1,6 +1,9 @@
 import { NextRequest } from 'next/server'
-import { createServerClient, createServerClientWithAuth } from '@/lib/supabase-server'
+import { getJsonCache, putJsonCache } from '@/lib/r2'
+import { createServerClientWithAuth } from '@/lib/supabase-server'
 import { createAdminClient } from '@/lib/supabase-admin'
+import { resolveUserId } from '@/lib/auth/user'
+import { getCommunityAccess } from '@/lib/community/access'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -14,22 +17,20 @@ export async function GET(req: NextRequest) {
   const supabase = await createServerClientWithAuth(bearer)
 
   try {
-    // 멤버십 체크: 쿠키 또는 Authorization 헤더 기반 사용자
-    const { data: { user } } = await supabase.auth.getUser()
-    const authUserId = user?.id
+    // R2 JSON 캐시 조회 (커뮤니티 단위 5분 캐시)
+    const cacheKey = `stats/${communityId}.json`
+    const cached = await getJsonCache(cacheKey)
+    if (cached) {
+      return new Response(JSON.stringify(cached), { status: 200, headers: { 'content-type': 'application/json', 'Cache-Control': 'public, max-age=60, s-maxage=60' } })
+    }
+    // 중앙화 사용자 식별/권한
+    const authUserId = await resolveUserId(req)
     if (!authUserId) return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 })
     const superId = process.env.SUPER_ADMIN_USER_ID
     const isSuper = !!superId && superId === authUserId
-    if (!isSuper) {
-      const [{ data: community }, { data: member }] = await Promise.all([
-        supabase.from('communities').select('owner_id').eq('id', communityId).single(),
-        supabase.from('community_members').select('role').eq('community_id', communityId).eq('user_id', authUserId).maybeSingle(),
-      ])
-      const isOwner = community && (community as any).owner_id === authUserId
-      const isMember = member && (member as any).role && (member as any).role !== 'pending'
-      if (!isOwner && !isMember) {
-        return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 })
-      }
+    const access = await getCommunityAccess(supabase, communityId, authUserId, { superAdmin: isSuper })
+    if (!access.isOwner && !access.isMember) {
+      return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 })
     }
 
     // 1) 집계 RPC가 있다면 우선 시도 (단일 호출)
@@ -46,6 +47,7 @@ export async function GET(req: NextRequest) {
           blogCount: (agg as any).blog_count || 0,
           upcomingEventCount: (agg as any).upcoming_event_count || 0,
         }
+        await putJsonCache(cacheKey, payload, 300)
         return new Response(JSON.stringify(payload), {
           status: 200,
           headers: {
@@ -101,6 +103,7 @@ export async function GET(req: NextRequest) {
         ? (eventsRes.data as any[]).filter((e) => new Date(e.start_at) > new Date()).length
         : 0,
     }
+    await putJsonCache(cacheKey, payload, 300)
 
     return new Response(JSON.stringify(payload), { 
       status: 200, 

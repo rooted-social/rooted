@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3"
+import { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command, GetObjectCommand } from "@aws-sdk/client-s3"
 
 /**
  * Cloudflare R2 (S3 호환) 클라이언트 생성
@@ -22,6 +22,7 @@ export const BLOG_IMAGE_BUCKET = "blog-images"
 export const CLASS_THUMBNAIL_BUCKET = process.env.R2_CLASS_THUMBNAIL_BUCKET || "class-thumnails"
 export const R2_PUBLIC_BASE_URL = process.env.R2_PUBLIC_BASE_URL || ""
 export const R2_COMMUNITY_PUBLIC_BASE_URL = process.env.R2_COMMUNITY_PUBLIC_BASE_URL || ""
+export const R2_JSON_CACHE_BUCKET = process.env.R2_JSON_CACHE_BUCKET || "json-cache"
 
 // 프로필 이미지는 항상 내부 프록시를 사용해 안정적으로 서빙
 export function buildPublicR2Url(key: string): string {
@@ -139,6 +140,33 @@ export function normalizeClassThumbnailUrl(url?: string | null): string {
   const key = extractKeyFromUrl(url)
   if (key) return buildPublicR2UrlForBucket(CLASS_THUMBNAIL_BUCKET, key)
   return url
+}
+
+// --- JSON Cache helpers (for aggregates) ---
+export async function getJsonCache(key: string): Promise<any | null> {
+  try {
+    const cmd = new GetObjectCommand({ Bucket: R2_JSON_CACHE_BUCKET, Key: key })
+    const res: any = await r2Client.send(cmd)
+    const text = await res.Body?.transformToString?.()
+    if (!text) return null
+    return JSON.parse(text)
+  } catch {
+    return null
+  }
+}
+
+export async function putJsonCache(key: string, data: any, cacheSeconds: number = 60): Promise<void> {
+  try {
+    const body = Buffer.from(JSON.stringify(data))
+    const cmd = new PutObjectCommand({
+      Bucket: R2_JSON_CACHE_BUCKET,
+      Key: key,
+      Body: body,
+      ContentType: "application/json",
+      CacheControl: `public, max-age=${cacheSeconds}`,
+    })
+    await r2Client.send(cmd)
+  } catch {}
 }
 
 export { PutObjectCommand, DeleteObjectCommand }

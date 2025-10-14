@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { setAssertionCookie } from '@/lib/auth/session'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,6 +25,17 @@ export async function POST(req: NextRequest) {
       path: '/',
       maxAge: 60 * 60 * 24 * 60, // 60d
     })
+    // SSA: access_token의 sub를 추출해 서버 서명 쿠키 발급
+    try {
+      const [, payloadB64] = access_token.split('.')
+      const json = Buffer.from(payloadB64.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8')
+      const payload = JSON.parse(json)
+      const userId = typeof payload?.sub === 'string' ? payload.sub : null
+      if (userId) {
+        // 30분 기본 TTL (클라이언트 세션과는 별개, 빠른 재검증용)
+        await setAssertionCookie(userId, 60 * 30)
+      }
+    } catch {}
     return res
   } catch (e: any) {
     return new Response(JSON.stringify({ error: 'invalid payload' }), { status: 400 })

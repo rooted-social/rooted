@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createServerClientWithAuth } from '@/lib/supabase-server'
+import { resolveUserId } from '@/lib/auth/user'
+import { getCommunityAccess } from '@/lib/community/access'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -19,18 +21,10 @@ export async function GET(req: NextRequest) {
       .maybeSingle()
     if (!ev) return new Response(JSON.stringify([]), { status: 200 })
 
-    const { data: { user } } = await supabase.auth.getUser()
-    const uid = user?.id
+    const uid = await resolveUserId(req)
     if (!uid) return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 })
-
-    const { data: membership } = await supabase
-      .from('community_members')
-      .select('id, role')
-      .eq('community_id', (ev as any).community_id)
-      .eq('user_id', uid)
-      .maybeSingle()
-    const role = (membership as any)?.role
-    if (!role || role === 'pending') {
+    const access = await getCommunityAccess(supabase, (ev as any).community_id, uid, { superAdmin: false })
+    if (!access.isMember) {
       return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 })
     }
 

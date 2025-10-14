@@ -696,7 +696,7 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
                                   rows={3}
                                 />
                                 <div className="flex justify-end gap-3">
-                                  <Button size="sm" variant="outline" className="rounded-2xl" onClick={async (e) => { e.stopPropagation(); const { updateComment } = await import('@/lib/communities'); const text = (commentEditInputs[c.id] ?? c.content) || ''; if (!text.trim()) return; const prev = comments[p.id] || []; setComments(prevMap => ({ ...prevMap, [p.id]: prev.map(x => x.id === c.id ? { ...x, content: text } : x) })); await updateComment(c.id, { content: text }); await loadComments(p.id); (e.currentTarget.closest('[data-slot=dialog-content]')?.querySelector('[data-slot=dialog-close]') as HTMLElement)?.click(); toast.success('댓글이 수정되었습니다.') }}>
+                                  <Button size="sm" variant="outline" className="rounded-2xl" onClick={async (e) => { e.stopPropagation(); const btn = e.currentTarget as HTMLElement; const { updateComment } = await import('@/lib/communities'); const text = (commentEditInputs[c.id] ?? c.content) || ''; if (!text.trim()) return; const prev = comments[p.id] || []; setComments(prevMap => ({ ...prevMap, [p.id]: prev.map(x => x.id === c.id ? { ...x, content: text } : x) })); await updateComment(c.id, { content: text }); await loadComments(p.id); (btn.closest('[data-slot=dialog-content]')?.querySelector('[data-slot=dialog-close]') as HTMLElement | null)?.click(); toast.success('댓글이 수정되었습니다.') }}>
                                     <Edit3 className="w-4 h-4 mr-2" />
                                     수정
                                   </Button>

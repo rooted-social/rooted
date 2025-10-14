@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { createServerClientWithAuth } from '@/lib/supabase-server'
 import { createAdminClient } from '@/lib/supabase-admin'
+import { resolveUserId } from '@/lib/auth/user'
+import { getCommunityAccess } from '@/lib/community/access'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -16,27 +18,37 @@ export async function GET(req: NextRequest) {
   const supabase = await createServerClientWithAuth(bearer)
 
   try {
-    // 인증/멤버십 체크 단일 수행
-    const { data: { user } } = await supabase.auth.getUser()
-    const authUserId = user?.id
+    // 중앙화 사용자 식별
+    const authUserId = await resolveUserId(req)
     if (!authUserId) {
       return new Response(JSON.stringify({ categories: [], classes: [] }), { status: 401 })
     }
     const superId = process.env.SUPER_ADMIN_USER_ID
     const isSuper = !!superId && superId === authUserId
-    if (!isSuper) {
-      const [{ data: community }, { data: member }] = await Promise.all([
-        supabase.from('communities').select('owner_id').eq('id', communityId).single(),
-        supabase.from('community_members').select('role').eq('community_id', communityId).eq('user_id', authUserId).maybeSingle(),
-      ])
-      const isOwner = community && (community as any).owner_id === authUserId
-      const isMember = member && (member as any).role && (member as any).role !== 'pending'
-      if (!isOwner && !isMember) {
-        return new Response(JSON.stringify({ categories: [], classes: [] }), { status: 403 })
-      }
+    const access = await getCommunityAccess(supabase, communityId, authUserId, { superAdmin: isSuper })
+    if (!access.isOwner && !access.isMember) {
+      return new Response(JSON.stringify({ categories: [], classes: [] }), { status: 403 })
     }
 
-    // 카테고리 + 클래스 목록 병렬 조회
+    // RPC 우선: classes_overview
+    try {
+      const cursorCreatedAt = searchParams.get('cursorCreatedAt')
+      const cursorId = searchParams.get('cursorId')
+      const limit = Math.max(1, Math.min(50, Number(searchParams.get('limit') || '20')))
+      const { data: rpc } = await supabase.rpc('classes_overview', {
+        p_community_id: communityId,
+        p_category_id: categoryId || null,
+        p_user_id: userId || authUserId,
+        p_cursor_created_at: cursorCreatedAt || null,
+        p_cursor_id: cursorId || null,
+        p_limit: limit,
+      })
+      if (rpc) {
+        return new Response(JSON.stringify(rpc), { status: 200, headers: { 'content-type': 'application/json', 'Cache-Control': 'public, max-age=60, s-maxage=60' } })
+      }
+    } catch {}
+
+    // 폴백: 기존 병렬 조회
     const canUseAdmin = !!process.env.SUPABASE_SERVICE_ROLE_KEY
     const db = isSuper && canUseAdmin ? createAdminClient() : supabase
     const [catRes, classRes] = await Promise.all([
