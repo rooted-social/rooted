@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { createServerClient } from '@/lib/supabase-server'
 import { r2Client, ListObjectsV2Command, buildPublicR2UrlForBucket, COMMUNITY_IMAGE_BUCKET } from '@/lib/r2'
+import { resolveUserId } from '@/lib/auth/user'
+import { getCommunityAccess } from '@/lib/community/access'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -66,16 +68,11 @@ export async function GET(req: NextRequest) {
       })(),
       (async () => {
         try {
-          // 클라이언트 세션 없이도 멤버십을 판단할 수 있도록, 헤더에 user-id가 설정되어 있으면 사용
-          const userId = req.headers.get('x-user-id')
+          const userId = await resolveUserId(req)
           if (!userId) return null
-          const { data } = await supabase
-            .from('community_members')
-            .select('role')
-            .eq('community_id', (community as any).id)
-            .eq('user_id', userId)
-            .maybeSingle()
-          return data || null
+          const access = await getCommunityAccess(supabase, (community as any).id, userId, { superAdmin: false })
+          if (!access.role) return null
+          return { role: access.role }
         } catch {
           return null
         }

@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { createServerClientWithAuth } from '@/lib/supabase-server'
 import { createAdminClient } from '@/lib/supabase-admin'
+import { resolveUserId } from '@/lib/auth/user'
+import { getCommunityAccess } from '@/lib/community/access'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -16,35 +18,56 @@ export async function GET(req: NextRequest) {
     const { data: page } = await supabase.from('community_pages').select('id, community_id').eq('id', pageId).maybeSingle()
     const communityId = (page as any)?.community_id as string | undefined
     if (!communityId) return new Response(JSON.stringify({ error: 'not found' }), { status: 404 })
-
-    const { data: { user } } = await supabase.auth.getUser()
-    const authUserId = user?.id
+    const authUserId = await resolveUserId(req)
     if (!authUserId) return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 })
     const superId = process.env.SUPER_ADMIN_USER_ID
     const isSuper = !!superId && superId === authUserId
-    let community: any = null
-    let isOwner = false
-    let member: any = null
-    if (!isSuper) {
-      const res = await Promise.all([
-        supabase.from('communities').select('owner_id, slug').eq('id', communityId).single(),
-        supabase.from('community_members').select('role').eq('community_id', communityId).eq('user_id', authUserId).maybeSingle(),
-      ])
-      community = res[0].data
-      member = res[1].data
-      isOwner = community && (community as any).owner_id === authUserId
-      const isMember = member && (member as any).role && (member as any).role !== 'pending'
-      if (!isOwner && !isMember) return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 })
-    } else {
-      // super admin은 커뮤니티 정보를 admin client로 조회
-      const admin = createAdminClient()
-      const { data: comm } = await admin.from('communities').select('owner_id, slug').eq('id', communityId).single()
-      community = comm
-      isOwner = true
-    }
+    const access = await getCommunityAccess(supabase, communityId, authUserId, { superAdmin: isSuper })
+    if (!access.isOwner && !access.isMember) return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 })
+
+    // RPC 우선 (키셋 커서 지원)
+    try {
+      const cursorCreatedAt = searchParams.get('cursorCreatedAt')
+      const cursorId = searchParams.get('cursorId')
+      const limit = Math.max(1, Math.min(50, Number(searchParams.get('limit') || '20')))
+      const { data: rpc } = await supabase.rpc('blog_overview', { p_page_id: pageId, p_limit: limit, p_cursor_created_at: cursorCreatedAt || null, p_cursor_id: cursorId || null })
+      if (rpc) {
+        // 기존 응답 형태 유지
+        const posts = Array.isArray((rpc as any)?.posts) ? (rpc as any).posts : []
+        const toPlain = (html: string): string => {
+          let s = (html || '')
+          // 완전한 태그 제거
+          s = s.replace(/<[^>]*>/g, ' ')
+          // 잘린 태그 잔여 제거 (문자열 끝에 남은 '<...')
+          s = s.replace(/<[^>]*$/g, ' ')
+          // 공백 정규화
+          s = s.replace(/\s+/g, ' ').trim()
+          return s
+        }
+        const payload = {
+          posts: posts.map((p: any) => ({
+            id: p.id,
+            title: p.title,
+            thumbnail_url: p.thumbnail_url,
+            created_at: p.created_at,
+            user_id: p.user_id,
+            pinned: !!p.pinned,
+            counts: { views: p.views ?? 0, likes: Number(p?.counts?.likes ?? 0), comments: Number(p?.counts?.comments ?? 0) },
+            author: p.author || null,
+            excerpt: toPlain(p.content || '').slice(0, 180),
+          })),
+          slug: (rpc as any)?.slug || null,
+          isOwner: access.isOwner || isSuper,
+          brandColor: (rpc as any)?.brandColor || null,
+          nextCursor: (rpc as any)?.nextCursor || null,
+        }
+        return new Response(JSON.stringify(payload), { status: 200, headers: { 'content-type': 'application/json', 'Cache-Control': 'public, max-age=30, s-maxage=30' } })
+      }
+    } catch {}
 
     const canUseAdmin = !!process.env.SUPABASE_SERVICE_ROLE_KEY
     const db = isSuper && canUseAdmin ? createAdminClient() : supabase
+    const { data: commRow } = await db.from('communities').select('slug').eq('id', communityId).maybeSingle()
     const [{ data: settingsRow }, { data: posts }] = await Promise.all([
       db.from('community_settings').select('brand_color').eq('community_id', communityId).maybeSingle(),
       db
@@ -86,7 +109,11 @@ export async function GET(req: NextRequest) {
         const el = globalThis?.document ? document.createElement('div') : (null as any)
         if (el) { el.innerHTML = html || ''; return (el.textContent || el.innerText || '').replace(/\s+/g, ' ').trim() }
       } catch {}
-      return (html || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+      // 서버/SSR 등 DOM 미사용 시: 잘린 태그까지 제거
+      return (html || '')
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/<[^>]*$/g, ' ')
+        .replace(/\s+/g, ' ').trim()
     }
 
     const payload = {
@@ -105,8 +132,8 @@ export async function GET(req: NextRequest) {
         author: p.user_id ? profileMap[p.user_id] || null : null,
         excerpt: toPlain(p.content || '').slice(0, 180),
       })),
-      slug: (community as any)?.slug || null,
-      isOwner,
+      slug: (commRow as any)?.slug || null,
+      isOwner: access.isOwner || isSuper,
       brandColor: (settingsRow as any)?.brand_color || null,
     }
 

@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { createServerClientWithAuth } from '@/lib/supabase-server'
 import { createAdminClient } from '@/lib/supabase-admin'
+import { resolveUserId } from '@/lib/auth/user'
+import { getCommunityAccess } from '@/lib/community/access'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -28,22 +30,13 @@ export async function GET(req: NextRequest) {
     const communityId = (page as any)?.community_id as string | undefined
     if (!communityId) return new Response(JSON.stringify({ error: 'not found' }), { status: 404 })
 
-    // 인증/멤버십 체크
-    const { data: { user } } = await supabase.auth.getUser()
-    const authUserId = user?.id
+    // 중앙화 사용자 식별/권한
+    const authUserId = await resolveUserId(req)
     if (!authUserId) return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 })
     const superId = process.env.SUPER_ADMIN_USER_ID
     const isSuper = !!superId && superId === authUserId
-    let isOwner = false
-    if (!isSuper) {
-      const [{ data: community }, { data: member }] = await Promise.all([
-        supabase.from('communities').select('owner_id').eq('id', communityId).single(),
-        supabase.from('community_members').select('role').eq('community_id', communityId).eq('user_id', authUserId).maybeSingle(),
-      ])
-      isOwner = !!community && (community as any).owner_id === authUserId
-      const isMember = member && (member as any).role && (member as any).role !== 'pending'
-      if (!isOwner && !isMember) return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 })
-    } else { isOwner = true }
+    const access = await getCommunityAccess(supabase, communityId, authUserId, { superAdmin: isSuper })
+    if (!access.isOwner && !access.isMember) return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 })
 
     // 작성자
     let author: any = null
@@ -91,7 +84,7 @@ export async function GET(req: NextRequest) {
       counts: { views: (postRow as any)?.views || 0, likes: likeCount, comments: commentCount },
       liked: !!likedRes.data,
       comments,
-      isOwner,
+      isOwner: access.isOwner || isSuper,
       brandColor: (settings as any)?.brand_color || null,
     }
 

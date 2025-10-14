@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createServerClientWithAuth } from '@/lib/supabase-server'
+import { resolveUserId } from '@/lib/auth/user'
+import { getCommunityAccess } from '@/lib/community/access'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -13,10 +15,13 @@ export async function GET(req: NextRequest) {
   const supabase = await createServerClientWithAuth(bearer)
 
   try {
-    // 인증 및 오너 확인
-    const { data: { user } } = await supabase.auth.getUser()
-    const authUserId = user?.id
+    // 인증 및 오너 확인(중앙화)
+    const authUserId = await resolveUserId(req)
     if (!authUserId) return new Response(JSON.stringify({}), { status: 401 })
+    const superId = process.env.SUPER_ADMIN_USER_ID
+    const isSuper = !!superId && superId === authUserId
+    const access = await getCommunityAccess(supabase, communityId, authUserId, { superAdmin: isSuper })
+    if (!access.isOwner) return new Response(JSON.stringify({}), { status: 403 })
 
     const { data: basicsRow, error: basicsErr } = await supabase
       .from('communities')
@@ -24,9 +29,6 @@ export async function GET(req: NextRequest) {
       .eq('id', communityId)
       .single()
     if (basicsErr) throw basicsErr
-
-    const isOwner = (basicsRow as any)?.owner_id === authUserId
-    if (!isOwner) return new Response(JSON.stringify({}), { status: 403 })
 
     const [settingsRes, servicesRes] = await Promise.all([
       supabase.from('community_settings').select('mission, brand_color, banner_url').eq('community_id', communityId).maybeSingle(),

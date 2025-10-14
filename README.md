@@ -33,17 +33,29 @@ npm install
 `.env.local` 파일을 생성하고 다음 내용을 입력하세요:
 
 ```env
-# Supabase Configuration
+# Supabase
 NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key  # 서버 전용
 
-# Cloudflare R2 Configuration (나중에 이미지 업로드 시 사용)
+# Super Admin (임시: 필요 시 DB 기반 글로벌 롤로 이전)
+SUPER_ADMIN_USER_ID=uuid-of-super-admin
+
+# Server-Signed Assertion (SSA) 쿠키 서명 키
+SESSION_ASSERTION_SECRET=generate-a-strong-random-string
+
+# Cloudflare R2 (선택: 집계 JSON 캐시/이미지 업로드)
 CLOUDFLARE_R2_ACCESS_KEY_ID=your-r2-access-key-id
 CLOUDFLARE_R2_SECRET_ACCESS_KEY=your-r2-secret-access-key
 CLOUDFLARE_R2_BUCKET_NAME=your-r2-bucket-name
 CLOUDFLARE_R2_ENDPOINT=your-r2-endpoint
+R2_JSON_CACHE_BUCKET=json-cache  # 대시보드 통계 등 JSON 캐시 버킷명
 ```
+
+유의사항:
+- `SESSION_ASSERTION_SECRET`으로 API 라우트에서 네트워크 호출 없이 사용자 식별(SSA)을 수행합니다.
+- `SUPABASE_SERVICE_ROLE_KEY`는 절대 클라이언트에 노출하지 마세요(서버 전용).
+- `SESSION_ASSERTION_SECRET`이 유출되면 즉시 교체하세요. 기존 SSA 토큰은 즉시 무효화됩니다.
 
 ### 3. Supabase 설정
 

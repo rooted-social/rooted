@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
-import { createServerClient, createServerClientWithAuth } from '@/lib/supabase-server'
+import { createServerClientWithAuth } from '@/lib/supabase-server'
 import { createAdminClient } from '@/lib/supabase-admin'
+import { resolveUserId } from '@/lib/auth/user'
+import { getCommunityAccess } from '@/lib/community/access'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -8,6 +10,8 @@ export async function GET(req: NextRequest) {
   const pageId = searchParams.get('pageId')
   const limit = Math.max(1, Math.min(50, Number(searchParams.get('limit') || '10')))
   const offset = Math.max(0, Number(searchParams.get('offset') || '0'))
+  const cursorCreatedAt = searchParams.get('cursorCreatedAt')
+  const cursorId = searchParams.get('cursorId')
   if (!communityId) {
     return new Response(JSON.stringify({ error: 'communityId is required' }), { status: 400 })
   }
@@ -17,23 +21,48 @@ export async function GET(req: NextRequest) {
   const supabase = await createServerClientWithAuth(bearer)
 
   try {
-    // 멤버십 체크: 쿠키 또는 Authorization 헤더 기반 사용자
-    const { data: { user } } = await supabase.auth.getUser()
-    const authUserId = user?.id
+    // 중앙화 사용자 식별/권한
+    const authUserId = await resolveUserId(req)
     if (!authUserId) return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 })
-    const [{ data: community }, { data: member }] = await Promise.all([
-      supabase.from('communities').select('owner_id').eq('id', communityId).single(),
-      supabase.from('community_members').select('role').eq('community_id', communityId as string).eq('user_id', authUserId).maybeSingle(),
-    ])
     const superId = process.env.SUPER_ADMIN_USER_ID
     const isSuper = !!superId && superId === authUserId
-    const isOwner = isSuper || (community && (community as any).owner_id === authUserId)
-    const isMember = member && (member as any).role && (member as any).role !== 'pending'
-    if (!isOwner && !isMember) {
+    const access = await getCommunityAccess(supabase, communityId, authUserId, { superAdmin: isSuper })
+    if (!access.isOwner && !access.isMember) {
       return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 })
     }
 
-    // Posts (count + page) — select only used columns to reduce payload
+    // RPC 우선: feed_overview (단일 호출)
+    try {
+      const { data: rpc } = await supabase.rpc('feed_overview', {
+        p_community_id: communityId,
+        p_page_id: pageId === 'null' ? null : pageId,
+        p_limit: limit,
+        p_offset: (cursorCreatedAt || cursorId) ? 0 : offset,
+        p_cursor_created_at: cursorCreatedAt || null,
+        p_cursor_id: cursorId || null,
+      })
+      if (rpc) {
+        const posts = Array.isArray((rpc as any)?.posts) ? (rpc as any).posts : []
+        const likeCounts: Record<string, number> = {}
+        const commentCounts: Record<string, number> = {}
+        for (const p of posts as any[]) {
+          const pid = (p as any)?.id
+          if (!pid) continue
+          likeCounts[pid] = Number((p as any)?.counts?.likes ?? 0)
+          commentCounts[pid] = Number((p as any)?.counts?.comments ?? 0)
+        }
+        const body = { posts, likeCounts, commentCounts, totalCount: Number((rpc as any)?.totalCount ?? posts.length), nextCursor: (rpc as any)?.nextCursor || null }
+        return new Response(JSON.stringify(body), {
+          status: 200,
+          headers: {
+            'content-type': 'application/json',
+            'Cache-Control': 'public, max-age=60, s-maxage=60',
+          },
+        })
+      }
+    } catch {}
+
+    // 폴백: 기존 합성 로직
     const canUseAdmin = !!process.env.SUPABASE_SERVICE_ROLE_KEY
     const db = isSuper && canUseAdmin ? createAdminClient() : supabase
     let base = db.from('posts')
@@ -56,12 +85,9 @@ export async function GET(req: NextRequest) {
     const [countRes, dataRes] = await Promise.all([qCount, q])
     const totalCount = countRes.count || 0
     const { data: posts } = dataRes
-
     const postList = (posts || []) as any[]
     const postIds = postList.map(p => p.id)
     const userIds = Array.from(new Set(postList.map(p => p.user_id)))
-
-    // Profiles
     let profileMap: Record<string, any> = {}
     if (userIds.length > 0) {
       const { data: profs } = await db
@@ -70,8 +96,6 @@ export async function GET(req: NextRequest) {
         .in('id', userIds as any)
       profileMap = Object.fromEntries((profs || []).map((p: any) => [p.id, p]))
     }
-
-    // Likes and Comments (aggregated)
     let likeCounts: Record<string, number> = {}
     let commentCounts: Record<string, number> = {}
     if (postIds.length > 0) {
@@ -79,28 +103,11 @@ export async function GET(req: NextRequest) {
         db.from('post_likes').select('post_id').in('post_id', postIds as any),
         db.from('comments').select('post_id').in('post_id', postIds as any),
       ])
-      for (const row of (likeRows || []) as any[]) {
-        const pid = (row as any).post_id
-        likeCounts[pid] = (likeCounts[pid] || 0) + 1
-      }
-      for (const row of (commentRows || []) as any[]) {
-        const pid = (row as any).post_id
-        commentCounts[pid] = (commentCounts[pid] || 0) + 1
-      }
+      for (const row of (likeRows || []) as any[]) likeCounts[(row as any).post_id] = (likeCounts[(row as any).post_id] || 0) + 1
+      for (const row of (commentRows || []) as any[]) commentCounts[(row as any).post_id] = (commentCounts[(row as any).post_id] || 0) + 1
     }
-
     const merged = postList.map(p => ({ ...p, author: profileMap[p.user_id] }))
-
-    return new Response(
-      JSON.stringify({ posts: merged, likeCounts, commentCounts, totalCount }),
-      { 
-        status: 200, 
-        headers: { 
-          'content-type': 'application/json',
-          'Cache-Control': 'public, max-age=60, s-maxage=60',
-        } 
-      }
-    )
+    return new Response(JSON.stringify({ posts: merged, likeCounts, commentCounts, totalCount }), { status: 200, headers: { 'content-type': 'application/json', 'Cache-Control': 'public, max-age=60, s-maxage=60' } })
   } catch (e: any) {
     return new Response(JSON.stringify({ error: e?.message || 'failed to load feed' }), { status: 500 })
   }

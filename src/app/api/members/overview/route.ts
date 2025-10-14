@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { createServerClientWithAuth } from '@/lib/supabase-server'
 import { createAdminClient } from '@/lib/supabase-admin'
+import { resolveUserId } from '@/lib/auth/user'
+import { getCommunityAccess } from '@/lib/community/access'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -12,30 +14,18 @@ export async function GET(req: NextRequest) {
   const supabase = await createServerClientWithAuth(bearer)
 
   try {
-    // 인증 및 멤버십 체크
-    const { data: { user } } = await supabase.auth.getUser()
-    const authUserId = user?.id
+    // 중앙화 사용자 식별 및 권한
+    const authUserId = await resolveUserId(req)
     if (!authUserId) return new Response(JSON.stringify({ members: [], pending: [], isOwner: false }), { status: 401 })
 
     const superId = process.env.SUPER_ADMIN_USER_ID
     const isSuper = !!superId && superId === authUserId
     let ownerId: string | null = null
-    let isOwner = false
-    if (!isSuper) {
-      const [{ data: comm }, { data: memberRow }] = await Promise.all([
-        supabase.from('communities').select('owner_id').eq('id', communityId).single(),
-        supabase.from('community_members').select('role').eq('community_id', communityId).eq('user_id', authUserId).maybeSingle(),
-      ])
+    const access = await getCommunityAccess(supabase, communityId, authUserId, { superAdmin: isSuper })
+    if (!access.isOwner && !access.isMember) return new Response(JSON.stringify({ members: [], pending: [], isOwner: false }), { status: 403 })
+    if (access.isOwner) {
+      const { data: comm } = await supabase.from('communities').select('owner_id').eq('id', communityId).single()
       ownerId = (comm as any)?.owner_id || null
-      isOwner = !!ownerId && ownerId === authUserId
-      const isMember = !!(memberRow as any)?.role && (memberRow as any).role !== 'pending'
-      if (!isOwner && !isMember) return new Response(JSON.stringify({ members: [], pending: [], isOwner: false }), { status: 403 })
-    } else {
-      // super admin은 오너 권한으로 행동
-      const admin = createAdminClient()
-      const { data: comm } = await admin.from('communities').select('owner_id').eq('id', communityId).single()
-      ownerId = (comm as any)?.owner_id || null
-      isOwner = true
     }
 
     // 멤버 목록 (pending 제외)
@@ -63,7 +53,7 @@ export async function GET(req: NextRequest) {
 
     // 오너일 때만 pending 목록 포함
     let pending: any[] = []
-    if (isOwner) {
+    if (access.isOwner || isSuper) {
       const { data: pendingRows } = await db
         .from('community_members')
         .select('user_id')
@@ -78,7 +68,7 @@ export async function GET(req: NextRequest) {
       pending = (pendingRows || []).map((r: any) => ({ user_id: r.user_id, profile: pMap[r.user_id] || null }))
     }
 
-    return new Response(JSON.stringify({ members, pending, isOwner }), {
+    return new Response(JSON.stringify({ members, pending, isOwner: access.isOwner || isSuper }), {
       status: 200,
       headers: {
         'content-type': 'application/json',
