@@ -20,7 +20,8 @@ export function SidebarPadding({ children }: SidebarPaddingProps) {
      pathname?.includes('/calendar') || pathname?.includes('/members') || pathname?.includes('/settings') || pathname?.includes('/stats'))
 
   // 헤더가 보이면 상단 패딩 적용, 아니면 0
-  const paddingClass = (isAuthRoute || hideGlobalHeader || isHome) ? 'pt-0' : 'pt-16'
+  // 모바일에서는 헤더 높이가 48px(12) 이므로, 중간에 흰 여백이 보이지 않게 동일 패딩 사용
+  const paddingClass = (isAuthRoute || hideGlobalHeader || isHome) ? 'pt-0' : 'pt-12 md:pt-20'
 
   return <div className={paddingClass}>{children}</div>
 }
