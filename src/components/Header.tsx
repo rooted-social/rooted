@@ -25,7 +25,7 @@ export function Header() {
   const tickingRef = useRef(false)
 
   const firstSegment = pathname?.split('/').filter(Boolean)[0] || ''
-  const topLevelRoutes = new Set(['', 'explore', 'features', 'pricing', 'create', 'login', 'signup', 'dashboard', 'messages', 'notifications', 'api'])
+  const topLevelRoutes = new Set(['', 'explore', 'features', 'pricing', 'feedback', 'create', 'login', 'signup', 'dashboard', 'messages', 'notifications', 'api'])
   const isAuthRoute = pathname === '/login' || pathname === '/signup'
 
   // 커뮤니티 대시보드 및 내부 탭에서는 전용 헤더를 사용하므로 글로벌 헤더 숨김
@@ -37,7 +37,7 @@ export function Header() {
 
   const isActive = (href: string) => pathname === href
   // 특정 페이지에서는 캡슐을 화이트 톤으로 전환
-  const useWhiteCapsule = pathname === '/explore' || pathname === '/features' || pathname === '/pricing' || pathname === '/dashboard' || pathname === '/create' || pathname === '/notifications' || isCommunityRootPage
+  const useWhiteCapsule = pathname === '/explore' || pathname === '/features' || pathname === '/pricing' || pathname === '/feedback' || pathname === '/dashboard' || pathname === '/create' || pathname === '/notifications' || isCommunityRootPage
   const isHome = pathname === '/'
   const gradientBg = isHome
     ? 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.95) 25%, rgba(241,245,249,0.95) 50%, rgba(226,232,240,0.95) 75%, rgba(241,245,249,0.95) 100%)'
@@ -97,8 +97,15 @@ export function Header() {
 
   if (isAuthRoute || isCommunityDashboardPage) return null
 
+  const isPricing = pathname === '/pricing'
+  // 기본: 모바일 흰색, 데스크탑 투명. 가격 페이지는 상단 검정 바를 별도 레이어로 추가하여 플래시 방지
+  const headerBgClass = 'bg-white md:bg-transparent'
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white md:bg-transparent transition-transform duration-300" style={{ transform: hideOnScroll ? 'translateY(-100%)' : 'translateY(0)' }}>
+    <>
+      {isPricing && (
+        <div className="fixed top-0 left-0 right-0 h-12 md:h-20 bg-neutral-950 z-40 hidden md:block" aria-hidden />
+      )}
+      <header className={`fixed top-0 left-0 right-0 z-50 transition-transform duration-300 ${headerBgClass}`} style={{ transform: hideOnScroll ? 'translateY(-100%)' : 'translateY(0)' }}>
       {/* 외부 클릭으로 데스크탑 드롭다운 닫기 */}
       {(showCommunityDropdown || showProfileDropdown) && (
         <div
@@ -414,6 +421,7 @@ export function Header() {
           </ul>
         </div>
       </div>
-    </header>
+      </header>
+    </>
   )
 }
