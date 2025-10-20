@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     const superId = process.env.SUPER_ADMIN_USER_ID
     const isSuper = !!superId && superId === authUserId
     const access = await getCommunityAccess(supabase, communityId, authUserId, { superAdmin: isSuper })
-    if (!access.isOwner && !access.isMember) {
+    if (!isSuper && !access.isOwner && !access.isMember) {
       return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 })
     }
 
