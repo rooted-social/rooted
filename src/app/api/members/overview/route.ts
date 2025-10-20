@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     const isSuper = !!superId && superId === authUserId
     let ownerId: string | null = null
     const access = await getCommunityAccess(supabase, communityId, authUserId, { superAdmin: isSuper })
-    if (!access.isOwner && !access.isMember) return new Response(JSON.stringify({ members: [], pending: [], isOwner: false }), { status: 403 })
+    if (!isSuper && !access.isOwner && !access.isMember) return new Response(JSON.stringify({ members: [], pending: [], isOwner: false }), { status: 403 })
     if (access.isOwner) {
       const { data: comm } = await supabase.from('communities').select('owner_id').eq('id', communityId).single()
       ownerId = (comm as any)?.owner_id || null

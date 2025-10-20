@@ -195,7 +195,15 @@ returns void
 language plpgsql
 security definer
 as $$
+declare
+  v_exists boolean;
 begin
+  -- 커뮤니티가 삭제(cascade) 중이면 카운터 업데이트를 건너뛴다
+  select exists(select 1 from communities where id = p_community_id) into v_exists;
+  if not coalesce(v_exists, false) then
+    return;
+  end if;
+
   insert into community_counters (community_id, posts_count, comments_count, members_count)
   values (p_community_id, greatest(0, p_posts_delta), greatest(0, p_comments_delta), greatest(0, p_members_delta))
   on conflict (community_id)

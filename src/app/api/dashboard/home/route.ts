@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     const superId = process.env.SUPER_ADMIN_USER_ID
     const isSuper = !!superId && superId === authUserId
     const access = await getCommunityAccess(supabase, communityId, authUserId, { superAdmin: isSuper })
-    if (!access.isOwner && !access.isMember) {
+    if (!isSuper && !access.isOwner && !access.isMember) {
       return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 })
     }
     // 공개 필드만 캐시: settings, notices, upcomingEvents, pages (권한 필드는 사용자별이므로 캐시 제외)
