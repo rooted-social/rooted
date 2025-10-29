@@ -15,7 +15,7 @@ export async function GET(_req: NextRequest) {
       .limit(10)
     if (error) throw error
     const ids = Array.from(new Set((rows || []).map((r: any) => r.community_id).filter(Boolean)))
-    if (ids.length === 0) return new Response(JSON.stringify([]), { status: 200, headers: { 'content-type': 'application/json', 'Cache-Control': 'public, max-age=60, s-maxage=120' } })
+    if (ids.length === 0) return new Response(JSON.stringify([]), { status: 200, headers: { 'content-type': 'application/json', 'Cache-Control': 'no-store' } })
 
     const { data: communities } = await supabase
       .from('communities')
@@ -48,7 +48,7 @@ export async function GET(_req: NextRequest) {
       }
     } catch {}
 
-    return new Response(JSON.stringify(enriched || []), { status: 200, headers: { 'content-type': 'application/json', 'Cache-Control': 'public, max-age=60, s-maxage=120' } })
+    return new Response(JSON.stringify(enriched || []), { status: 200, headers: { 'content-type': 'application/json', 'Cache-Control': 'no-store' } })
   } catch (e: any) {
     return new Response(JSON.stringify({ error: e?.message || 'failed' }), { status: 500 })
   }

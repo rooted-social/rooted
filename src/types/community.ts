@@ -11,6 +11,10 @@ export interface Community {
   thumb_url?: string | null
   owner_id: string
   member_count: number
+  // plan & limits (beta)
+  plan?: 'starter' | 'pro' | 'pro_plus'
+  member_limit?: number | null
+  page_limit?: number | null
   created_at: string
   updated_at: string
 }

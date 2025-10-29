@@ -55,12 +55,37 @@ export async function createCommunityPage(
   _banner_url?: string | null,
   _description?: string | null,
 ) {
+  // UX용 선행 검사: 페이지 한도 확인
+  try {
+    const { data: comm } = await supabase
+      .from('communities')
+      .select('page_limit')
+      .eq('id', communityId)
+      .single()
+    const limit = (comm as any)?.page_limit as number | null | undefined
+    if (limit !== null && typeof limit === 'number') {
+      const { count } = await supabase
+        .from('community_pages')
+        .select('*', { count: 'exact', head: true })
+        .eq('community_id', communityId)
+      if ((count || 0) >= limit) {
+        throw new Error('페이지 한도에 도달했습니다. 플랜을 업그레이드해주세요.')
+      }
+    }
+  } catch {}
+
   const { data, error } = await supabase
     .from('community_pages')
     .insert({ community_id: communityId, title, position: 999, group_id: groupId ?? null, type })
     .select()
     .single()
-  if (error) throw error
+  if (error) {
+    const em = (error as any)?.message?.toString?.().toLowerCase?.() || ''
+    if (em.includes('page_limit_reached')) {
+      throw new Error('페이지 한도에 도달했습니다. 플랜을 업그레이드해주세요.')
+    }
+    throw error
+  }
   invalidatePagesCache(communityId)
   return data as CommunityPage
 }

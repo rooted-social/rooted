@@ -6,7 +6,7 @@ import { useEffect, useState } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "sonner"
-import { Bell, ChevronDown, Menu, Home, BookOpen, Calendar, Users, Settings, BarChart3, Share2, Link as LinkIcon } from "lucide-react"
+import { Bell, ChevronDown, Menu, Home, BookOpen, Calendar, Users, Settings, BarChart3, Share2, Link as LinkIcon, Crown } from "lucide-react"
 import { getAvatarUrl } from "@/lib/utils"
 import { useAuthData } from "@/components/auth/AuthProvider"
 import { useIsSuperAdmin } from "@/lib/auth/roles-client"
@@ -14,7 +14,7 @@ import { useIsSuperAdmin } from "@/lib/auth/roles-client"
 import { getCommunitySettings } from "@/lib/communities"
 import { getReadableTextColor, withAlpha } from "@/utils/color"
 import { useRouter } from "next/navigation"
-import { supabase } from "@/lib/supabase"
+import { logoutClient } from '@/lib/auth/session-client'
 
 type ViewKey = "home" | "settings" | "classes" | "calendar" | "members" | "stats"
 
@@ -220,13 +220,20 @@ export function CommunityTopbar({ slug, name, active, onChangeAction, imageUrl, 
                           className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors"
                           onClick={() => setShowCommunityDropdown(false)}
                         >
-                          <div className="w-8 h-8 rounded-md overflow-hidden bg-white border border-slate-200">
-                            {(community.communities as any)?.icon_url || community.communities?.image_url ? (
-                              <img src={(community.communities as any).icon_url || (community.communities as any).image_url} alt="icon" className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full bg-slate-900 text-white flex items-center justify-center">
-                                <span className="text-xs font-medium">{community.communities?.name?.[0]}</span>
-                              </div>
+                          <div className="relative w-8 h-8">
+                            <div className="w-8 h-8 rounded-md overflow-hidden bg-white border border-slate-200">
+                              {(community.communities as any)?.icon_url || community.communities?.image_url ? (
+                                <img src={(community.communities as any).icon_url || (community.communities as any).image_url} alt="icon" className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full bg-slate-900 text-white flex items-center justify-center">
+                                  <span className="text-xs font-medium">{community.communities?.name?.[0]}</span>
+                                </div>
+                              )}
+                            </div>
+                            {(community.communities as any)?.owner_id === user?.id && (
+                              <span className="pointer-events-none absolute -top-1 -left-1 z-10 rounded-full bg-amber-400 text-white shadow ring-1 ring-white p-[2px]">
+                                <Crown className="w-3 h-3" />
+                              </span>
                             )}
                           </div>
                           <span className="text-sm font-medium text-slate-700 truncate">{community.communities?.name}</span>
@@ -275,8 +282,7 @@ export function CommunityTopbar({ slug, name, active, onChangeAction, imageUrl, 
                     <button
                       className="w-full px-3 py-2 rounded-lg hover:bg-red-50 text-sm text-center text-red-600 cursor-pointer"
                       onClick={async () => {
-                        try { await supabase.auth.signOut() } catch {}
-                        try { await fetch('/api/auth/clear', { method: 'POST' }) } catch {}
+                        await logoutClient('/login')
                         setShowProfileDropdown(false)
                         router.push('/login')
                       }}
@@ -386,13 +392,20 @@ export function CommunityTopbar({ slug, name, active, onChangeAction, imageUrl, 
                               className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors"
                               onClick={() => setShowCommunityDropdown(false)}
                             >
-                              <div className="w-8 h-8 rounded-md overflow-hidden bg-white border border-slate-200">
-                                {(community.communities as any)?.icon_url || community.communities?.image_url ? (
-                                  <img src={(community.communities as any).icon_url || (community.communities as any).image_url} alt="icon" className="w-full h-full object-cover" />
-                                ) : (
-                                  <div className="w-full h-full bg-slate-900 text-white flex items-center justify-center">
-                                    <span className="text-xs font-medium">{community.communities?.name?.[0]}</span>
-                                  </div>
+                              <div className="relative w-8 h-8">
+                                <div className="w-8 h-8 rounded-md overflow-hidden bg-white border border-slate-200">
+                                  {(community.communities as any)?.icon_url || community.communities?.image_url ? (
+                                    <img src={(community.communities as any).icon_url || (community.communities as any).image_url} alt="icon" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <div className="w-full h-full bg-slate-900 text-white flex items-center justify-center">
+                                      <span className="text-xs font-medium">{community.communities?.name?.[0]}</span>
+                                    </div>
+                                  )}
+                                </div>
+                                {(community.communities as any)?.owner_id === user?.id && (
+                                  <span className="pointer-events-none absolute -top-1 -left-1 z-10 rounded-full bg-amber-400 text-white shadow ring-1 ring-white p-[2px]">
+                                    <Crown className="w-3 h-3" />
+                                  </span>
                                 )}
                               </div>
                               <span className="text-sm font-medium text-slate-700 truncate">{community.communities?.name}</span>

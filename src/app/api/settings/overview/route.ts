@@ -25,14 +25,16 @@ export async function GET(req: NextRequest) {
 
     const { data: basicsRow, error: basicsErr } = await supabase
       .from('communities')
-      .select('id, owner_id, name, slug, description, category, image_url, icon_url, is_public, join_policy')
+      .select('id, owner_id, name, slug, description, category, image_url, icon_url, is_public, join_policy, plan, member_limit, page_limit')
       .eq('id', communityId)
       .single()
     if (basicsErr) throw basicsErr
 
-    const [settingsRes, servicesRes] = await Promise.all([
+    const [settingsRes, servicesRes, pagesCountRes, membersCountRes] = await Promise.all([
       supabase.from('community_settings').select('mission, brand_color, banner_url').eq('community_id', communityId).maybeSingle(),
       supabase.from('community_services').select('id,label').eq('community_id', communityId).order('created_at', { ascending: true }),
+      supabase.from('community_pages').select('*', { count: 'exact', head: true }).eq('community_id', communityId),
+      supabase.from('community_members').select('*', { count: 'exact', head: true }).eq('community_id', communityId).or('role.is.null,role.neq.pending'),
     ])
 
     const payload = {
@@ -48,6 +50,14 @@ export async function GET(req: NextRequest) {
       },
       settings: settingsRes.data || null,
       services: Array.isArray(servicesRes.data) ? servicesRes.data : [],
+      plan: {
+        key: (basicsRow as any)?.plan || 'starter',
+        member_limit: (basicsRow as any)?.member_limit ?? null,
+        page_limit: (basicsRow as any)?.page_limit ?? null,
+        members_used: (membersCountRes?.count || 0),
+        pages_used: (pagesCountRes?.count || 0),
+        next_billing_at: null, // Beta: 결제 없음
+      },
     }
 
     return new Response(JSON.stringify(payload), {

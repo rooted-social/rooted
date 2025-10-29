@@ -109,9 +109,17 @@ export async function createCommunity(communityData: CreateCommunityData) {
 
     if (existingCommunity) throw new Error('이미 사용 중인 URL입니다.')
 
+    // 기본 플랜은 Starter로 시작 (베타)
     const { data, error } = await supabase
       .from('communities')
-      .insert({ ...communityData, owner_id: uid })
+      .insert({
+        ...communityData,
+        owner_id: uid,
+        // 서버 기본값에 의존하되, 명시적으로 함께 기록하여 초기 값 보장
+        plan: 'starter' as any,
+        member_limit: 300 as any,
+        page_limit: 10 as any,
+      })
       .select()
       .single()
     if (error) throw error
@@ -168,18 +176,37 @@ export async function joinCommunity(communityId: string) {
 
     const { data: comm } = await supabase
       .from('communities')
-      .select('join_policy')
+      .select('join_policy, member_limit')
       .eq('id', communityId)
       .single()
     const policy = (comm as any)?.join_policy || 'free'
     const role = policy === 'approval' ? 'pending' : 'member'
+
+    // UX용 선행 체크: 현재 멤버 수가 한도에 도달했다면 사전 차단
+    const limit = (comm as any)?.member_limit as number | null | undefined
+    if (limit !== null && typeof limit === 'number') {
+      const { count: memCount } = await supabase
+        .from('community_members')
+        .select('*', { count: 'exact', head: true })
+        .eq('community_id', communityId)
+        .or('role.is.null,role.neq.pending')
+      if ((memCount || 0) >= limit) {
+        throw new Error('멤버 한도에 도달했습니다. 플랜을 업그레이드해주세요.')
+      }
+    }
 
     const { data, error } = await supabase
       .from('community_members')
       .insert({ community_id: communityId, user_id: uid, role })
       .select()
       .single()
-    if (error) throw error
+    if (error) {
+      const em = (error as any)?.message?.toString?.().toLowerCase?.() || ''
+      if (em.includes('member_limit_reached')) {
+        throw new Error('멤버 한도에 도달했습니다. 플랜을 업그레이드해주세요.')
+      }
+      throw error
+    }
     return data
   } catch (error) {
     console.error('joinCommunity 오류:', error)

@@ -30,6 +30,8 @@ export default function DashboardPage() {
   const [ownedCommunities, setOwnedCommunities] = useState<Community[]>([])
   const [openLeave, setOpenLeave] = useState(false)
   const [leaveTarget, setLeaveTarget] = useState<{ id: string; name: string } | null>(null)
+  const [openDeleteAccount, setOpenDeleteAccount] = useState(false)
+  const [deleteInput, setDeleteInput] = useState('')
   const router = useRouter()
 
   useEffect(() => {
@@ -62,22 +64,16 @@ export default function DashboardPage() {
 
   const handleLogout = async () => {
     try {
-      // 1) 글로벌 로그아웃 시도 (모든 기기 세션 무효화)
-      let { error } = await supabase.auth.signOut({ scope: 'global' as any })
-      if (error && (error.status === 401 || error.status === 403)) {
-        // 2) 권한 문제로 글로벌 실패 시 로컬만 정리
-        const res = await supabase.auth.signOut()
-        error = res.error
-      }
-      if (error) {
-        toast.error('로그아웃 중 오류가 발생했습니다.')
-        return
-      }
+      // 1) 클라이언트 세션 정리 (로컬 로그아웃)
+      await supabase.auth.signOut()
+      // 2) 서버 쿠키 정리 (sb-*, is-super-admin, ssa)
+      try { await fetch('/api/auth/clear', { method: 'POST' }) } catch {}
       toast.success('로그아웃되었습니다.')
       router.push('/')
     } catch {
-      // 네트워크/기타 예외 시에도 로컬 세션 제거를 최후 시도로 시도
+      // 네트워크 예외 시에도 최후 시도로 로컬/서버 정리
       try { await supabase.auth.signOut() } catch {}
+      try { await fetch('/api/auth/clear', { method: 'POST' }) } catch {}
       router.push('/')
     }
   }
@@ -111,7 +107,7 @@ export default function DashboardPage() {
       <div className="max-w-4xl mx-auto relative z-10 pt-2 md:pt-10">
         {/* Header */}
         <div className="flex justify-end items-center mb-8">
-          <Button onClick={handleLogout} className="cursor-pointer bg-red-600 hover:bg-red-700 text-white border border-red-700/70 shadow-sm">
+          <Button onClick={handleLogout} className="cursor-pointer bg-black hover:bg-black/90 text-white border border-black/80 shadow-sm">
             로그아웃
           </Button>
         </div>
@@ -263,6 +259,17 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* 회원 탈퇴 섹션 */}
+        <div className="mt-6">
+          <div className="flex items-center justify-between bg-white/90 backdrop-blur-sm border border-slate-200 rounded-xl p-4">
+            <div>
+              <div className="text-base font-semibold text-slate-900">회원 탈퇴</div>
+              <div className="text-sm text-slate-600">계정을 영구 삭제합니다. 이 작업은 되돌릴 수 없습니다.</div>
+            </div>
+            <Button onClick={() => setOpenDeleteAccount(true)} className="cursor-pointer bg-red-600 hover:bg-red-700 text-white border border-red-700/70">회원 탈퇴</Button>
+          </div>
+        </div>
       </div>
       {/* 루트 탈퇴 확인 모달 */}
       <Dialog open={openLeave} onOpenChange={setOpenLeave}>
@@ -278,6 +285,54 @@ export default function DashboardPage() {
           <div className="flex items-center justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setOpenLeave(false)} className="cursor-pointer">취소</Button>
             <Button onClick={confirmLeave} className="bg-red-600 hover:bg-red-700 text-white cursor-pointer">탈퇴</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 회원 탈퇴 모달 */}
+      <Dialog open={openDeleteAccount} onOpenChange={setOpenDeleteAccount}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>정말 탈퇴하시겠습니까?</DialogTitle>
+            <DialogDescription>확인을 위해 아래 입력란에 <strong>탈퇴하기</strong>를 입력해 주세요.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-red-50 text-red-700 border border-red-100">
+              <AlertTriangle className="w-5 h-5" />
+              <div className="text-sm leading-5">계정과 관련 데이터(프로필, 커뮤니티 멤버십)가 삭제됩니다. 운영 중인 루트가 있으면 탈퇴할 수 없습니다.</div>
+            </div>
+            <input
+              value={deleteInput}
+              onChange={e => setDeleteInput(e.target.value)}
+              placeholder="탈퇴하기"
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+            />
+          </div>
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setOpenDeleteAccount(false)} className="cursor-pointer">취소</Button>
+            <Button
+              onClick={async () => {
+                try {
+                  const token = (await supabase.auth.getSession()).data.session?.access_token
+                  const res = await fetch('/api/account/delete', { method: 'POST', headers: { 'content-type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ confirm: deleteInput }) })
+                  const body = await res.json().catch(() => ({}))
+                  if (!res.ok) throw new Error(body?.error || '탈퇴 실패')
+                  // 클라이언트 세션 정리(Supabase 로컬 세션)
+                  try { await supabase.auth.signOut() } catch {}
+                  // 서버 쿠키 정리
+                  try { await fetch('/api/auth/clear', { method: 'POST' }) } catch {}
+                  toast.success('회원 탈퇴가 완료되었습니다')
+                  // 잠시 후 메인으로 이동 (히스토리 교체)
+                  setTimeout(() => { try { window.location.replace('/') } catch { window.location.assign('/') } }, 800)
+                } catch (e: any) {
+                  toast.error(e?.message || '탈퇴 중 오류가 발생했습니다')
+                }
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white cursor-pointer"
+              disabled={deleteInput !== '탈퇴하기'}
+            >
+              영구 탈퇴
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

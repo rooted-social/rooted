@@ -23,11 +23,21 @@ async function assertOwner(req: NextRequest, slug: string) {
   return { userId: user.id as string, communityId: (comm as any)?.id as string | null }
 }
 
-export async function GET(_req: NextRequest, context: { params: Promise<{ slug: string }> }) {
+export async function GET(req: NextRequest, context: { params: Promise<{ slug: string }> }) {
   const { slug } = await context.params
   if (!slug) return new Response(JSON.stringify({ error: 'slug is required' }), { status: 400 })
 
   try {
+    // optional limit param: clamp to 1..20 (default 10)
+    let limit = 10
+    try {
+      const url = new URL(req.url)
+      const raw = url.searchParams.get('limit')
+      if (raw != null) {
+        const n = Math.floor(Number(raw))
+        if (Number.isFinite(n)) limit = Math.min(20, Math.max(1, n))
+      }
+    } catch {}
     // 1) 우선 Supabase community_images 테이블 우선 조회 (있다면 정렬/메타 활용)
     try {
       const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -38,7 +48,7 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ slug: 
         .order('is_main', { ascending: false })
         .order('position', { ascending: true, nullsFirst: true })
         .order('created_at', { ascending: true })
-        .limit(10)
+        .limit(limit)
       if (rows && rows.length > 0) {
         const items = rows.map((r: any) => ({
           key: r.key as string,
@@ -51,10 +61,10 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ slug: 
 
     // 2) 폴백: R2에서 직접 나열 (짧은 캐시)
     const prefix = `${slug}/`
-    const list = await r2Client.send(new ListObjectsV2Command({ Bucket: COMMUNITY_IMAGE_BUCKET, Prefix: prefix, MaxKeys: 10 }))
+    const list = await r2Client.send(new ListObjectsV2Command({ Bucket: COMMUNITY_IMAGE_BUCKET, Prefix: prefix, MaxKeys: limit }))
     const items = (list.Contents || [])
       .filter(obj => !!obj.Key && !obj.Key.endsWith('/'))
-      .slice(0, 10)
+      .slice(0, limit)
       .map(obj => ({ key: obj.Key as string, url: buildPublicR2UrlForBucket(COMMUNITY_IMAGE_BUCKET, obj.Key as string) }))
     return new Response(JSON.stringify({ images: items }), { status: 200, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60' } })
   } catch (e: any) {
@@ -71,12 +81,41 @@ export async function POST(req: NextRequest, context: { params: Promise<{ slug: 
     const file = formData.get('file') as File | null
     const target = (formData.get('target') as string | null) || 'images' // images | icon | banner
     if (!file) return new Response(JSON.stringify({ error: 'file is required' }), { status: 400 })
+    // 형식/크기 제한 (블로그 이미지와 동일 정책, 친절한 메시지)
+    const allowed = new Set(['image/jpeg','image/png','image/webp','image/gif'])
+    const contentType = (file as any).type || ''
+    if (!allowed.has(contentType)) {
+      return NextResponse.json({ error: '지원하지 않는 파일 형식입니다. JPG, PNG, WEBP, GIF만 업로드할 수 있어요.' }, { status: 400 })
+    }
+    const size = (file as any).size as number | undefined
+    if (typeof size === 'number' && size > 5 * 1024 * 1024) {
+      return NextResponse.json({ error: '파일이 너무 큽니다. 최대 5MB까지 업로드할 수 있어요.' }, { status: 400 })
+    }
     const safeName = file.name.replace(/[^\w.\-]+/g, '_')
     const key = `${slug}/${Date.now()}_${safeName}`
     const arrayBuffer = await file.arrayBuffer()
     const bucket = target === 'icon' ? COMMUNITY_ICON_BUCKET : (target === 'banner' ? COMMUNITY_BANNER_BUCKET : COMMUNITY_IMAGE_BUCKET)
-    const processed = target === 'icon' ? await processCommunityIcon(Buffer.from(arrayBuffer)) : (target === 'banner' ? await processCommunityBanner(Buffer.from(arrayBuffer)) : await processCommunityImage(Buffer.from(arrayBuffer)))
-    await r2Client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: processed.buffer, ContentType: processed.contentType }))
+    // sharp 처리 단계에서의 오류를 사용자 친화적으로 변환
+    let processed: { buffer: Buffer; contentType: string }
+    try {
+      processed = target === 'icon' ? await processCommunityIcon(Buffer.from(arrayBuffer)) : (target === 'banner' ? await processCommunityBanner(Buffer.from(arrayBuffer)) : await processCommunityImage(Buffer.from(arrayBuffer)))
+    } catch (e: any) {
+      const msg = (e?.message || '').toLowerCase()
+      if (msg.includes('input buffer contains unsupported image format') || msg.includes('heic') || msg.includes('heif')) {
+        return NextResponse.json({ error: '이미지 변환에 실패했습니다. HEIC/HEIF 등은 지원되지 않을 수 있어요. JPG/PNG/WEBP로 변환해서 다시 시도해 주세요.' }, { status: 400 })
+      }
+      return NextResponse.json({ error: '이미지 처리 중 오류가 발생했습니다. 다른 형식으로 다시 시도해 주세요.' }, { status: 400 })
+    }
+    // 버킷 오류 메시지 개선
+    try {
+      await r2Client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: processed.buffer, ContentType: processed.contentType }))
+    } catch (e: any) {
+      const msg = (e?.message || '').toLowerCase()
+      if (msg.includes('does not exist') || msg.includes('specified bucket')) {
+        return NextResponse.json({ error: `R2 버킷 '${bucket}'을 찾을 수 없습니다. 버킷을 생성했는지 또는 환경변수를 확인해 주세요.` }, { status: 500 })
+      }
+      throw e
+    }
     const url = buildPublicR2UrlForBucket(bucket, key)
     // Supabase 테이블에 메타 저장 (있을 경우)
     try {
