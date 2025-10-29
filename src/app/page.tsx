@@ -38,7 +38,7 @@ export default function HomePage() {
   useEffect(() => {
     ;(async () => {
       try {
-        const res = await fetch('/api/featured', { cache: 'force-cache', next: { revalidate: 60 } })
+        const res = await fetch('/api/featured', { cache: 'no-store' })
         if (res.ok) {
           const featured = await res.json()
           if (Array.isArray(featured) && featured.length > 0) {

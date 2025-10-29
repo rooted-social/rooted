@@ -11,7 +11,7 @@ import { createCommunity } from "@/lib/communities"
 import { checkSlugAvailable } from "@/lib/community-utils"
 import { useRouter, useSearchParams } from "next/navigation"
 import AnimatedBackground from "@/components/AnimatedBackground"
-import { COMMUNITY_CATEGORIES } from '@/lib/constants'
+import { COMMUNITY_CATEGORIES, COMMUNITY_CATEGORY_COLOR } from '@/lib/constants'
 import { Sparkles, FlaskConical, Sprout } from "lucide-react"
 import { toast } from "sonner"
 import { supabase } from "@/lib/supabase"
@@ -101,102 +101,103 @@ export default function CreateClient() {
 
           <Card className="backdrop-blur-sm bg-white/80 border-2 border-slate-500 shadow-xl rounded-3xl">
             <CardContent className="p-6 md:p-10">
-              <form onSubmit={handleSubmit} className="grid gap-5 md:gap-6 md:grid-cols-2">
-            <div className="space-y-2 md:col-span-1">
-              <Label htmlFor="name">루트 이름</Label>
-              <Input
-                id="name"
-                type="text"
-                placeholder="루트 이름을 입력하세요"
-                value={formData.name}
-                onChange={(e) => {
-                  updateFormData("name", e.target.value)
-                  if (e.target.value) updateFormData("slug", generateSlug(e.target.value))
-                }}
-                required
-                disabled={isCreating}
-              />
-            </div>
-            <div className="space-y-2 md:col-span-1">
-              <Label htmlFor="slug">루트 URL</Label>
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-2 text-sm text-slate-500 bg-slate-50 rounded border border-slate-200">rooted.kr/</span>
-                <Input
-                  id="slug"
-                  type="text"
-                  placeholder="ex) your-community"
-                  value={formData.slug}
-                  onChange={(e) => updateFormData("slug", generateSlug(e.target.value))}
-                  pattern="[a-z0-9-]+"
-                  minLength={3}
-                  maxLength={32}
-                  required
-                  disabled={isCreating}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={async ()=>{ setSlugCheckLoading(true); const ok = await checkSlugAvailable(formData.slug); setSlugAvailable(ok); setSlugCheckLoading(false) }}
-                  disabled={isCreating || !formData.slug.trim()}
-                  className="cursor-pointer"
-                >
-                  {slugCheckLoading ? '확인 중...' : '중복 확인'}
-                </Button>
-              </div>
-              <p className={`text-xs mt-1 ${slugAvailable === false ? 'text-red-600' : slugAvailable === true ? 'text-sky-600' : 'text-slate-500'}`}>
-                최소 3자 이상, 영문 혹은 숫자 입력. (URL은 추후 변경이 불가능하니 신중하게 선택하세요!)
-                {slugAvailable !== null && (
-                  <span className="ml-2 font-medium">{slugAvailable ? '사용 가능한 URL입니다.' : '이미 사용 중인 URL입니다.'}</span>
-                )}
-              </p>
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="description">루트 소개</Label>
-              <Textarea
-                id="description"
-                placeholder="루트에 대해 간단히 소개해주세요"
-                value={formData.description}
-                onChange={(e) => updateFormData("description", e.target.value)}
-                rows={5}
-                required
-                disabled={isCreating}
-              />
-            </div>
-            <div className="space-y-2 md:col-span-1">
-              <Label htmlFor="category">카테고리</Label>
-              <Select value={formData.category} onValueChange={(v)=>updateFormData("category", v)}>
-                <SelectTrigger id="category" className="h-11 rounded-2xl bg-white/90 border border-slate-200 ring-1 ring-slate-200/80 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 cursor-pointer">
-                  <SelectValue placeholder="카테고리를 선택하세요" />
-                </SelectTrigger>
-                <SelectContent className="rounded-2xl border border-slate-200 shadow-lg bg-white/95 backdrop-blur-sm">
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category} className="cursor-pointer">
-                      <span className="inline-flex items-center gap-2">
-                        <span className={`w-2.5 h-2.5 rounded-full ${
-                          category.includes('테크') ? 'bg-sky-300' :
-                          category.includes('디자인') ? 'bg-fuchsia-300' :
-                          category.includes('마케팅') ? 'bg-amber-300' :
-                          category.includes('라이프') ? 'bg-teal-300' :
-                          category.includes('교육') ? 'bg-indigo-300' :
-                          category.includes('비즈니스') ? 'bg-emerald-300' :
-                          'bg-slate-300'
-                        }`} />
-                        {category}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="md:col-span-1 flex items-end justify-end">
-              <Button
-                type="submit"
-                disabled={isCreating}
-                className="h-11 px-6 bg-amber-500 hover:bg-amber-600 text-black border border-black rounded-xl shadow-md hover:shadow-xl transition-all duration-200 ease-out hover:-translate-y-0.5 cursor-pointer"
-              >
-                {isCreating ? "생성 중..." : "루트 생성"}
-              </Button>
-            </div>
+              <form onSubmit={handleSubmit} className="grid gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="name" className="text-[15px] md:text-base font-medium">루트 이름</Label>
+                  <Input
+                    id="name"
+                    type="text"
+                    placeholder="루트 이름을 입력하세요"
+                    value={formData.name}
+                    onChange={(e) => {
+                      updateFormData("name", e.target.value)
+                      if (e.target.value) updateFormData("slug", generateSlug(e.target.value))
+                    }}
+                    required
+                    disabled={isCreating}
+                    className="h-12 md:h-14 text-base md:text-lg rounded-2xl"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="slug" className="text-[15px] md:text-base font-medium">루트 URL</Label>
+                  <div className="flex gap-2">
+                    <span className="px-3 md:px-4 py-2 md:py-3 text-sm md:text-base text-slate-600 bg-slate-50 rounded-xl border border-slate-200 flex items-center">rooted.kr/</span>
+                    <Input
+                      id="slug"
+                      type="text"
+                      placeholder="ex) your-community"
+                      value={formData.slug}
+                      onChange={(e) => updateFormData("slug", generateSlug(e.target.value))}
+                      pattern="[a-z0-9-]+"
+                      minLength={3}
+                      maxLength={32}
+                      required
+                      disabled={isCreating}
+                      className="h-12 md:h-14 text-base md:text-lg rounded-2xl"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={async ()=>{ setSlugCheckLoading(true); const ok = await checkSlugAvailable(formData.slug); setSlugAvailable(ok); setSlugCheckLoading(false) }}
+                      disabled={isCreating || !formData.slug.trim()}
+                      className="h-12 md:h-14 px-4 md:px-5 rounded-2xl cursor-pointer"
+                    >
+                      {slugCheckLoading ? '확인 중...' : '중복 확인'}
+                    </Button>
+                  </div>
+                  <p className={`text-xs md:text-sm mt-1 ${slugAvailable === false ? 'text-red-600' : slugAvailable === true ? 'text-sky-600' : 'text-slate-500'}`}>
+                    최소 3자 이상, 영문 혹은 숫자 입력. (URL은 추후 변경이 불가능하니 신중하게 선택하세요!)
+                    {slugAvailable !== null && (
+                      <span className="ml-2 font-medium">{slugAvailable ? '사용 가능한 URL입니다.' : '이미 사용 중인 URL입니다.'}</span>
+                    )}
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="description" className="text-[15px] md:text-base font-medium">루트 소개</Label>
+                  <Textarea
+                    id="description"
+                    placeholder="루트에 대해 간단히 소개해주세요"
+                    value={formData.description}
+                    onChange={(e) => updateFormData("description", e.target.value)}
+                    rows={6}
+                    required
+                    disabled={isCreating}
+                    className="text-base md:text-lg rounded-2xl"
+                  />
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="category" className="text-[15px] md:text-base font-medium">카테고리</Label>
+                    <Select value={formData.category} onValueChange={(v)=>updateFormData("category", v)}>
+                      <SelectTrigger id="category" className="h-12 md:h-14 rounded-2xl bg-white/90 border border-slate-200 ring-1 ring-slate-200/80 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 cursor-pointer text-base">
+                        <SelectValue placeholder="카테고리를 선택하세요" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-2xl border border-slate-200 shadow-lg bg-white/95 backdrop-blur-sm">
+                        {categories.map((category) => (
+                          <SelectItem key={category} value={category} className="cursor-pointer">
+                            <span className="inline-flex items-center gap-2">
+                              <span className={`w-2.5 h-2.5 rounded-full ${COMMUNITY_CATEGORY_COLOR[category] || 'bg-slate-400'}`} />
+                              {category}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-end justify-end">
+                    <Button
+                      type="submit"
+                      disabled={isCreating}
+                      className="h-12 md:h-14 px-6 md:px-8 text-base md:text-lg bg-amber-500 hover:bg-amber-600 text-black border border-black rounded-2xl shadow-md hover:shadow-xl transition-all duration-200 ease-out hover:-translate-y-0.5 cursor-pointer"
+                    >
+                      {isCreating ? "생성 중..." : "루트 생성"}
+                    </Button>
+                  </div>
+                </div>
               </form>
             </CardContent>
           </Card>

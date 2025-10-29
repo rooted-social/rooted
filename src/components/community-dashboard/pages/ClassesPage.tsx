@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { createClassCategory, updateClassCategory, deleteClassCategory, createClass, updateClass, ClassCategory, ClassItem, deleteClass, toggleClassCompletion, getClassesOverview } from "@/lib/classes"
 import { getAvatarUrl } from "@/lib/profiles"
-import { PlusCircle, Pencil, Trash2, AlertTriangle, Calendar, User, Eye, Settings, Plus } from "lucide-react"
+import { PlusCircle, Pencil, Trash2, AlertTriangle, Eye, Settings, Plus } from "lucide-react"
 // supabase import not used in this component
 import Link from "next/link"
 import { toast } from "sonner"
@@ -396,15 +396,15 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
         {/* 카테고리 필터 */}
         <div className="relative">
           {/* 모바일: 가로 스크롤, 데스크톱: 중앙 정렬 */}
-          <div className="flex gap-2 pb-2 items-center overflow-x-auto whitespace-nowrap scrollbar-hide px-1 md:overflow-visible md:flex-wrap md:justify-center">
+          <div className="flex gap-2.5 pb-3 items-center overflow-x-auto whitespace-nowrap scrollbar-hide px-1 md:overflow-visible md:flex-wrap md:justify-center">
             <button 
               onClick={() => setActiveCat(null)} 
-              className={`flex-shrink-0 px-4 py-2 rounded-lg border text-sm font-medium transition-all duration-200 ${
+              className={`flex-shrink-0 px-4 py-2 rounded-lg border text-sm font-semibold transition-all duration-200 cursor-pointer ${
                 !activeCat 
-                  ? 'shadow-sm' 
-                  : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                  ? 'shadow-sm ring-1 ring-black/5' 
+                  : 'bg-gradient-to-b from-white to-slate-50 text-slate-800 border-slate-200 hover:border-slate-300 hover:bg-white hover:shadow-md'
               }`}
-              style={!activeCat && brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor), borderColor: brandColor } : undefined}
+              style={!activeCat && brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor), borderColor: brandColor, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' } : undefined}
             >
               전체
             </button>
@@ -412,12 +412,12 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
               <button 
                 key={category.id}
                 onClick={() => setActiveCat(category.id)} 
-                className={`flex-shrink-0 px-4 py-2 rounded-lg border text-sm font-medium transition-all duration-200 cursor-pointer ${
+                className={`flex-shrink-0 px-4 py-2 rounded-lg border text-sm font-semibold transition-all duration-200 cursor-pointer ${
                   activeCat === category.id 
-                    ? 'shadow-sm' 
-                    : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                    ? 'shadow-sm ring-1 ring-black/5' 
+                    : 'bg-gradient-to-b from-white to-slate-50 text-slate-800 border-slate-200 hover:border-slate-300 hover:bg-white hover:shadow-md'
                 }`}
-                style={activeCat === category.id && brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor), borderColor: brandColor } : undefined}
+                style={activeCat === category.id && brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor), borderColor: brandColor, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' } : undefined}
               >
                 {category.name}
               </button>
@@ -475,7 +475,7 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
               })
               .map((cls, idx) => (
               <Link key={cls.id} href={`./classes/${cls.id}`} className="group" prefetch={false}>
-                <article className="h-full overflow-hidden rounded-xl bg-gradient-to-br from-slate-50 to-white shadow-sm hover:shadow-xl transition-all duration-300 group-hover:scale-[1.01] border border-slate-200/60 relative">
+                <article className="h-full overflow-hidden rounded-xl bg-gradient-to-br from-slate-50 to-white shadow-sm hover:shadow-xl transition-all duration-300 group-hover:scale-[1.01] border border-slate-300 relative">
                   {/* 썸네일 영역 */}
                   <div className="relative w-full aspect-[16/9] overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200">
                     {cls.thumbnail_url ? (
@@ -537,10 +537,6 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
                     {/* 메타 정보 */}
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
                       <div className="flex items-center gap-4 md:gap-6 flex-wrap">
-                        <div className="flex items-center gap-2 text-xs md:text-sm text-slate-600">
-                          <Calendar className="w-4 h-4 text-slate-500" />
-                          <span className="font-medium">{new Date(cls.created_at).toLocaleDateString('ko-KR')}</span>
-                        </div>
                         <div className="flex items-center gap-2 text-xs md:text-sm text-slate-600">
                           <Eye className="w-4 h-4 text-slate-500" />
                           <span className="font-medium">{cls.views || 0}</span>

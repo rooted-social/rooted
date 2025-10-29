@@ -22,7 +22,7 @@ import { BRAND_COLOR_PALETTE, getReadableTextColor, normalizeHex } from "@/utils
 interface SettingsTabProps {
   communityId: string
   // modal 전용 렌더 모드 (미지정 시 기존 탭 UI 그대로 동작)
-  mode?: 'basic' | 'images' | 'details' | 'advanced'
+  mode?: 'basic' | 'images' | 'details' | 'plan' | 'advanced'
 }
 
 type GalleryItem = { key: string; url: string }
@@ -37,6 +37,7 @@ export function SettingsTab({ communityId, mode }: SettingsTabProps) {
   const [active, setActive] = useState<SubTab>('page')
 
   const [values, setValues] = useState<Partial<CommunitySettings>>({})
+  const [plan, setPlan] = useState<{ key: 'starter'|'pro'|'pro_plus'; member_limit: number | null; page_limit: number | null; members_used: number; pages_used: number; next_billing_at: string | null } | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [saving, setSaving] = useState<boolean>(false)
   // 공지사항 기능 제거됨
@@ -90,6 +91,7 @@ export function SettingsTab({ communityId, mode }: SettingsTabProps) {
         const s = data?.settings || null
         setValues(s || {})
         setSettingsInitial({ mission: (s?.mission || ""), brand_color: (s?.brand_color ?? null) as any })
+        setPlan(data?.plan || null)
         setServices((data?.services || []).map((v: any) => ({ id: v.id, label: v.label })))
         // basics: overview 응답의 basics를 활용해 초기화하여 추가 질의 축소
         const b = data?.basics
@@ -634,6 +636,48 @@ export function SettingsTab({ communityId, mode }: SettingsTabProps) {
           </Card>
   )
 
+  // 렌더링 유틸: 플랜 관리 카드
+  const PlanCard = (
+        <Card className="border-0 shadow-none sm:border sm:shadow-sm">
+          <CardHeader className="flex items-center justify-between px-2 sm:px-4 py-3">
+            <CardTitle>플랜 관리</CardTitle>
+            <div className="flex gap-2">
+              <Button disabled variant="outline" title="베타 기간에는 결제가 비활성화되어 있습니다">업그레이드 (베타)</Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4 px-2 sm:px-4 pb-4">
+            <div className="grid md:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <div className="text-xs text-slate-600">현재 플랜</div>
+                <div className="text-sm font-semibold text-slate-900">{plan?.key ? (plan.key === 'starter' ? 'Starter' : plan.key === 'pro' ? 'Pro' : 'Pro Plus') : 'Starter'}</div>
+                <div className="text-xs text-slate-500">다음 결제일: {plan?.next_billing_at ? new Date(plan.next_billing_at).toLocaleDateString() : '베타 기간 - 결제 없음'}</div>
+              </div>
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs text-slate-600">
+                  <span>멤버 수</span>
+                  <span className="font-medium text-slate-800">{plan?.members_used ?? 0} / {plan?.member_limit ?? '무제한'}</span>
+                </div>
+                <div className="h-2 rounded bg-slate-100 overflow-hidden">
+                  <div className="h-full bg-slate-900" style={{ width: `${Math.min(100, Math.round(((plan?.members_used || 0) / (plan?.member_limit || (plan?.members_used || 1))) * 100))}%` }} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs text-slate-600">
+                  <span>게시판 페이지 수</span>
+                  <span className="font-medium text-slate-800">{plan?.pages_used ?? 0} / {plan?.page_limit ?? '무제한'}</span>
+                </div>
+                <div className="h-2 rounded bg-slate-100 overflow-hidden">
+                  <div className="h-full bg-slate-900" style={{ width: `${Math.min(100, Math.round(((plan?.pages_used || 0) / (plan?.page_limit || (plan?.pages_used || 1))) * 100))}%` }} />
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-slate-500">제한에 도달하면 멤버 가입 또는 페이지 추가가 제한되며, 업그레이드 시 즉시 해제됩니다.</p>
+          </CardContent>
+        </Card>
+  )
+
   // 렌더링 유틸: 고급 설정 카드 묶음
   const AdvancedCards = (
         <>
@@ -836,6 +880,7 @@ export function SettingsTab({ communityId, mode }: SettingsTabProps) {
           {mode === 'basic' && (<>{BasicInfoCard}</>)}
           {mode === 'images' && (<>{IconCard}{BannerCard}{ImagesCard}</>)}
           {mode === 'details' && (<>{ServicesCard}</>)}
+          {mode === 'plan' && (<>{PlanCard}</>)}
           {mode === 'advanced' && (<>{AdvancedCards}</>)}
         </div>
       )}

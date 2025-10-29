@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
  
 import { useAuthData } from "@/components/auth/AuthProvider"
 import { getAuthToken } from "@/lib/supabase"
@@ -711,13 +712,19 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
             <button className="px-3 py-1.5 rounded-md border text-sm" onClick={() => setIsAddPageOpen(false)}>취소</button>
             <button className="px-3 py-1.5 rounded-md bg-slate-900 text-white text-sm" onClick={async () => {
               if (!newTitle.trim()) return
-              // 타입별 기본 메타 설정
-              const meta = newType === 'blog' ? { description: '블로그 글을 작성해보세요' } : {}
-              let created = await createCommunityPage(communityId, newTitle.trim(), null, newType, null, (meta as any).description || null)
-              // 일부 환경에서 type 컬럼이 없을 수 있으므로 방어적으로 한번 더 기록
-              try { created = await updateCommunityPageMeta(created.id, { type: newType }) } catch {}
-              setPages(prev => [...prev, { id: created.id, title: created.title, group_id: null, type: (created as any).type || newType }])
-              setIsAddPageOpen(false)
+              try {
+                // 타입별 기본 메타 설정
+                const meta = newType === 'blog' ? { description: '블로그 글을 작성해보세요' } : {}
+                let created = await createCommunityPage(communityId, newTitle.trim(), null, newType, null, (meta as any).description || null)
+                // 일부 환경에서 type 컬럼이 없을 수 있으므로 방어적으로 한번 더 기록
+                try { created = await updateCommunityPageMeta(created.id, { type: newType }) } catch {}
+                setPages(prev => [...prev, { id: created.id, title: created.title, group_id: null, type: (created as any).type || newType }])
+                setIsAddPageOpen(false)
+              } catch (e: any) {
+                const m = (e?.message || '').toString()
+                if (m.includes('한도') || m.toLowerCase().includes('limit')) toast.error(m)
+                else toast.error('페이지 생성에 실패했습니다')
+              }
             }}>추가</button>
           </DialogFooter>
         </DialogContent>

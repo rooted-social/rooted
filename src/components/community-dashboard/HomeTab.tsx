@@ -30,7 +30,7 @@ export function HomeTab({ communityId, slug, ownerId, initial }: HomeTabProps) {
   // const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [canManage, setCanManage] = useState<boolean>(false)
-  const [upcomingEvents, setUpcomingEvents] = useState<{ id: string; title: string; start_at: string }[]>([])
+  const [upcomingEvents, setUpcomingEvents] = useState<{ id: string; title: string; start_at: string; end_at?: string | null; location?: string | null; description?: string | null }[]>([])
   const [recentActivity, setRecentActivity] = useState<{ id: string; kind: 'feed'|'blog'|'note'|'event'|'class'; title: string; created_at: string; href?: string; meta?: string }[]>([])
   // 홈 탭 내 통계 섹션은 별도 페이지로 이동됨
   const { brandColor: contextBrandColor } = useCommunityContext()
@@ -502,9 +502,9 @@ function NoticesSection({
   )
 }
 
-function UpcomingEventsCard({ items, brandColor }: { items: { id: string; title: string; start_at: string }[]; brandColor?: string }) {
+function UpcomingEventsCard({ items, brandColor }: { items: { id: string; title: string; start_at: string; end_at?: string | null; location?: string | null; description?: string | null }[]; brandColor?: string }) {
   const { user } = useAuthData()
-  const [selected, setSelected] = useState<{ id: string; title: string; start_at: string } | null>(null)
+  const [selected, setSelected] = useState<{ id: string; title: string; start_at: string; end_at?: string | null; location?: string | null; description?: string | null } | null>(null)
   const [open, setOpen] = useState(false)
   const [isAttending, setIsAttending] = useState(false)
   const [attendees, setAttendees] = useState<{ id: string; avatar_url?: string; name?: string }[]>([])
@@ -573,13 +573,13 @@ function UpcomingEventsCard({ items, brandColor }: { items: { id: string; title:
                     <div>
                       <div className="text-sm font-semibold text-slate-900 mb-1">{ev.title}</div>
                       <div className="text-xs font-medium" style={{ color: brandColor || '#0f172a' }}>
-                      {new Date(ev.start_at).toLocaleDateString('ko-KR', {
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        timeZone: 'Asia/Seoul',
-                        })}
+                        {new Date(ev.start_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Seoul' })}
+                        {ev.end_at && (
+                          <>
+                            <span className="mx-1">~</span>
+                            {new Date(ev.end_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Seoul' })}
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -607,7 +607,15 @@ function UpcomingEventsCard({ items, brandColor }: { items: { id: string; title:
                   </div>
                   <div className="min-w-0">
                     <div className="text-[11px] uppercase tracking-wide text-slate-500">일시</div>
-                    <div className="text-sm font-medium text-slate-800">{selected ? new Date(selected.start_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) : '-'}</div>
+                    <div className="text-sm font-medium text-slate-800">
+                      {selected ? new Date(selected.start_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) : '-'}
+                      {selected?.end_at && (
+                        <>
+                          <span className="mx-1">~</span>
+                          {new Date(selected.end_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
@@ -616,7 +624,7 @@ function UpcomingEventsCard({ items, brandColor }: { items: { id: string; title:
                   </div>
                   <div className="min-w-0">
                     <div className="text-[11px] uppercase tracking-wide text-slate-500">장소</div>
-                    <div className="text-sm font-medium text-slate-800">미정</div>
+                    <div className="text-sm font-medium text-slate-800">{selected?.location || '미정'}</div>
                   </div>
                 </div>
                 <div className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
@@ -625,7 +633,7 @@ function UpcomingEventsCard({ items, brandColor }: { items: { id: string; title:
                   </div>
                   <div className="min-w-0">
                     <div className="text-[11px] uppercase tracking-wide text-slate-500">설명</div>
-                    <div className="text-sm font-medium text-slate-800">추가 정보가 없습니다.</div>
+                    <div className="text-sm font-medium text-slate-800">{selected?.description || '추가 정보가 없습니다.'}</div>
                   </div>
                 </div>
               </div>

@@ -8,8 +8,8 @@ import { getAvatarUrl } from "@/lib/utils"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
-import { supabase } from "@/lib/supabase"
-import { Bell, LogIn, Menu, ChevronDown, Compass, Sparkles, CreditCard } from "lucide-react"
+import { logoutClient } from '@/lib/auth/session-client'
+import { Bell, LogIn, Menu, ChevronDown, Compass, Sparkles, CreditCard, Crown } from "lucide-react"
 
 export function Header() {
   const pathname = usePathname()
@@ -239,13 +239,20 @@ export function Header() {
                                 className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors"
                                 onClick={() => setShowCommunityDropdown(false)}
                               >
-                                <div className="w-8 h-8 rounded-md overflow-hidden bg-slate-100">
-                                  {(community.communities as any)?.icon_url || community.communities?.image_url ? (
-                                    <Image src={(community.communities as any).icon_url || (community.communities as any).image_url} alt="icon" width={32} height={32} className="object-cover" />
-                                  ) : (
-                                    <div className="w-full h-full bg-slate-900 text-white flex items-center justify-center">
-                                      <span className="text-xs font-medium">{community.communities?.name?.[0]}</span>
-                                    </div>
+                                <div className="relative w-8 h-8">
+                                  <div className="w-8 h-8 rounded-md overflow-hidden bg-slate-100">
+                                    {(community.communities as any)?.icon_url || community.communities?.image_url ? (
+                                      <Image src={(community.communities as any).icon_url || (community.communities as any).image_url} alt="icon" width={32} height={32} className="object-cover" />
+                                    ) : (
+                                      <div className="w-full h-full bg-slate-900 text-white flex items-center justify-center">
+                                        <span className="text-xs font-medium">{community.communities?.name?.[0]}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                  {(community.communities as any)?.owner_id === user?.id && (
+                                    <span className="pointer-events-none absolute -top-1 -left-1 z-10 rounded-full bg-amber-400 text-white shadow ring-1 ring-white p-[2px]">
+                                      <Crown className="w-3 h-3" />
+                                    </span>
                                   )}
                                 </div>
                                 <span className="text-sm font-medium text-slate-700 truncate">{community.communities?.name}</span>
@@ -303,8 +310,7 @@ export function Header() {
                       <button
                         className="w-full px-3 py-2 rounded-lg hover:bg-red-50 text-sm text-center text-red-600 cursor-pointer"
                         onClick={async () => {
-                          try { await supabase.auth.signOut() } catch {}
-                          try { await fetch('/api/auth/clear', { method: 'POST' }) } catch {}
+                          await logoutClient('/')
                           setShowProfileDropdown(false)
                           router.push('/')
                         }}
@@ -353,13 +359,20 @@ export function Header() {
                             className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors"
                             onClick={() => setShowCommunityDropdown(false)}
                           >
-                            <div className="w-8 h-8 rounded-md overflow-hidden bg-slate-100">
-                              {(community.communities as any)?.icon_url || community.communities?.image_url ? (
-                                <Image src={(community.communities as any).icon_url || (community.communities as any).image_url} alt="icon" width={32} height={32} className="object-cover" />
-                              ) : (
-                                <div className="w-full h-full bg-slate-900 text-white flex items-center justify-center">
-                                  <span className="text-xs font-medium">{community.communities?.name?.[0]}</span>
-                                </div>
+                            <div className="relative w-8 h-8">
+                              <div className="w-8 h-8 rounded-md overflow-hidden bg-slate-100">
+                                {(community.communities as any)?.icon_url || community.communities?.image_url ? (
+                                  <Image src={(community.communities as any).icon_url || (community.communities as any).image_url} alt="icon" width={32} height={32} className="object-cover" />
+                                ) : (
+                                  <div className="w-full h-full bg-slate-900 text-white flex items-center justify-center">
+                                    <span className="text-xs font-medium">{community.communities?.name?.[0]}</span>
+                                  </div>
+                                )}
+                              </div>
+                              {(community.communities as any)?.owner_id === user?.id && (
+                                <span className="pointer-events-none absolute -top-1 -left-1 z-10 rounded-full bg-amber-400 text-white shadow ring-1 ring-white p-[2px]">
+                                  <Crown className="w-3 h-3" />
+                                </span>
                               )}
                             </div>
                             <span className="text-sm font-medium text-slate-700 truncate">{community.communities?.name}</span>

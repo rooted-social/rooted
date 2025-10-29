@@ -42,7 +42,26 @@ export async function GET(req: NextRequest) {
     try {
       const { data: rpc } = await supabase.rpc('dashboard_overview', { p_community_id: communityId, p_limit: 10 })
       if (rpc) {
-        const publicPart = { settings: (rpc as any)?.settings || null, notices: (rpc as any)?.notices || [], upcomingEvents: (rpc as any)?.upcomingEvents || [], pages: (rpc as any)?.pages || [] }
+        // RPC의 upcomingEvents에는 최소 필드(id,title,start_at)만 있을 수 있으므로 세부 정보 보강
+        let rpcUpcoming = ((rpc as any)?.upcomingEvents || []) as any[]
+        try {
+          const ids = Array.from(new Set((rpcUpcoming || []).map((e: any) => e?.id).filter(Boolean)))
+          if (ids.length > 0) {
+            const { data: details } = await supabase
+              .from('community_events')
+              .select('id, location, description, end_at')
+              .in('id', ids as any)
+            const map: Record<string, any> = Object.fromEntries((details || []).map((d: any) => [d.id, d]))
+            rpcUpcoming = (rpcUpcoming || []).map((e: any) => ({
+              ...e,
+              end_at: e.end_at ?? map[e.id]?.end_at ?? null,
+              location: e.location ?? map[e.id]?.location ?? null,
+              description: e.description ?? map[e.id]?.description ?? null,
+            }))
+          }
+        } catch {}
+
+        const publicPart = { settings: (rpc as any)?.settings || null, notices: (rpc as any)?.notices || [], upcomingEvents: rpcUpcoming, pages: (rpc as any)?.pages || [] }
         await putJsonCache(cacheKey, publicPart, 120)
         const payload = { ...publicPart, recentActivity: (rpc as any)?.recentActivity || [], canManage: access.canManage }
         return new Response(JSON.stringify(payload), {
@@ -66,7 +85,7 @@ export async function GET(req: NextRequest) {
     const nowIso = new Date().toISOString()
     const { data: eventsRows } = await supabase
       .from('community_events')
-      .select('id, title, start_at')
+      .select('id, title, start_at, end_at, location, description')
       .eq('community_id', communityId)
       .gt('start_at', nowIso)
       .order('start_at', { ascending: true })
@@ -117,7 +136,7 @@ export async function GET(req: NextRequest) {
       } catch {}
 
       // event / class
-      const { data: events } = await supabase.from('community_events').select('id,title,start_at,created_at').eq('community_id', communityId).order('created_at', { ascending: false }).limit(10)
+      const { data: events } = await supabase.from('community_events').select('id,title,start_at,end_at,created_at').eq('community_id', communityId).order('created_at', { ascending: false }).limit(10)
       const evt = (events || []).map((e: any) => ({ id: e.id, kind: 'event', title: `새로운 이벤트가 추가되었습니다 · ${e.title}`, created_at: e.created_at, meta: '이벤트' }))
       const { data: classes } = await supabase.from('classes').select('id,title,created_at').eq('community_id', communityId).order('created_at', { ascending: false }).limit(10)
       const cls = (classes || []).map((c: any) => ({ id: c.id, kind: 'class', title: `새로운 클래스가 등록되었습니다 · ${c.title}`, created_at: c.created_at }))
