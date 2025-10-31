@@ -39,7 +39,7 @@ interface CommunityWithOwner {
 // AnimatedBackground를 동적 로드하여 초기 페인트 후 마운트 (Lazy Mount)
 const AnimatedBackground = dynamic(() => import('@/components/AnimatedBackground').then(m => m.AnimatedBackground), { ssr: false })
 
-type GalleryItem = { key: string; url: string }
+type GalleryItem = { key: string; url: string; meta?: { width?: number | null; height?: number | null } }
 
 export default function ClientCommunityPage({ initial }: { initial?: any }) {
   const params = useParams()
@@ -236,7 +236,8 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
                 ) : (
                   <div className="space-y-3">
                     <div 
-                      className="relative aspect-[16/9] w-full overflow-hidden rounded-xl cursor-pointer hover:opacity-95 transition-opacity"
+                      className="relative w-full overflow-hidden rounded-xl cursor-pointer hover:opacity-95 transition-opacity"
+                      style={images[mainIdx]?.meta?.width && images[mainIdx]?.meta?.height ? { aspectRatio: `${Math.max(1, images[mainIdx].meta!.width!)} / ${Math.max(1, images[mainIdx].meta!.height!)}` } as any : { aspectRatio: '16 / 9' } as any}
                       onClick={() => setImageModal({ open: true, url: images[mainIdx]?.url })}
                     >
                       <NextImage src={images[mainIdx]?.url} alt="community-main" fill className="object-cover" sizes="(max-width: 768px) 100vw, (max-width: 1280px) 66vw, 800px" priority placeholder="blur" blurDataURL="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" />
@@ -264,7 +265,8 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
                         <button 
                           key={img.key} 
                           onClick={() => setMainIdx(images.findIndex(x => x.key === img.key))} 
-                          className="relative aspect-[4/3] w-full overflow-hidden rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400 cursor-pointer hover:scale-105 hover:shadow-md transition-all duration-200"
+                          className="relative w-full overflow-hidden rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400 cursor-pointer hover:scale-105 hover:shadow-md transition-all duration-200"
+                          style={img.meta?.width && img.meta?.height ? { aspectRatio: `${Math.max(1, img.meta.width)}/${Math.max(1, img.meta.height)}` } as any : { aspectRatio: '4/3' } as any}
                         >
                           <NextImage src={img.url} alt={`community-thumb-${i}`} fill className="object-cover" sizes="(max-width: 640px) 28vw, (max-width: 1024px) 16vw, 10vw" loading="lazy" />
                         </button>

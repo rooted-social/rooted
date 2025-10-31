@@ -5,6 +5,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const communityId = searchParams.get('communityId')
   const pageIdsParam = searchParams.get('pageIds') // comma-separated blog page ids (optional)
+  const feedPageIdsParam = searchParams.get('feedPageIds') // comma-separated feed page ids (optional)
   if (!communityId) return new Response(JSON.stringify({ error: 'communityId is required' }), { status: 400 })
 
   const authHeader = req.headers.get('authorization') || ''
@@ -34,6 +35,8 @@ export async function GET(req: NextRequest) {
 
     // 블로그 페이지별 최신 글
     let pageLatestMap: Record<string, string> = {}
+    // 피드 페이지별 최신 글
+    let feedPageLatestMap: Record<string, string> = {}
     const pageIds = (pageIdsParam || '').split(',').map(s => s.trim()).filter(Boolean)
     if (pageIds.length > 0) {
       // 제한된 목록만 질의
@@ -57,9 +60,23 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Feed page map
+    const feedPageIds = (feedPageIdsParam || '').split(',').map(s => s.trim()).filter(Boolean)
+    if (feedPageIds.length > 0) {
+      const { data: fRows } = await supabase
+        .from('posts')
+        .select('page_id, created_at')
+        .in('page_id', feedPageIds as any)
+        .order('created_at', { ascending: false })
+      for (const r of (fRows || []) as any[]) {
+        if (!feedPageLatestMap[r.page_id]) feedPageLatestMap[r.page_id] = r.created_at
+      }
+    }
+
     const payload = {
       feedLatestAt: (feedRows && feedRows[0]?.created_at) || null,
       pageLatestMap,
+      feedPageLatestMap,
     }
 
     return new Response(JSON.stringify(payload), {

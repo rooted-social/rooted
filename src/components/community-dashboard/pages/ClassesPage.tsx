@@ -16,6 +16,7 @@ import { PlusCircle, Pencil, Trash2, AlertTriangle, Eye, Settings, Plus } from "
 import Link from "next/link"
 import { toast } from "sonner"
 import { normalizeClassThumbnailUrl } from "@/lib/r2"
+import { getAuthToken } from '@/lib/supabase'
 import AnimatedBackground from "@/components/AnimatedBackground"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuthData } from "@/components/auth/AuthProvider"
@@ -150,7 +151,8 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
   const onUploadThumb = async (file: File) => {
     const formData = new FormData()
     formData.append('file', file)
-    const res = await fetch('/api/class-thumbnails', { method: 'POST', body: formData })
+    const token = await getAuthToken().catch(() => null)
+    const res = await fetch('/api/class-thumbnails', { method: 'POST', body: formData, headers: token ? { authorization: `Bearer ${token}` } : undefined })
     const body = await res.json()
     if (!res.ok) throw new Error(body?.error || 'upload failed')
     setForm(prev => ({ ...prev, thumbnail_url: body.url }))
@@ -161,7 +163,9 @@ export default function ClassesPage({ communityId, ownerId }: { communityId: str
   const onUploadEditThumb = async (file: File) => {
     const formData = new FormData()
     formData.append('file', file)
-    const res = await fetch('/api/class-thumbnails', { method: 'POST', body: formData })
+    if (editing?.id) formData.append('classId', editing.id)
+    const token = await getAuthToken().catch(() => null)
+    const res = await fetch('/api/class-thumbnails', { method: 'POST', body: formData, headers: token ? { authorization: `Bearer ${token}` } : undefined })
     const body = await res.json()
     if (!res.ok) throw new Error(body?.error || 'upload failed')
     setEditForm(prev => ({ ...prev, thumbnail_url: body.url }))

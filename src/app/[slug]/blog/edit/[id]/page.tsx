@@ -9,6 +9,7 @@ import { Button as UIButton } from "@/components/ui/button"
 import { Underline as UnderlineIcon, Droplet as DropletIcon, Image as ImageIcon } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { BRAND_COLOR_PALETTE, normalizeHex } from "@/utils/color"
+import { getAuthToken } from '@/lib/supabase'
 
 export default function EditBlogPostPage() {
   const router = useRouter()
@@ -61,7 +62,7 @@ export default function EditBlogPostPage() {
             <div className="aspect-[16/10] rounded-xl border bg-slate-50 overflow-hidden flex items-center justify-center">
               {thumbnailUrl ? (<img src={thumbnailUrl} alt="thumb" className="w-full h-full object-cover" />) : (<span className="text-xs text-slate-400">썸네일 미리보기</span>)}
             </div>
-            <input id="thumb-input" type="file" accept="image/*" className="hidden" onChange={async (e)=>{ const f=e.target.files?.[0]; if(!f) return; const form = new FormData(); form.append('file', f); const res = await fetch('/api/blog-thumbnails', { method:'POST', body: form }); const body = await res.json(); if(res.ok) setThumbnailUrl(body.url as string) }} />
+            <input id="thumb-input" type="file" accept="image/*" className="hidden" onChange={async (e)=>{ const f=e.target.files?.[0]; if(!f) return; const form = new FormData(); form.append('file', f); if(pageId) form.append('pageId', pageId); const token = await getAuthToken(); const res = await fetch('/api/blog-thumbnails', { method:'POST', body: form, headers: token ? { Authorization: `Bearer ${token}` } : undefined }); const body = await res.json(); if(res.ok) setThumbnailUrl(body.url as string) }} />
             <UIButton variant="outline" className="w-full cursor-pointer" onClick={()=>document.getElementById('thumb-input')?.click()}>썸네일 업로드</UIButton>
           </div>
         </div>
@@ -98,8 +99,9 @@ function RichEditor({ value, onChange }: { value: string; onChange: (v: string) 
   const sync = () => { onChange(ref.current?.innerHTML || '') }
   useEffect(()=>{ if (ref.current && value && !ref.current.innerHTML) { ref.current.innerHTML = value } }, [value])
   const insertImage = async (file: File) => {
-    const form = new FormData(); form.append('file', file)
-    const res = await fetch('/api/blog-images', { method: 'POST', body: form })
+    const form = new FormData(); form.append('file', file); if (pageId) form.append('pageId', pageId); form.append('postId', id)
+    const token = await getAuthToken()
+    const res = await fetch('/api/blog-images', { method: 'POST', body: form, headers: token ? { Authorization: `Bearer ${token}` } : undefined })
     const body = await res.json(); if (res.ok && body?.urls?.md) {
       const src = body.urls.md
       const srcset = body.srcset || ''

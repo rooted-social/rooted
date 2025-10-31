@@ -150,8 +150,15 @@ export async function updateCommunity(id: string, updates: Partial<CreateCommuni
 // 커뮤니티 삭제
 export async function deleteCommunity(id: string) {
   try {
-    const { error } = await supabase.from('communities').delete().eq('id', id)
-    if (error) throw error
+    // 서버 API를 통해 R2 정리까지 동기화
+    const token = await (async () => {
+      try { const { getAuthToken } = await import('@/lib/supabase'); return await getAuthToken() } catch { return null }
+    })()
+    const res = await fetch('/api/community/delete', { method: 'POST', headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ communityId: id }) })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({} as any))
+      throw new Error(body?.error || 'delete failed')
+    }
     return true
   } catch (error) {
     console.error('deleteCommunity 오류:', error)

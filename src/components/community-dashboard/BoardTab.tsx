@@ -85,6 +85,10 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
     }
     return `${Math.max(1, hours)}시간 전`
   }
+  const isNew = (iso?: string) => {
+    if (!iso) return false
+    try { return (Date.now() - new Date(iso).getTime()) < 48 * 60 * 60 * 1000 } catch { return false }
+  }
 
   // 모바일 표시용 이름 포맷터: 최대 7글자, 초과 시 말줄임표
   const truncateName = (name?: string, max: number = 7): string => {
@@ -593,6 +597,9 @@ export function BoardTab({ communityId, ownerId, pageId = null, variant = 'stand
                   <div className="flex items-center gap-3 md:shrink-0">
                     {p.pinned && (
                       <span className="inline-flex items-center rounded-md bg-amber-100 text-amber-800 border border-amber-200 px-1.5 py-0 text-[12px] font-semibold">필독</span>
+                    )}
+                    {isNew(p.created_at) && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-bold">N</span>
                     )}
                     <span className="text-xs text-black bg-slate-100 px-2 py-0.5 rounded-full font-medium whitespace-nowrap">{timeAgo(p.created_at)}</span>
                     {(p.user_id === currentUserId || isOwner) && (

@@ -25,7 +25,7 @@ interface SettingsTabProps {
   mode?: 'basic' | 'images' | 'details' | 'plan' | 'advanced'
 }
 
-type GalleryItem = { key: string; url: string }
+type GalleryItem = { key: string; url: string; meta?: { width?: number | null; height?: number | null; bytes?: number | null; contentType?: string | null } }
 
 type SubTab = 'page' | 'basic' | 'advanced'
 
@@ -139,7 +139,7 @@ export function SettingsTab({ communityId, mode }: SettingsTabProps) {
   const reloadImages = async (s: string) => {
     try {
       const res = await fetch(`/api/community-images/${encodeURIComponent(s)}`).then(r => r.json())
-      setImages(res?.images || [])
+      setImages((res?.images || []) as GalleryItem[])
     } catch {
       setImages([])
     }
@@ -486,7 +486,8 @@ export function SettingsTab({ communityId, mode }: SettingsTabProps) {
                   {images.map((img, idx) => (
                     <div
                       key={img.key}
-                      className="group relative flex-none w-[48%] aspect-[4/3] rounded-lg overflow-hidden border border-slate-200 cursor-zoom-in snap-start"
+                      className="group relative flex-none w-[48%] rounded-lg overflow-hidden border border-slate-200 cursor-zoom-in snap-start"
+                      style={img.meta?.width && img.meta?.height ? { aspectRatio: `${Math.max(1, img.meta.width)}/${Math.max(1, img.meta.height)}` } as any : { aspectRatio: '4/3' } as any}
                       draggable
                       onDragStart={() => onDragStart(img.key)}
                       onDragOver={onDragOver}
@@ -530,7 +531,8 @@ export function SettingsTab({ communityId, mode }: SettingsTabProps) {
                 {images.map((img, idx) => (
                   <div
                     key={img.key}
-                    className="group relative aspect-[4/3] rounded-lg overflow-hidden border border-slate-200 cursor-zoom-in"
+                    className="group relative rounded-lg overflow-hidden border border-slate-200 cursor-zoom-in"
+                    style={img.meta?.width && img.meta?.height ? { aspectRatio: `${Math.max(1, img.meta.width)}/${Math.max(1, img.meta.height)}` } as any : { aspectRatio: '4/3' } as any}
                     draggable
                     onDragStart={() => onDragStart(img.key)}
                     onDragOver={onDragOver}

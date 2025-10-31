@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
       Key: key,
       Body: processed.buffer,
       ContentType: processed.contentType,
-      CacheControl: "public, max-age=31536000, immutable",
+      CacheControl: "public, max-age=31536000, s-maxage=31536000, immutable",
     }))
 
     const publicUrl = buildPublicR2Url(key)
@@ -148,7 +148,7 @@ export async function GET(req: NextRequest) {
     return new NextResponse(buffer, {
       headers: {
         'Content-Type': data.ContentType || 'image/webp',
-        'Cache-Control': 'public, max-age=31536000, immutable',
+        'Cache-Control': 'public, max-age=31536000, s-maxage=31536000, immutable',
       }
     })
   } catch (err: any) {

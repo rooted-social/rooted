@@ -29,6 +29,7 @@ export default function ClientExplorePage({ initial }: { initial?: Community[] }
   const [selectedCategory, setSelectedCategory] = useState(DEFAULT_EXPLORE_CATEGORY)
   const [communities, setCommunities] = useState<Community[]>(initial || [])
   const [bannerMap, setBannerMap] = useState<Record<string, string>>({})
+  const [bannerMetaMap, setBannerMetaMap] = useState<Record<string, { width: number; height: number }>>({})
   const [loading, setLoading] = useState(false)
   // 모바일 페이지네이션
   const [currentPage, setCurrentPage] = useState(1)
@@ -194,21 +195,25 @@ export default function ClientExplorePage({ initial }: { initial?: Community[] }
         const results = await Promise.all(
           communities.map(async (c) => {
             const pre = (c as any)?.thumb_url || getVersionedUrl((c as any)?.image_url, (c as any)?.updated_at) || ''
-            if (pre) return [c.slug as string, pre] as const
+            if (pre) return { slug: c.slug as string, url: pre, meta: null as any }
             try {
               const res = await fetch(`/api/community-images/${c.slug}`)
               const j = await res.json()
-              const url = j?.images?.[0]?.url || pre || ''
-              return [c.slug as string, url] as const
+              const first = j?.images?.[0] || null
+              const url = first?.url || pre || ''
+              const meta = first?.meta || null
+              return { slug: c.slug as string, url, meta }
             } catch {
-              return [c.slug as string, pre] as const
+              return { slug: c.slug as string, url: pre, meta: null as any }
             }
           })
         )
         if (cancelled) return
-        const map: Record<string, string> = {}
-        results.forEach(([slug, url]) => { if (url) map[slug] = url })
-        setBannerMap(map)
+        const urlMap: Record<string, string> = {}
+        const metaMap: Record<string, { width: number; height: number }> = {}
+        results.forEach((r) => { if (r.url) urlMap[r.slug] = r.url; if (r.meta && r.meta.width && r.meta.height) metaMap[r.slug] = { width: r.meta.width, height: r.meta.height } })
+        setBannerMap(urlMap)
+        setBannerMetaMap(metaMap)
       } catch {}
     })()
     return () => { cancelled = true }
@@ -387,13 +392,15 @@ export default function ClientExplorePage({ initial }: { initial?: Community[] }
                         onClick={() => router.push(`/${community.slug}`)}
                       >
                         {/* 상단 대표 이미지 */}
-                        <div className="w-full h-50 bg-slate-100 relative">
+                        {(() => { const m = bannerMetaMap[community.slug]; const containerClass = m ? "w-full bg-slate-100 relative" : "w-full h-50 bg-slate-100 relative"; const style = m ? { aspectRatio: `${Math.max(1, m.width)} / ${Math.max(1, m.height)}` } as any : undefined; return (
+                        <div className={containerClass} style={style}>
                           {topUrl ? (
                             <Image src={topUrl} alt="banner" fill priority={false} sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 350px" className="object-cover" />
                           ) : (
                             <div className="w-full h-full bg-gradient-to-b from-slate-100 to-slate-200" />
                           )}
                         </div>
+                        )})()}
 
                         {/* 본문 */}
                         <div className="px-4 py-3">
