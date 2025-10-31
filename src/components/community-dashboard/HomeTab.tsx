@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Image from "next/image"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -700,12 +701,44 @@ function UpcomingEventsCard({ items, brandColor }: { items: { id: string; title:
 
 function RecentActivityCard({ items: rawItems, slug, brandColor }: { items: { id: string; kind: 'feed'|'blog'|'note'|'event'|'class'; title: string; created_at: string; href?: string; meta?: string }[]; slug?: string; brandColor?: string }) {
   const items = (rawItems || []).map((it) => {
-    if (it.kind === 'feed') return { ...it, href: slug ? `/${slug}/dashboard?tab=home` : undefined }
+    if (it.kind === 'feed') return { ...it, href: slug ? `/${slug}/dashboard?tab=home&feed=1` : undefined }
     if (it.kind === 'blog') return { ...it, href: slug ? `/${slug}/blog/${it.id}` : undefined }
     if (it.kind === 'event') return { ...it, href: slug ? `/${slug}/dashboard?tab=calendar` : undefined }
     if (it.kind === 'class') return { ...it, href: slug ? `/${slug}/classes/${it.id}` : undefined }
     return it
   })
+
+  const kindLabel = (kind: 'feed'|'blog'|'note'|'event'|'class') => {
+    if (kind === 'feed') return '피드'
+    if (kind === 'blog') return '포스트'
+    if (kind === 'class') return '클래스'
+    if (kind === 'event') return '캘린더'
+    return '기타'
+  }
+
+  const displayMeta = (kind: 'feed'|'blog'|'note'|'event'|'class', meta?: string) => {
+    if (!meta) return ''
+    let m = String(meta)
+    if (kind === 'blog') {
+      // '[포스트]' 라벨 뒤에 오는 메타에서 '블로그' 또는 '포스트' 토큰 제거
+      m = m.replace(/블로그/gi, '').replace(/포스트/gi, '')
+        .replace(/[·ㆍ.,:|]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+    } else if (kind === 'feed') {
+      // '[피드]' 라벨 뒤 메타에서 '피드' 텍스트 제거
+      m = m.replace(/피드/gi, '')
+        .replace(/[·ㆍ.,:|]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+    } else {
+      // 기타 유형: 불필요한 구두점/콜론만 정리
+      m = m.replace(/[·ㆍ.,:|]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+    }
+    return m
+  }
 
   const Icon = ({ kind }: { kind: 'feed'|'blog'|'note'|'event'|'class' }) => {
     const iconColors = {
@@ -757,32 +790,38 @@ function RecentActivityCard({ items: rawItems, slug, brandColor }: { items: { id
             </div>
           ) : items.map(it => (
             it.href ? (
-              <a key={`${it.kind}:${it.id}`} href={it.href} className={`block rounded-2xl p-4 border border-slate-100 hover:shadow-sm transition-all hover:scale-[1.02] cursor-pointer bg-gradient-to-r from-slate-50 to-white`}>
+              <Link key={`${it.kind}:${it.id}`} href={it.href} prefetch={false} className={`block rounded-2xl p-4 border border-slate-100 hover:shadow-sm transition-all hover:scale-[1.02] cursor-pointer bg-gradient-to-r from-slate-50 to-white`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3">
                     <Icon kind={it.kind} />
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm font-semibold text-slate-900 mb-1 line-clamp-2">{it.title}</div>
-                      {it.meta && <div className="text-xs text-slate-600 font-medium">{it.meta}</div>}
+                      <div className="text-xs text-slate-500 font-semibold mb-0.5">[{kindLabel(it.kind)}]{(() => { const m = displayMeta(it.kind, it.meta); return m ? ` ㆍ ${m}` : '' })()}</div>
+                      <div className="text-sm font-semibold text-slate-900 line-clamp-2">{it.title}</div>
                     </div>
                   </div>
-                  <div className="text-xs text-slate-500 shrink-0 mt-1">
+                  <div className="text-xs text-slate-500 shrink-0 mt-1 flex items-center gap-2">
                     {new Date(it.created_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', timeZone: 'Asia/Seoul' })}
+                    {(() => { try { return (Date.now() - new Date(it.created_at).getTime()) < 48 * 60 * 60 * 1000 } catch { return false } })() && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-bold">N</span>
+                    )}
                   </div>
                 </div>
-              </a>
+              </Link>
             ) : (
               <div key={`${it.kind}:${it.id}`} role="article" className={`block rounded-2xl p-4 border border-slate-100 hover:shadow-sm transition-all hover:scale-[1.02] cursor-default bg-slate-50`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3">
                     <Icon kind={it.kind} />
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm font-semibold text-slate-900 mb-1 line-clamp-2">{it.title}</div>
-                      {it.meta && <div className="text-xs text-slate-600 font-medium">{it.meta}</div>}
+                      <div className="text-xs text-slate-500 font-semibold mb-0.5">[{kindLabel(it.kind)}]{(() => { const m = displayMeta(it.kind, it.meta); return m ? ` ㆍ ${m}` : '' })()}</div>
+                      <div className="text-sm font-semibold text-slate-900 line-clamp-2">{it.title}</div>
                     </div>
                   </div>
-                  <div className="text-xs text-slate-500 shrink-0 mt-1">
+                  <div className="text-xs text-slate-500 shrink-0 mt-1 flex items-center gap-2">
                     {new Date(it.created_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', timeZone: 'Asia/Seoul' })}
+                    {(() => { try { return (Date.now() - new Date(it.created_at).getTime()) < 48 * 60 * 60 * 1000 } catch { return false } })() && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-bold">N</span>
+                    )}
                   </div>
                 </div>
               </div>

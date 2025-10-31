@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
         try {
           const { data: rows } = await supabase
             .from('community_images')
-            .select('key, url, is_main, position, created_at')
+            .select('key, url, is_main, position, created_at, width, height, bytes, content_type')
             .eq('slug', slug)
             .order('is_main', { ascending: false })
             .order('position', { ascending: true, nullsFirst: true })
@@ -103,7 +103,7 @@ export async function GET(req: NextRequest) {
       })(),
     ])
 
-    let images = (imagesRows || []).map((r: any) => ({ key: r.key as string, url: buildPublicR2UrlForBucket(COMMUNITY_IMAGE_BUCKET, r.key as string) }))
+    let images = (imagesRows || []).map((r: any) => ({ key: r.key as string, url: buildPublicR2UrlForBucket(COMMUNITY_IMAGE_BUCKET, r.key as string), meta: { width: r.width || null, height: r.height || null, bytes: r.bytes || null, contentType: r.content_type || null } }))
 
     // 3) 이미지가 비어있으면 R2를 폴백으로 조회
     if (images.length === 0) {
@@ -113,7 +113,7 @@ export async function GET(req: NextRequest) {
         images = (list.Contents || [])
           .filter(obj => !!obj.Key && !obj.Key.endsWith('/'))
           .slice(0, 6)
-          .map(obj => ({ key: obj.Key as string, url: buildPublicR2UrlForBucket(COMMUNITY_IMAGE_BUCKET, obj.Key as string) }))
+          .map(obj => ({ key: obj.Key as string, url: buildPublicR2UrlForBucket(COMMUNITY_IMAGE_BUCKET, obj.Key as string), meta: { width: null as any, height: null as any, bytes: null as any, contentType: null as any } }))
       } catch {}
     }
 

@@ -114,6 +114,10 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
   const [brandColor, setBrandColor] = useState<string | null>(null)
   const [page, setPage] = useState<number>(1)
   const perPage = 8
+  const isNewPost = (createdAt?: string) => {
+    if (!createdAt) return false
+    try { return (Date.now() - new Date(createdAt).getTime()) < 48 * 60 * 60 * 1000 } catch { return false }
+  }
 
   useEffect(() => {
     let mounted = true
@@ -187,14 +191,11 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
           </div>
         </div>
       ) : items.length === 0 ? (
-        <div className="flex flex-col items-center justify-center text-center py-16 rounded-3xl border border-dashed border-slate-300 bg-white/60">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg mb-4">
-            <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>
-          </div>
+        <div className="flex flex-col items-center justify-center text-center py-16 rounded-3xl bg-white/60">
           <h3 className="text-lg font-semibold text-slate-900">첫 번째 게시글을 작성해보세요!</h3>
           <p className="mt-1 text-sm text-slate-600">첫 글을 등록해 커뮤니티와 소식을 공유해보세요.</p>
           {slug && (
-            <Button asChild className="mt-4 h-auto rounded-xl md:rounded-2xl shadow-lg px-3 py-2 text-sm md:px-6 md:py-3 md:text-base"
+            <Button asChild className="mt-6 h-auto rounded-xl md:rounded-2xl shadow-lg px-3 py-2 text-sm md:px-6 md:py-3 md:text-base"
               size="sm"
               style={brandColor ? { backgroundColor: brandColor, color: getReadableTextColor(brandColor) } : undefined}
             >
@@ -210,7 +211,7 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
         <div className="space-y-3">
           {items.slice((page-1)*perPage, page*perPage).map((post: any) => (
             <Link key={post.id} href={`/${slug}/blog/${post.id}?pageId=${pageId}`} className="group block w-full" prefetch>
-              <article className="w-full min-w-0 overflow-hidden rounded-lg bg-white shadow-xs hover:shadow-lg transition-all duration-200 border-1 border-slate-300 relative p-4">
+              <article className="w-full min-w-0 overflow-hidden rounded-lg bg-white shadow-xs hover:shadow-lg transition-all duration-200 border-1 border-slate-500 relative p-4">
                 {/* 공지 스티커 */}
                 {post.pinned && (
                   <div className="absolute left-3 top-3 z-30">
@@ -219,20 +220,23 @@ export default function BlogPage({ title, bannerUrl, description, pageId, commun
                 )}
                 <div className="grid grid-cols-[1fr_auto] items-start gap-3 md:gap-4">
                   {/* 텍스트 영역 */}
-                  <div className={`flex-1 min-w-0 ${post.thumbnail_url ? '' : ''}`}>
+                  <div className={`flex-1 min-w-0 flex flex-col ${post.thumbnail_url ? 'min-h-20 md:min-h-28' : ''}`}>
                     <h3
-                      className={`text-base md:text-lg font-semibold leading-snug line-clamp-2 transition-colors duration-200 
+                      className={`text-base md:text-lg font-semibold leading-snug line-clamp-2 transition-colors duration-200 flex items-center gap-2
                         ${post.pinned
                           ? 'text-amber-800 group-hover:text-amber-700 ml-10 md:ml-10'
                           : 'text-slate-900 group-hover:text-slate-700'}
                       `}
                     >
-                      {post.title}
+                      {isNewPost(post.created_at) && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-xl bg-red-600 text-white text-[10px] font-bold">N</span>
+                      )}
+                      <span className="truncate">{post.title}</span>
                     </h3>
-                    <p className="mt-2 text-sm text-slate-700 line-clamp-2 whitespace-pre-line break-words">
+                    <p className="mt-2 text-sm text-slate-700 line-clamp-2 whitespace-pre-line break-words flex-grow">
                       {decodeEntities(post.excerpt ? post.excerpt : toPlainText(post.content))}
                     </p>
-                    <div className="mt-3 order-2 md:order-none">
+                    <div className={`mt-3 ${post.thumbnail_url ? 'md:mt-auto' : 'md:mt-4'}`}>
                       <StatsRow counts={post.counts} createdAt={post.created_at} author={post.author} />
                     </div>
                   </div>

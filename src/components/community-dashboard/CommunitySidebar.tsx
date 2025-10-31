@@ -116,10 +116,12 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
     const check = async () => {
       try {
         const blogIds = pages.filter(p => p.type === 'blog').map(p => p.id)
+        // 타입 누락/레거시('page')도 피드로 간주하여 포함
+        const feedIds = pages.filter(p => (p as any).type !== 'blog').map(p => p.id)
         let token: string | null = null
         try { token = await getAuthToken() } catch {}
         const headers = token ? { authorization: `Bearer ${token}` } : undefined
-        const url = `/api/community/new-flags?communityId=${encodeURIComponent(communityId)}${blogIds.length ? `&pageIds=${encodeURIComponent(blogIds.join(','))}` : ''}`
+        const url = `/api/community/new-flags?communityId=${encodeURIComponent(communityId)}${blogIds.length ? `&pageIds=${encodeURIComponent(blogIds.join(','))}` : ''}${feedIds.length ? `&feedPageIds=${encodeURIComponent(feedIds.join(','))}` : ''}`
         const res = await fetch(url, { headers, cache: 'no-store' })
         if (!res.ok) { if (!aborted) { setNewPageMap({}); setHasNewFeed(false) }; return }
         const data = await res.json()
@@ -128,10 +130,14 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
         const threshold = Date.now() - 2 * 24 * 60 * 60 * 1000
         const feedOk = data?.feedLatestAt ? new Date(data.feedLatestAt).getTime() >= threshold : false
         const pageMapRaw = data?.pageLatestMap || {}
+        const feedPageMapRaw = data?.feedPageLatestMap || {}
         const map: Record<string, boolean> = {}
         for (const p of pages) {
           if (p.type === 'blog') {
             const ts = pageMapRaw[p.id]
+            map[p.id] = ts ? new Date(ts).getTime() >= threshold : false
+          } else if (p.type === 'feed') {
+            const ts = feedPageMapRaw[p.id]
             map[p.id] = ts ? new Date(ts).getTime() >= threshold : false
           }
         }
@@ -397,7 +403,7 @@ export function CommunitySidebar({ communityId, ownerId, active, onSelectHome, o
             <Rss className={`w-5 h-5 transition-colors ${
               active.type === 'feed' ? (brandColor ? 'text-white' : 'text-white') : 'text-slate-500 group-hover:text-slate-700'
             }`} />
-            <span className="truncate">피드</span>
+            <span className="truncate">자유게시판</span>
             {hasNewFeed && (
               <span className="ml-2 inline-flex items-center justify-center w-4 h-4 rounded-full bg-red-500 text-white text-[10px] leading-none font-bold">N</span>
             )}

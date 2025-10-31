@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   // 철자 상이한 클래스 썸네일 버킷 요청은 내부적으로 표준 버킷으로 교정
   const effectiveBucket = bucket === 'class-thumnails' ? CLASS_THUMBNAIL_BUCKET : bucket
   // 키 프리픽스 방어: 커뮤니티/클래스/블로그는 디렉터리 구조 사용을 권장
-  if (bucket === COMMUNITY_IMAGE_BUCKET || bucket === COMMUNITY_ICON_BUCKET) {
+  if (bucket === COMMUNITY_IMAGE_BUCKET || bucket === COMMUNITY_ICON_BUCKET || bucket === COMMUNITY_BANNER_BUCKET) {
     // 최소한 "<slug>/..." 형태 강제
     if (!key.includes('/') || key.startsWith('/') || key.endsWith('/')) {
       return new Response('Invalid key', { status: 400 })
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     }
     const body = Buffer.concat(chunks as Uint8Array[])
     const headers = new Headers()
-    headers.set('Cache-Control', 'public, max-age=31536000, immutable')
+    headers.set('Cache-Control', 'public, max-age=31536000, s-maxage=31536000, immutable')
     if (res.ContentType) headers.set('Content-Type', res.ContentType)
     if (res.ETag) headers.set('ETag', res.ETag)
     if (res.LastModified) headers.set('Last-Modified', res.LastModified.toUTCString())

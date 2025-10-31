@@ -134,7 +134,17 @@ export async function createBlogPost(payload: { page_id: string; title: string; 
     .select('id')
     .single()
   if (error) throw error
-  return (data as any)?.id as string
+  const postId = (data as any)?.id as string
+  // 방금 생성된 포스트에, 해당 사용자/페이지로 업로드되어 post_id가 비어 있는 이미지들을 연결
+  try {
+    await supabase
+      .from('blog_images')
+      .update({ post_id: postId })
+      .is('post_id', null)
+      .eq('page_id', payload.page_id)
+      .eq('user_id', uid)
+  } catch {}
+  return postId
 }
 
 export async function getBlogCounts(postId: string): Promise<{ views: number; likes: number; comments: number }> {
@@ -275,12 +285,36 @@ export async function updateBlogPost(id: string, updates: { title?: string; cont
 }
 
 export async function deleteBlogPost(id: string) {
-  const { error } = await supabase
-    .from('community_page_blog_posts')
-    .delete()
-    .eq('id', id)
-  if (error) throw error
-  return true
+  // 서버 API를 통해 R2 키까지 동기 삭제
+  try {
+    const token = await (async () => {
+      try {
+        const { getAuthToken } = await import('@/lib/supabase')
+        return await getAuthToken()
+      } catch { return null }
+    })()
+    const res = await fetch('/api/blog/delete', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ id }),
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body?.error || 'delete failed')
+    }
+    return true
+  } catch (e) {
+    // 폴백: 그래도 포스트만 삭제 시도(최후의 수단)
+    const { error } = await supabase
+      .from('community_page_blog_posts')
+      .delete()
+      .eq('id', id)
+    if (error) throw error
+    return true
+  }
 }
 
 

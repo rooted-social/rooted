@@ -10,6 +10,7 @@ import { BRAND_COLOR_PALETTE, normalizeHex } from "@/utils/color"
 import { getCommunity } from "@/lib/communities"
 import { createBlogPost } from "@/lib/blog"
 import { Underline as UnderlineIcon, Droplet as DropletIcon, Image as ImageIcon } from "lucide-react"
+import { getAuthToken } from '@/lib/supabase'
 
 export default function NewBlogPostPage() {
   const router = useRouter()
@@ -35,8 +36,10 @@ export default function NewBlogPostPage() {
   const onUploadThumb = async (file: File) => {
     const formData = new FormData()
     formData.append('file', file)
+    if (pageId) formData.append('pageId', pageId)
+    const token = await getAuthToken()
     // 블로그 썸네일 업로드 (webp, 1200x750 cover)
-    const res = await fetch('/api/blog-thumbnails', { method: 'POST', body: formData })
+    const res = await fetch('/api/blog-thumbnails', { method: 'POST', body: formData, headers: token ? { Authorization: `Bearer ${token}` } : undefined })
     const body = await res.json()
     if (!res.ok) throw new Error(body?.error || 'upload failed')
     setThumbnailUrl(body.url)
@@ -68,7 +71,7 @@ export default function NewBlogPostPage() {
         <div className="grid gap-6 grid-cols-1 md:grid-cols-4">
           <div className="md:col-span-3 space-y-4">
             <Input placeholder="제목을 입력하세요" value={title} onChange={(e) => setTitle(e.target.value)} />
-            <RichEditor value={content} onChange={setContent} />
+            <RichEditor value={content} onChange={setContent} pageId={pageId} />
           </div>
           <div className="md:col-span-1 space-y-3">
             <div className="text-sm font-medium text-slate-700">썸네일</div>
@@ -93,7 +96,7 @@ function ToolbarButton({ children, onClick, title }: { children: ReactNode; onCl
   return <button type="button" title={title} onClick={onClick} className="px-2 py-1 text-sm rounded hover:bg-slate-100 cursor-pointer">{children}</button>
 }
 
-function RichEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function RichEditor({ value, onChange, pageId }: { value: string; onChange: (v: string) => void; pageId?: string }) {
   const ref = useRef<HTMLDivElement | null>(null)
   const fileRef = useRef<HTMLInputElement | null>(null)
   const [colorModalOpen, setColorModalOpen] = useState(false)
@@ -131,8 +134,9 @@ function RichEditor({ value, onChange }: { value: string; onChange: (v: string) 
   // 초기 콘텐츠만 1회 주입하고, 그 이후에는 제어하지 않음(커서 점프 방지)
   useEffect(() => { if (ref.current && value && !ref.current.innerHTML) { ref.current.innerHTML = value } }, [value])
   const insertImage = async (file: File) => {
-    const form = new FormData(); form.append('file', file)
-    const res = await fetch('/api/blog-images', { method: 'POST', body: form })
+    const form = new FormData(); form.append('file', file); if (pageId) form.append('pageId', pageId)
+    const token = await getAuthToken()
+    const res = await fetch('/api/blog-images', { method: 'POST', body: form, headers: token ? { Authorization: `Bearer ${token}` } : undefined })
     const body = await res.json(); if (res.ok && body?.urls?.md) {
       const src = body.urls.md
       const srcset = body.srcset || ''

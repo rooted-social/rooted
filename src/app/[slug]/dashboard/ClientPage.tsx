@@ -39,9 +39,11 @@ export default function ClientDashboardPage({ slug, initial }: { slug: string; i
   useEffect(() => {
     const tab = (searchParams?.get('tab') as ViewKey) || 'home'
     const pageId = searchParams?.get('pageId')
+    const feed = searchParams?.get('feed')
     const onboarding = searchParams?.get('onboarding')
     if (["home","settings","classes","calendar","members"].includes(tab)) setActive(tab)
-    if (tab === 'home' && pageId) setActiveHome({ type: 'page', id: pageId })
+    if (tab === 'home' && feed === '1') setActiveHome({ type: 'feed' })
+    else if (tab === 'home' && pageId) setActiveHome({ type: 'page', id: pageId })
     if (onboarding === '1') setShowOnboarding(true)
   }, [searchParams])
 

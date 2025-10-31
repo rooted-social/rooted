@@ -9,6 +9,7 @@ import { Button as UIButton } from "@/components/ui/button"
 import { Underline as UnderlineIcon, Droplet as DropletIcon, Image as ImageIcon } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { BRAND_COLOR_PALETTE, normalizeHex } from "@/utils/color"
+import { getAuthToken } from '@/lib/supabase'
 
 export default function EditBlogPostPage() {
   const router = useRouter()
@@ -54,14 +55,14 @@ export default function EditBlogPostPage() {
         <div className="grid gap-6 grid-cols-1 md:grid-cols-4">
           <div className="md:col-span-3 space-y-4">
             <Input placeholder="제목을 입력하세요" value={title} onChange={(e)=>setTitle(e.target.value)} />
-            <RichEditor value={content} onChange={setContent} />
+            <RichEditor value={content} onChange={setContent} pageId={pageId} postId={id} />
           </div>
           <div className="md:col-span-1 space-y-3">
             <div className="text-sm font-medium text-slate-700">썸네일</div>
             <div className="aspect-[16/10] rounded-xl border bg-slate-50 overflow-hidden flex items-center justify-center">
               {thumbnailUrl ? (<img src={thumbnailUrl} alt="thumb" className="w-full h-full object-cover" />) : (<span className="text-xs text-slate-400">썸네일 미리보기</span>)}
             </div>
-            <input id="thumb-input" type="file" accept="image/*" className="hidden" onChange={async (e)=>{ const f=e.target.files?.[0]; if(!f) return; const form = new FormData(); form.append('file', f); const res = await fetch('/api/blog-thumbnails', { method:'POST', body: form }); const body = await res.json(); if(res.ok) setThumbnailUrl(body.url as string) }} />
+            <input id="thumb-input" type="file" accept="image/*" className="hidden" onChange={async (e)=>{ const f=e.target.files?.[0]; if(!f) return; const form = new FormData(); form.append('file', f); if(pageId) form.append('pageId', pageId); const token = await getAuthToken(); const res = await fetch('/api/blog-thumbnails', { method:'POST', body: form, headers: token ? { Authorization: `Bearer ${token}` } : undefined }); const body = await res.json(); if(res.ok) setThumbnailUrl(body.url as string) }} />
             <UIButton variant="outline" className="w-full cursor-pointer" onClick={()=>document.getElementById('thumb-input')?.click()}>썸네일 업로드</UIButton>
           </div>
         </div>
@@ -74,7 +75,7 @@ function ToolbarButton({ children, onClick, title }: { children: ReactNode; onCl
   return <button type="button" title={title} onClick={onClick} className="px-2 py-1 text-sm rounded hover:bg-slate-100 cursor-pointer">{children}</button>
 }
 
-function RichEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function RichEditor({ value, onChange, pageId, postId }: { value: string; onChange: (v: string) => void; pageId?: string; postId: string }) {
   const ref = useRef<HTMLDivElement | null>(null)
   const fileRef = useRef<HTMLInputElement | null>(null)
   const [colorModalOpen, setColorModalOpen] = useState(false)
@@ -98,8 +99,9 @@ function RichEditor({ value, onChange }: { value: string; onChange: (v: string) 
   const sync = () => { onChange(ref.current?.innerHTML || '') }
   useEffect(()=>{ if (ref.current && value && !ref.current.innerHTML) { ref.current.innerHTML = value } }, [value])
   const insertImage = async (file: File) => {
-    const form = new FormData(); form.append('file', file)
-    const res = await fetch('/api/blog-images', { method: 'POST', body: form })
+    const form = new FormData(); form.append('file', file); if (pageId) form.append('pageId', pageId); form.append('postId', postId)
+    const token = await getAuthToken()
+    const res = await fetch('/api/blog-images', { method: 'POST', body: form, headers: token ? { Authorization: `Bearer ${token}` } : undefined })
     const body = await res.json(); if (res.ok && body?.urls?.md) {
       const src = body.urls.md
       const srcset = body.srcset || ''
