@@ -34,11 +34,13 @@ export default function HomePage() {
   const featuresRef = useRef<HTMLDivElement>(null)
   const [whoWhyVisible, setWhoWhyVisible] = useState(false)
   const whoWhyRef = useRef<HTMLDivElement>(null)
+  const [showSkeleton, setShowSkeleton] = useState(false)
 
   useEffect(() => {
     ;(async () => {
       try {
-        const res = await fetch('/api/featured', { cache: 'no-store' })
+        // 캐시 가능한 featured 먼저 시도 (메인 첫 진입 체감 로딩 최소화)
+        const res = await fetch('/api/featured')
         if (res.ok) {
           const featured = await res.json()
           if (Array.isArray(featured) && featured.length > 0) {
@@ -53,6 +55,15 @@ export default function HomePage() {
       }
     })()
   }, [])
+
+  // 스켈레톤은 250ms 이후에도 데이터가 없을 때만 노출 (첫 페인트 깜빡임 방지)
+  useEffect(() => {
+    if (communities.length > 0) { setShowSkeleton(false); return }
+    const t = setTimeout(() => {
+      if (communities.length === 0) setShowSkeleton(true)
+    }, 250)
+    return () => clearTimeout(t)
+  }, [communities.length])
 
   // 커뮤니티별 대표 이미지 매핑 간소화 (서버 제공 thumb_url 우선)
   useEffect(() => {
@@ -387,7 +398,15 @@ export default function HomePage() {
                           {(() => {
                             const topUrl = bannerMap[c.slug] || (c as any)?.thumb_url || getVersionedUrl((c as any)?.image_url, (c as any)?.updated_at)
                             return topUrl ? (
-                              <Image src={topUrl} alt="banner" fill className="object-cover" sizes="350px" priority={index < 2} />
+                              <Image
+                                src={topUrl}
+                                alt="banner"
+                                fill
+                                className="object-cover"
+                                sizes="350px"
+                                priority={index < 4}
+                                fetchPriority={index < 4 ? 'high' as any : 'auto' as any}
+                              />
                             ) : (
                               <div className="w-full h-full bg-gradient-to-b from-slate-100 to-slate-200" />
                             )
@@ -418,7 +437,7 @@ export default function HomePage() {
                         </div>
                       </Card>
                     ))
-                  ) : (
+                  ) : showSkeleton ? (
                     Array.from({ length: 6 }).map((_, idx) => (
                       <div key={`skeleton-${idx}`} className="w-[350px] flex-shrink-0 border border-slate-200 bg-white rounded-xl overflow-hidden">
                         <div className="w-full h-50 bg-slate-100 animate-pulse" />
@@ -434,7 +453,7 @@ export default function HomePage() {
                         </div>
                       </div>
                     ))
-                  )}
+                  ) : null}
                 </div>
                 
                 {/* 그라데이션 fade 효과 */}

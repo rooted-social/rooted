@@ -110,7 +110,7 @@ export default function CommunitySettingsPage() {
                 <ChevronRight className="w-5 h-5" />
               </div>
             </div>
-            <p className="mt-1 text-xs text-slate-600 pl-7 text-left">커뮤니티 혜택 설정</p>
+            <p className="mt-1 text-xs text-slate-600 pl-7 text-left">커뮤니티 상세 내용, 링크 박스 설정</p>
           </button>
           <button
             onClick={() => setOpen('plan')}

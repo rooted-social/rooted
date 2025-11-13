@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
     }
 
     // 2) 나머지 의존 쿼리들을 병렬 실행 (프로필/서비스/이미지/멤버십/통계)
-    const [ownerProfileRes, servicesRes, imagesRows, membership, stats] = await Promise.all([
+    const [ownerProfileRes, servicesRes, imagesRows, membership, stats, linkBoxes] = await Promise.all([
       (async () => {
         try {
           const { data } = await supabase
@@ -101,6 +101,20 @@ export async function GET(req: NextRequest) {
           return { memberCount: 0 }
         }
       })(),
+      (async () => {
+        try {
+          const { data } = await supabase
+            .from('community_link_boxes')
+            .select('id,title,url,position,created_at')
+            .eq('community_id', (community as any).id)
+            .order('position', { ascending: true, nullsFirst: true })
+            .order('created_at', { ascending: true })
+            .limit(10)
+          return data || []
+        } catch {
+          return []
+        }
+      })(),
     ])
 
     let images = (imagesRows || []).map((r: any) => ({ key: r.key as string, url: buildPublicR2UrlForBucket(COMMUNITY_IMAGE_BUCKET, r.key as string), meta: { width: r.width || null, height: r.height || null, bytes: r.bytes || null, contentType: r.content_type || null } }))
@@ -123,6 +137,7 @@ export async function GET(req: NextRequest) {
       images,
       membership,
       stats,
+      linkBoxes,
     }
 
     return new Response(JSON.stringify(payload), {

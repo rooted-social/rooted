@@ -12,6 +12,37 @@ import { Calendar, Eye, Users, ArrowLeft, CheckCircle2, Circle } from 'lucide-re
 import LiteYouTube from '@/components/LiteYouTube'
 
 export default function ClassDetailPage() {
+  // 텍스트 내 URL을 자동으로 링크로 변환
+  function linkify(text: string): (string | JSX.Element)[] {
+    const input = String(text || '')
+    const urlRegex = /((https?:\/\/|www\.)[^\s<]+)/gi
+    const nodes: (string | JSX.Element)[] = []
+    let lastIndex = 0
+    for (const match of input.matchAll(urlRegex)) {
+      const start = match.index ?? 0
+      if (start > lastIndex) nodes.push(input.slice(lastIndex, start))
+      let raw = match[0]
+      // 문장부호가 URL 끝에 붙은 경우 분리
+      const trailing = (raw.match(/[),.;!?]+$/) || [''])[0]
+      if (trailing) raw = raw.slice(0, -trailing.length)
+      const href = raw.startsWith('http') ? raw : `http://${raw}`
+      nodes.push(
+        <a
+          key={`link-${start}`}
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-600 hover:underline underline-offset-2 break-all"
+        >
+          {raw}
+        </a>
+      )
+      if (trailing) nodes.push(trailing)
+      lastIndex = (match.index ?? 0) + (match[0]?.length || 0)
+    }
+    if (lastIndex < input.length) nodes.push(input.slice(lastIndex))
+    return nodes
+  }
   const { id, slug } = useParams<{ id: string; slug: string }>()
   const router = useRouter()
   const [item, setItem] = useState<any>(null)
@@ -224,7 +255,7 @@ export default function ClassDetailPage() {
           <h2 className="text-xl font-bold text-slate-900 mb-4">클래스 설명</h2>
           <div className="prose prose-slate max-w-none">
             <div className="whitespace-pre-wrap text-slate-700 leading-relaxed">
-              {item.description || '설명이 없습니다.'}
+              {linkify(item.description || '설명이 없습니다.')}
             </div>
           </div>
         </div>

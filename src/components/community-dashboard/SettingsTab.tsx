@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
-import { getCommunitySettings, upsertCommunitySettings, getCommunityServices, addCommunityService, removeCommunityService, updateCommunity, deleteCommunity } from "@/lib/communities"
+import { getCommunitySettings, upsertCommunitySettings, getCommunityServices, addCommunityService, removeCommunityService, updateCommunity, deleteCommunity, getCommunityLinkBoxes, createCommunityLinkBox, updateCommunityLinkBox, deleteCommunityLinkBox } from "@/lib/communities"
 import { getAuthToken } from "@/lib/supabase"
 import { supabase } from "@/lib/supabase"
 import type { CommunitySettings } from "@/types/community"
@@ -43,6 +43,9 @@ export function SettingsTab({ communityId, mode }: SettingsTabProps) {
   // 공지사항 기능 제거됨
   const [services, setServices] = useState<{ id: string; label: string }[]>([])
   const [newService, setNewService] = useState("")
+  const [linkBoxes, setLinkBoxes] = useState<{ id: string; title: string; url: string }[]>([])
+  const [newLinkTitle, setNewLinkTitle] = useState<string>("")
+  const [newLinkUrl, setNewLinkUrl] = useState<string>("")
   const [slug, setSlug] = useState<string>(routeSlug || "")
   const [images, setImages] = useState<GalleryItem[]>([])
   const [uploading, setUploading] = useState<boolean>(false)
@@ -93,6 +96,10 @@ export function SettingsTab({ communityId, mode }: SettingsTabProps) {
         setSettingsInitial({ mission: (s?.mission || ""), brand_color: (s?.brand_color ?? null) as any })
         setPlan(data?.plan || null)
         setServices((data?.services || []).map((v: any) => ({ id: v.id, label: v.label })))
+        try {
+          const lb = await getCommunityLinkBoxes(communityId)
+          if (isMounted) setLinkBoxes((lb || []).map(v => ({ id: (v as any).id, title: (v as any).title, url: (v as any).url })))
+        } catch {}
         // basics: overview 응답의 basics를 활용해 초기화하여 추가 질의 축소
         const b = data?.basics
         if (b) {
@@ -109,14 +116,16 @@ export function SettingsTab({ communityId, mode }: SettingsTabProps) {
       } catch {
         // 폴백: 기존 개별 호출 (오류 시에도 UI는 로딩 해제)
         try {
-          const [s, sv] = await Promise.all([
+          const [s, sv, lb] = await Promise.all([
             getCommunitySettings(communityId),
             getCommunityServices(communityId),
+            getCommunityLinkBoxes(communityId),
           ])
           if (!isMounted) return
           setValues(s || {})
           setSettingsInitial({ mission: (s?.mission || ""), brand_color: (s?.brand_color ?? null) as any })
           setServices(sv.map(v => ({ id: v.id, label: v.label })))
+          setLinkBoxes((lb || []).map(v => ({ id: (v as any).id, title: (v as any).title, url: (v as any).url })))
         } catch {}
       } finally {
         if (isMounted) setLoading(false)
@@ -201,6 +210,31 @@ export function SettingsTab({ communityId, mode }: SettingsTabProps) {
     await removeCommunityService(id)
     setServices(prev => prev.filter(s => s.id !== id))
     toast.success('서비스가 삭제되었습니다')
+  }
+
+  // 링크 박스 핸들러
+  const handleAddLinkBox = async () => {
+    const title = newLinkTitle.trim().slice(0, 30)
+    const url = newLinkUrl.trim()
+    if (!title || !url) return
+    const created = await createCommunityLinkBox(communityId, title, url)
+    setLinkBoxes(prev => [...prev, { id: created.id, title: created.title, url: created.url }].slice(0, 10))
+    setNewLinkTitle("")
+    setNewLinkUrl("")
+    toast.success('링크가 추가되었습니다')
+    try { window.dispatchEvent(new CustomEvent('community-linkboxes-changed', { detail: { communityId } })) } catch {}
+  }
+  const handleUpdateLinkBox = async (id: string, patch: { title?: string; url?: string }) => {
+    const updated = await updateCommunityLinkBox(id, patch)
+    setLinkBoxes(prev => prev.map(lb => lb.id === id ? { id: id, title: updated.title, url: updated.url } : lb))
+    toast.success('링크가 저장되었습니다')
+    try { window.dispatchEvent(new CustomEvent('community-linkboxes-changed', { detail: { communityId } })) } catch {}
+  }
+  const handleDeleteLinkBox = async (id: string) => {
+    await deleteCommunityLinkBox(id)
+    setLinkBoxes(prev => prev.filter(lb => lb.id !== id))
+    toast.success('링크가 삭제되었습니다')
+    try { window.dispatchEvent(new CustomEvent('community-linkboxes-changed', { detail: { communityId } })) } catch {}
   }
 
   const onUpload = async (f: File, target: 'images' | 'icon' = 'images') => {
@@ -613,26 +647,71 @@ export function SettingsTab({ communityId, mode }: SettingsTabProps) {
   const ServicesCard = (
           <Card className="border-0 shadow-none sm:border sm:shadow-sm">
             <CardHeader className="flex items-center justify-between px-1 sm:px-4 py-3">
-              <CardTitle>커뮤니티 혜택</CardTitle>
+              <CardTitle>커뮤니티 상세 내용</CardTitle>
               <div className="flex gap-2">
-                <Button onClick={handleAddService} disabled={!newService.trim()}>추가</Button>
+                <Button onClick={handleAddService} disabled={!newService.trim()} className="cursor-pointer">추가</Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-2.5 px-1 sm:px-4 pb-4">
               <div className="flex gap-2">
-                <Input value={newService} onChange={(e) => setNewService(e.target.value)} placeholder="커뮤니티에서 제공하는 가치를 입력하세요" />
+                <Input value={newService} onChange={(e) => setNewService(e.target.value)} placeholder="커뮤니티의 상세 내용을 추가해보세요" />
               </div>
               {services.length === 0 ? (
-                <p className="text-sm text-slate-600">등록된 서비스가 없습니다.</p>
+                <p className="text-sm text-slate-600">등록된 내용이 없습니다.</p>
               ) : (
                 <ul className="space-y-2 text-sm text-slate-800">
                   {services.map((s) => (
                     <li key={s.id} className="flex items-center justify-between border border-slate-200 rounded-md px-3 py-2">
                       <span>{s.label}</span>
-                      <Button size="sm" variant="outline" onClick={() => handleRemoveService(s.id)}>삭제</Button>
+                      <Button size="sm" variant="outline" onClick={() => handleRemoveService(s.id)} className="cursor-pointer">삭제</Button>
                     </li>
                   ))}
                 </ul>
+              )}
+            </CardContent>
+          </Card>
+  )
+
+  // 렌더링 유틸: 링크 박스 관리
+  const LinkBoxesCard = (
+          <Card className="border-0 shadow-none sm:border sm:shadow-sm">
+            <CardHeader className="flex items-center justify-between px-1 sm:px-4 py-3">
+              <CardTitle>링크 박스 관리 (최대 10개)</CardTitle>
+              <div className="flex gap-2">
+                <Button onClick={handleAddLinkBox} disabled={!newLinkTitle.trim() || !newLinkUrl.trim() || newLinkTitle.trim().length > 30 || linkBoxes.length >= 10} className="cursor-pointer">추가</Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3 px-1 sm:px-4 pb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_2fr] gap-2">
+                <Input value={newLinkTitle} maxLength={30} onChange={(e) => setNewLinkTitle(e.target.value)} placeholder="제목 (30자 이내)" />
+                <Input value={newLinkUrl} onChange={(e) => setNewLinkUrl(e.target.value)} placeholder="링크 (https:// 포함)" />
+              </div>
+              {linkBoxes.length === 0 ? (
+                <p className="text-sm text-slate-600">등록된 링크가 없습니다.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {linkBoxes.map(lb => (
+                    <li key={lb.id} className="grid grid-cols-1 sm:grid-cols-[1fr_2fr_auto] gap-2 items-center border border-slate-200 rounded-md px-3 py-2">
+                      <Input
+                        value={lb.title}
+                        maxLength={30}
+                        onChange={(e)=> setLinkBoxes(prev => prev.map(x => x.id === lb.id ? { ...x, title: e.target.value } : x))}
+                        onBlur={(e)=> handleUpdateLinkBox(lb.id, { title: e.target.value })}
+                        placeholder="제목"
+                      />
+                      <Input
+                        value={lb.url}
+                        onChange={(e)=> setLinkBoxes(prev => prev.map(x => x.id === lb.id ? { ...x, url: e.target.value } : x))}
+                        onBlur={(e)=> handleUpdateLinkBox(lb.id, { url: e.target.value })}
+                        placeholder="링크"
+                      />
+                      <Button size="sm" variant="outline" onClick={() => handleDeleteLinkBox(lb.id)} className="cursor-pointer">삭제</Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {linkBoxes.length >= 10 && (
+                <p className="text-xs text-slate-500">최대 10개까지 추가할 수 있습니다.</p>
               )}
             </CardContent>
           </Card>
@@ -814,6 +893,7 @@ export function SettingsTab({ communityId, mode }: SettingsTabProps) {
           {BannerCard}
           {ImagesCard}
           {ServicesCard}
+          {LinkBoxesCard}
         </div>
       )}
 
@@ -881,7 +961,7 @@ export function SettingsTab({ communityId, mode }: SettingsTabProps) {
         <div className="space-y-3">
           {mode === 'basic' && (<>{BasicInfoCard}</>)}
           {mode === 'images' && (<>{IconCard}{BannerCard}{ImagesCard}</>)}
-          {mode === 'details' && (<>{ServicesCard}</>)}
+          {mode === 'details' && (<>{ServicesCard}{LinkBoxesCard}</>)}
           {mode === 'plan' && (<>{PlanCard}</>)}
           {mode === 'advanced' && (<>{AdvancedCards}</>)}
         </div>

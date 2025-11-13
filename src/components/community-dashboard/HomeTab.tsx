@@ -26,25 +26,21 @@ interface HomeTabProps { communityId: string; slug?: string; ownerId?: string | 
 
 export function HomeTab({ communityId, slug, ownerId, initial }: HomeTabProps) {
   const router = useRouter()
-  const [settings, setSettings] = useState<CommunitySettings | null>(null)
-  const [notices, setNotices] = useState<Notice[]>([])
-  // const [posts, setPosts] = useState<Post[]>([])
-  const [loading, setLoading] = useState<boolean>(true)
-  const [canManage, setCanManage] = useState<boolean>(false)
-  const [upcomingEvents, setUpcomingEvents] = useState<{ id: string; title: string; start_at: string; end_at?: string | null; location?: string | null; description?: string | null }[]>([])
-  const [recentActivity, setRecentActivity] = useState<{ id: string; kind: 'feed'|'blog'|'note'|'event'|'class'; title: string; created_at: string; href?: string; meta?: string }[]>([])
+  // 첫 렌더에서 서버 초기 데이터를 바로 반영하여 스켈레톤 깜빡임을 줄임
+  const [settings, setSettings] = useState<CommunitySettings | null>((initial?.settings || null) as any)
+  const [notices, setNotices] = useState<Notice[]>(((initial?.notices || []) as any))
+  const [loading, setLoading] = useState<boolean>(!(initial && (initial.settings || initial.notices || initial.upcomingEvents || initial.recentActivity)))
+  const [canManage, setCanManage] = useState<boolean>(!!initial?.canManage)
+  const [upcomingEvents, setUpcomingEvents] = useState<{ id: string; title: string; start_at: string; end_at?: string | null; location?: string | null; description?: string | null }[]>(((initial?.upcomingEvents || []) as any))
+  const [recentActivity, setRecentActivity] = useState<{ id: string; kind: 'feed'|'blog'|'note'|'event'|'class'; title: string; created_at: string; href?: string; meta?: string }[]>(((initial?.recentActivity || []) as any))
   // 홈 탭 내 통계 섹션은 별도 페이지로 이동됨
   const { brandColor: contextBrandColor } = useCommunityContext()
   const { user } = useAuthData()
   const isOwner = !!user && !!ownerId && user.id === ownerId
 
   useEffect(() => {
-    if (initial && (initial.settings || initial.notices)) {
-      setSettings((initial.settings || null) as any)
-      setNotices((initial.notices || []) as any)
-      setCanManage(!!initial.canManage)
-      setUpcomingEvents(((initial.upcomingEvents || []) as any).slice(0,5))
-      setRecentActivity((initial.recentActivity || []) as any)
+    // 초기 데이터가 이미 주어졌다면 추가 로딩 없이 종료
+    if (initial && (initial.settings || initial.notices || initial.upcomingEvents || initial.recentActivity)) {
       setLoading(false)
       try { window.dispatchEvent(new Event('dashboard-initial-ready')) } catch {}
       return
@@ -58,7 +54,7 @@ export function HomeTab({ communityId, slug, ownerId, initial }: HomeTabProps) {
         setSettings(home.settings)
         setNotices(home.notices)
         setCanManage(!!home.canManage)
-        setUpcomingEvents((home.upcomingEvents || []) as any)
+        setUpcomingEvents(((home.upcomingEvents || []) as any))
         setRecentActivity((home.recentActivity || []) as any)
       } finally {
         if (isMounted) setLoading(false)
