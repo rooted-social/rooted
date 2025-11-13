@@ -92,6 +92,15 @@ export interface CommunityService {
   created_at: string
 }
 
+export interface CommunityLinkBox {
+  id: string
+  community_id: string
+  title: string
+  url: string
+  position?: number | null
+  created_at: string
+}
+
 export interface PostLike {
   id: string
   post_id: string

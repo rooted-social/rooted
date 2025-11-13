@@ -49,10 +49,21 @@ export default function CalendarPage({ communityId }: { communityId: string }) {
   const [detail, setDetail] = useState<CalendarEvent | null>(null)
   const [isOwner, setIsOwner] = useState<boolean>(false)
   const [brandColor, setBrandColor] = useState<string | null>(null)
+  const [expandToday, setExpandToday] = useState<boolean>(false)
+  const [expandUpcoming, setExpandUpcoming] = useState<boolean>(false)
+  const [expandPast, setExpandPast] = useState<boolean>(false)
 
   const todayStr = new Date().toISOString().slice(0,10)
-  const todayEvents = useMemo(() => events.filter(e => e.start_at.slice(0,10) === todayStr), [events, todayStr])
+  const todayEvents = useMemo(() => {
+    return events.filter(e => {
+      const s = e.start_at.slice(0,10)
+      const t = e.end_at.slice(0,10)
+      // 오늘 날짜가 이벤트 시작~종료 범위에 포함되면 Today로 표시 (종료일 포함)
+      return s <= todayStr && t >= todayStr
+    })
+  }, [events, todayStr])
   const upcoming = useMemo(() => events.filter(e => e.start_at.slice(0,10) > todayStr).sort((a,b)=> a.start_at.localeCompare(b.start_at)).slice(0,5), [events, todayStr])
+  const past = useMemo(() => events.filter(e => e.end_at.slice(0,10) < todayStr).sort((a,b)=> b.end_at.localeCompare(a.end_at)).slice(0,5), [events, todayStr])
 
   const queryClient = useQueryClient()
   const { data: calData, isFetching: loadingOverview } = useQuery({
@@ -400,7 +411,7 @@ export default function CalendarPage({ communityId }: { communityId: string }) {
 
         {/* 사이드바 */}
         <div className="space-y-6 mt-6 md:mt-0">
-          {/* Today 섹션 */}
+          {/* 오늘의 일정 섹션 */}
           <div className="bg-white/80 backdrop-blur-sm rounded-3xl border border-slate-200/50 shadow-sm overflow-hidden">
             <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-slate-200/50 p-6">
               <div className="flex items-center gap-3">
@@ -408,7 +419,7 @@ export default function CalendarPage({ communityId }: { communityId: string }) {
                   <ListChecks className="w-5 h-5 text-white"/>
                 </div>
                 <h3 className="text-lg font-bold bg-gradient-to-r from-emerald-700 to-teal-600 bg-clip-text text-transparent">
-                  Today
+                  오늘의 일정
                 </h3>
               </div>
             </div>
@@ -422,7 +433,7 @@ export default function CalendarPage({ communityId }: { communityId: string }) {
                 </div>
               ) : (
                 <div className="space-y-3">
-                      {todayEvents.map(ev => (
+                      {(expandToday ? todayEvents : todayEvents.slice(0,3)).map(ev => (
                     <div 
                       key={ev.id} 
                       className="group bg-gradient-to-r from-white to-slate-50 border border-slate-200/50 rounded-2xl p-4 cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
@@ -447,12 +458,24 @@ export default function CalendarPage({ communityId }: { communityId: string }) {
                       )}
                     </div>
                   ))}
+                  {todayEvents.length > 3 && (
+                    <div className="pt-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full cursor-pointer rounded-xl"
+                        onClick={() => setExpandToday(v => !v)}
+                      >
+                        {expandToday ? '접기' : '더 보기'}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           </div>
 
-          {/* Upcoming 섹션 */}
+          {/* 다가오는 일정 섹션 */}
           <div className="bg-white/80 backdrop-blur-sm rounded-3xl border border-slate-200/50 shadow-sm overflow-hidden">
             <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-slate-200/50 p-6">
               <div className="flex items-center gap-3">
@@ -460,7 +483,7 @@ export default function CalendarPage({ communityId }: { communityId: string }) {
                   <Clock className="w-5 h-5 text-white"/>
                 </div>
                 <h3 className="text-lg font-bold bg-gradient-to-r from-indigo-700 to-purple-600 bg-clip-text text-transparent">
-                  Upcoming
+                  다가오는 일정
                 </h3>
               </div>
             </div>
@@ -474,7 +497,7 @@ export default function CalendarPage({ communityId }: { communityId: string }) {
                 </div>
               ) : (
                 <div className="space-y-3">
-                      {upcoming.map(ev => (
+                      {(expandUpcoming ? upcoming : upcoming.slice(0,3)).map(ev => (
                     <div 
                       key={ev.id} 
                       className="group bg-gradient-to-r from-white to-slate-50 border border-slate-200/50 rounded-2xl p-4 cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
@@ -500,6 +523,77 @@ export default function CalendarPage({ communityId }: { communityId: string }) {
                       )}
                     </div>
                   ))}
+                  {upcoming.length > 3 && (
+                    <div className="pt-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full cursor-pointer rounded-xl"
+                        onClick={() => setExpandUpcoming(v => !v)}
+                      >
+                        {expandUpcoming ? '접기' : '더 보기'}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 지난 일정 섹션 */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-3xl border border-slate-200/50 shadow-sm overflow-hidden">
+            <div className="bg-gradient-to-r from-rose-50 to-orange-50 border-b border-slate-200/50 p-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-2xl bg-gradient-to-br from-rose-500 to-orange-500 shadow-lg">
+                  <CalendarIcon className="w-5 h-5 text-white"/>
+                </div>
+                <h3 className="text-lg font-bold bg-gradient-to-r from-rose-700 to-orange-600 bg-clip-text text-transparent">
+                  지난 일정
+                </h3>
+              </div>
+            </div>
+            <div className="p-6">
+              {past.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
+                    <CalendarIcon className="w-8 h-8 text-slate-400"/>
+                  </div>
+                  <div className="text-sm text-slate-500">지난 일정이 없습니다.</div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {(expandPast ? past : past.slice(0,3)).map(ev => (
+                    <div 
+                      key={ev.id} 
+                      className="group bg-gradient-to-r from-white to-slate-50 border border-slate-200/50 rounded-2xl p-4 cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
+                      onClick={()=>setDetail(ev)}
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: ev.color }} />
+                        <div className="text-sm font-semibold text-slate-800 group-hover:text-rose-700 transition-colors">
+                          {new Date(ev.start_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })} · {ev.title}
+                        </div>
+                      </div>
+                      <div className="text-xs text-slate-500 flex items-center gap-1.5">
+                        <Clock className="w-3 h-3"/>
+                        {new Date(ev.start_at).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        <span className="mx-1">~</span>
+                        {new Date(ev.end_at).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                  ))}
+                  {past.length > 3 && (
+                    <div className="pt-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full cursor-pointer rounded-xl"
+                        onClick={() => setExpandPast(v => !v)}
+                      >
+                        {expandPast ? '접기' : '더 보기'}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

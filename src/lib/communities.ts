@@ -5,5 +5,6 @@ export * from '@/lib/community/notice-settings'
 export * from '@/lib/community/likes-dashboard-members'
 export * from '@/lib/community/pages'
 export * from '@/lib/community/blog'
+export * from '@/lib/community/link-boxes'
 
 

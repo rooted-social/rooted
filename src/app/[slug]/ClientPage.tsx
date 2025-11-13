@@ -8,9 +8,9 @@ import dynamic from 'next/dynamic'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Users, Crown, ArrowLeft, UserPlus, Check, Info, X, Clock, Loader2, Gift } from 'lucide-react'
+import { Users, Crown, ArrowLeft, UserPlus, Check, Info, X, Clock, Loader2, Gift, ChevronRight } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
-import { joinCommunity, leaveCommunity } from '@/lib/communities'
+import { joinCommunity, leaveCommunity, getCommunityLinkBoxes } from '@/lib/communities'
 import { useAuthData } from '@/components/auth/AuthProvider'
 import { toast } from 'sonner'
 
@@ -54,6 +54,7 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
   const { user } = useAuthData()
   const [services, setServices] = useState<{ id: string; label: string }[]>(initial?.services || [])
   const [images, setImages] = useState<GalleryItem[]>((initial?.images || []).slice(0, 6))
+  const [linkBoxes, setLinkBoxes] = useState<{ id: string; title: string; url: string }[]>(initial?.linkBoxes || [])
   const [mainIdx, setMainIdx] = useState<number>(0)
   const [stats, setStats] = useState<{ memberCount: number; postCount: number; commentCount: number; classCount: number }>(
     (initial as any)?.stats || { memberCount: 0, postCount: 0, commentCount: 0, classCount: 0 }
@@ -93,6 +94,28 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
       try { localStorage.setItem('rooted:return_to', `/${slug}`) } catch {}
     }
   }, [user, slug])
+
+  // 링크 박스 최신화: 초기 마운트 및 설정 변경 이벤트 수신 시 갱신
+  useEffect(() => {
+    let mounted = true
+    const refresh = async () => {
+      try {
+        const cid = community?.id
+        if (!cid) return
+        const lbs = await getCommunityLinkBoxes(cid)
+        if (!mounted) return
+        setLinkBoxes((lbs || []).map((v: any) => ({ id: v.id, title: v.title, url: v.url })))
+      } catch {}
+    }
+    void refresh()
+    const handler = (e: any) => {
+      const cid = e?.detail?.communityId
+      if (!cid || cid !== community?.id) return
+      void refresh()
+    }
+    try { window.addEventListener('community-linkboxes-changed', handler) } catch {}
+    return () => { mounted = false; try { window.removeEventListener('community-linkboxes-changed', handler) } catch {} }
+  }, [community?.id])
 
   // 데이터 로딩 함수 제거: initial이 없으면 커뮤니티 없음 UI를 표시
 
@@ -360,11 +383,11 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
             <div>
               <Card className="hover:shadow-sm transition-all duration-300 border border-slate-300">
                 <CardHeader className="pb-2 sm:pb-3">
-                  <CardTitle className="flex items-center text-base sm:text-lg font-bold"><Gift className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2 text-black" />커뮤니티 혜택</CardTitle>
+                  <CardTitle className="flex items-center text-base sm:text-base font-semibold"><Info className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2 text-black" />상세 정보</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2 sm:space-y-3 pt-0">
                   {services.length === 0 ? (
-                    <p className="text-sm sm:text-base text-slate-600">등록된 서비스가 아직 없습니다.</p>
+                    <p className="text-sm sm:text-base text-slate-600">현재 등록된 내용이 없습니다.</p>
                   ) : (
                     services.map((s, i) => (
                       <div key={s.id} className="flex items-center gap-2 sm:gap-3">
@@ -376,6 +399,22 @@ export default function ClientCommunityPage({ initial }: { initial?: any }) {
                 </CardContent>
               </Card>
             </div>
+
+            {/* 링크 박스: 항목이 있을 때만 개별 컨테이너 버튼으로 노출 */}
+            {Array.isArray(linkBoxes) && linkBoxes.length > 0 && linkBoxes.slice(0,10).map(lb => (
+              <div key={lb.id}>
+                <button
+                  onClick={() => { try { window.open(lb.url, '_blank', 'noopener'); } catch {} }}
+                  className="w-full text-left group"
+                  aria-label={`${lb.title}로 이동`}
+                >
+                  <div className="w-full border border-slate-300 rounded-2xl px-4 py-4 sm:px-5 sm:py-5 flex items-center justify-between bg-white shadow-sm hover:bg-slate-50 hover:shadow-md cursor-pointer transition-all">
+                    <span className="text-slate-900 text-sm sm:text-base font-medium truncate">{lb.title}</span>
+                    <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-slate-700 transition-colors" />
+                  </div>
+                </button>
+              </div>
+            ))}
           </div>
         </div>
       </main>
