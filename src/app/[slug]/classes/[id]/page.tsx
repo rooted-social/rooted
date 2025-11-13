@@ -1,7 +1,7 @@
 "use client"
 
 import { useParams, useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
 import { getYouTubeEmbedUrl } from '@/lib/media'
@@ -13,10 +13,10 @@ import LiteYouTube from '@/components/LiteYouTube'
 
 export default function ClassDetailPage() {
   // 텍스트 내 URL을 자동으로 링크로 변환
-  function linkify(text: string): (string | JSX.Element)[] {
+  function linkify(text: string): ReactNode[] {
     const input = String(text || '')
     const urlRegex = /((https?:\/\/|www\.)[^\s<]+)/gi
-    const nodes: (string | JSX.Element)[] = []
+    const nodes: ReactNode[] = []
     let lastIndex = 0
     for (const match of input.matchAll(urlRegex)) {
       const start = match.index ?? 0
