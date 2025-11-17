@@ -27,7 +27,7 @@ export default function HeroConnections() {
 
     type Node = { x: number; y: number; vx: number; vy: number }
     const isMobile = window.matchMedia('(max-width: 768px)').matches
-    const NODE_COUNT = isMobile ? 45 : 90
+    const NODE_COUNT = isMobile ? 45 : 55
     const nodes: Node[] = Array.from({ length: NODE_COUNT }).map(() => ({
       x: Math.random() * window.innerWidth,
       y: Math.random() * window.innerHeight,

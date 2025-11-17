@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     if (!isSuper && !access.isOwner && !access.isMember) {
       return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 })
     }
-    // 공개 필드만 캐시: settings, notices, upcomingEvents, pages (권한 필드는 사용자별이므로 캐시 제외)
+    // 공개 필드만 캐시: settings, notices, upcomingEvents, pages, linkBoxes (권한 필드는 사용자별이므로 캐시 제외)
     const cacheKey = `home/${communityId}.json`
     try {
       const cached = await getJsonCache(cacheKey)
@@ -61,7 +61,20 @@ export async function GET(req: NextRequest) {
           }
         } catch {}
 
-        const publicPart = { settings: (rpc as any)?.settings || null, notices: (rpc as any)?.notices || [], upcomingEvents: rpcUpcoming, pages: (rpc as any)?.pages || [] }
+        // 링크 박스 별도 조회 (RPC 미포함 대비)
+        let linkBoxes: any[] = []
+        try {
+          const { data: links } = await supabase
+            .from('community_link_boxes')
+            .select('id,title,url,position,created_at')
+            .eq('community_id', communityId)
+            .order('position', { ascending: true, nullsFirst: true })
+            .order('created_at', { ascending: true })
+            .limit(12)
+          linkBoxes = links || []
+        } catch {}
+
+        const publicPart = { settings: (rpc as any)?.settings || null, notices: (rpc as any)?.notices || [], upcomingEvents: rpcUpcoming, pages: (rpc as any)?.pages || [], linkBoxes }
         await putJsonCache(cacheKey, publicPart, 120)
         const payload = { ...publicPart, recentActivity: (rpc as any)?.recentActivity || [], canManage: access.canManage }
         return new Response(JSON.stringify(payload), {
@@ -74,9 +87,10 @@ export async function GET(req: NextRequest) {
       }
     } catch {}
 
-    const [settingsRes, noticesRes] = await Promise.all([
+    const [settingsRes, noticesRes, linkBoxesRes] = await Promise.all([
       supabase.from('community_settings').select('*').eq('community_id', communityId).maybeSingle(),
       supabase.from('notices').select('*').eq('community_id', communityId).order('pinned', { ascending: false }).order('created_at', { ascending: false }).limit(10),
+      supabase.from('community_link_boxes').select('id,title,url,position,created_at').eq('community_id', communityId).order('position', { ascending: true, nullsFirst: true }).order('created_at', { ascending: true }).limit(12),
     ])
     // canManage: 중앙 계산 결과 사용
     const canManage = access.canManage
@@ -152,6 +166,7 @@ export async function GET(req: NextRequest) {
       canManage,
       upcomingEvents: Array.isArray(eventsRows) ? eventsRows : [],
       recentActivity: recent,
+      linkBoxes: Array.isArray(linkBoxesRes.data) ? linkBoxesRes.data : [],
       // 추가: 페이지 목록을 함께 반환하여 클라이언트/서버에서 왕복 1회로 통합
       pages: await (async () => {
         try {
@@ -165,7 +180,7 @@ export async function GET(req: NextRequest) {
         } catch { return [] }
       })(),
     }
-    try { await putJsonCache(cacheKey, { settings: payload.settings, notices: payload.notices, upcomingEvents: payload.upcomingEvents, pages: payload.pages }, 120) } catch {}
+    try { await putJsonCache(cacheKey, { settings: payload.settings, notices: payload.notices, upcomingEvents: payload.upcomingEvents, pages: payload.pages, linkBoxes: payload.linkBoxes }, 120) } catch {}
     return new Response(JSON.stringify(payload), {
       status: 200,
       headers: {

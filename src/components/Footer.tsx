@@ -16,17 +16,16 @@ export default function Footer() {
         {/* 로고 + 문구 + 네비게이션 (구분선 안으로) */}
         <div className="grid grid-cols-1 md:grid-cols-3 items-start gap-4 border-t border-slate-200/80 pt-8 pb-5">
           <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-3">
-              <Link href="/" className="inline-flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              <Link href="/" className="inline-flex items-center gap-1.5">
                 <Image src="/logos/logo_icon_w.png" alt="Rooted 아이콘" width={22} height={22} className="w-4.5 h-4.5" priority />
-                <span className="relative pl-1" style={{ width: 54, height: 16 }}>
+                <span className="relative pl-0" style={{ width: 54, height: 16 }}>
                   <Image src="/logos/logo_main_w.png" alt="Rooted" fill sizes="100px" className="object-contain" priority />
                 </span>
               </Link>
-              <p className="text-sm sm:text-[15px] text-slate-400">All in one 커뮤니티 플랫폼.</p>
+              <p className="text-sm sm:text-[15px] text-slate-200">All in one 커뮤니티 플랫폼.</p>
             </div>
-            <div className="mt-1 space-y-1 text-xs text-slate-400">
-              <p>대표: 송규석</p>
+            <div className="mt-1 space-y-1 text-xs text-slate-200">
               <p>주소: 서울특별시 서초구 서초동 1327-23</p>
               <p>사업자등록번호: 149-27-01015</p>
               <p>
@@ -37,16 +36,16 @@ export default function Footer() {
 
           {/* 네비게이션 그룹 (리소스 제거) */}
           <div>
-            <h3 className="text-sm font-semibold text-slate-300">제품</h3>
-            <ul className="mt-3 space-y-2 text-sm text-slate-400">
+            <h3 className="text-sm font-semibold text-slate-200">제품</h3>
+            <ul className="mt-3 space-y-2 text-sm text-slate-200">
               <li><Link className="hover:text-white" href="/features">서비스 소개</Link></li>
               <li><Link className="hover:text-white" href="/pricing">가격 안내</Link></li>
               <li><Link className="hover:text-white" href="/explore">루트 둘러보기</Link></li>
             </ul>
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-slate-300">정책</h3>
-            <ul className="mt-3 space-y-2 text-sm text-slate-400">
+            <h3 className="text-sm font-semibold text-slate-00">정책</h3>
+            <ul className="mt-3 space-y-2 text-sm text-slate-200">
               <li><Link className="hover:text-white" href="/privacy">개인정보 처리방침</Link></li>
               <li><Link className="hover:text-white" href="/terms">이용약관</Link></li>
               <li><Link className="hover:text-white" href="/refund-policy">취소 및 환불 규정</Link></li>
