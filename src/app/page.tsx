@@ -267,7 +267,7 @@ export default function HomePage() {
             <div className="inline-block will-change-transform reveal-line" style={{ animationDelay: '20ms' }}>
               <div className="relative inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-white/70 bg-gradient-to-r from-slate-50/95 via-slate-100/95 to-slate-200/90 text-slate-800 text-sm font-semibold mb-4 ring-1 ring-white/60 backdrop-blur-sm shadow-[0_0_0_3px_rgba(255,255,255,0.02),_0_10px_30px_rgba(2,6,23,0.06)]">
                 <span className="inline-block size-1.5 rounded-full bg-slate-500/90" />
-                <span>Connect & Grow</span>
+                <span>올인원 커뮤니티 플랫폼</span>
                 <span className="pointer-events-none absolute inset-0 overflow-hidden rounded-full">
                   <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-60 animate-[shine_1.8s_linear_infinite]" />
                 </span>
@@ -275,9 +275,9 @@ export default function HomePage() {
             </div>
           </div>
           <div className="overflow-hidden">
-            <h1 className="text-white text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight leading-[1.05]">
-              <span className="block will-change-transform reveal-line" style={{ animationDelay: '80ms' }}>Your Community</span>
-              <span className="block will-change-transform reveal-line" style={{ animationDelay: '200ms' }}>Platform</span>
+            <h1 className="text-white text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight leading-[1.05]">
+              <span className="block will-change-transform reveal-line" style={{ animationDelay: '80ms' }}>커뮤니티의 시작,</span>
+              <span className="block will-change-transform reveal-line" style={{ animationDelay: '200ms' }}>루티드에서.</span>
             </h1>
           </div>
           <div className="mt-5 overflow-hidden">

@@ -73,7 +73,7 @@ export async function fetchFeed(communityId: string, opts?: { pageId?: string | 
   return data
 }
 
-const homeCache = new Map<string, { ts: number; data: { settings: any; notices: any[]; canManage?: boolean; upcomingEvents?: any[]; recentActivity?: any[] } }>()
+const homeCache = new Map<string, { ts: number; data: { settings: any; notices: any[]; canManage?: boolean; upcomingEvents?: any[]; recentActivity?: any[]; linkBoxes?: any[] } }>()
 export async function fetchHomeData(communityId: string) {
   const key = communityId
   const now = Date.now()
@@ -94,7 +94,7 @@ export async function fetchHomeData(communityId: string) {
     } catch {}
   }
   if (!res.ok) throw new Error('failed to fetch home data')
-  const data = await res.json() as { settings: any; notices: any[]; canManage?: boolean; upcomingEvents?: any[]; recentActivity?: any[] }
+  const data = await res.json() as { settings: any; notices: any[]; canManage?: boolean; upcomingEvents?: any[]; recentActivity?: any[]; linkBoxes?: any[] }
   homeCache.set(key, { ts: now, data })
   return data
 }

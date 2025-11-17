@@ -11,18 +11,18 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { updateNotice, deleteNotice, createNotice } from "@/lib/communities"
+import { updateNotice, deleteNotice, createNotice, upsertCommunitySettings } from "@/lib/communities"
 import { fetchHomeData } from '@/lib/dashboard'
-import { Target, FileText, BookOpen, Newspaper, CalendarClock, Rss, StickyNote, Calendar, Bell, Activity, Settings, Edit3, Trash2, MoreVertical, SquarePen, MapPin, Plus } from "lucide-react"
+import { Target, FileText, BookOpen, Newspaper, CalendarClock, Rss, StickyNote, Calendar, Bell, Activity, Settings, Edit3, Trash2, MoreVertical, SquarePen, MapPin, Plus, ExternalLink, ChevronDown, ChevronUp } from "lucide-react"
 import { toast } from "sonner"
 import { getAuthToken } from '@/lib/supabase'
 import { useAuthData } from '@/components/auth/AuthProvider'
-import type { CommunitySettings, Notice, Post } from "@/types/community"
+import type { CommunitySettings, Notice, Post, CommunityLinkBox } from "@/types/community"
 import { withAlpha } from "@/utils/color"
 import { useCommunityContext } from "@/components/community-dashboard/CommunityContext"
 // 클라이언트 직접 Supabase 조회 제거
 
-interface HomeTabProps { communityId: string; slug?: string; ownerId?: string | null; initial?: { settings?: any; notices?: any[]; canManage?: boolean; upcomingEvents?: any[]; recentActivity?: any[] } }
+interface HomeTabProps { communityId: string; slug?: string; ownerId?: string | null; initial?: { settings?: any; notices?: any[]; canManage?: boolean; upcomingEvents?: any[]; recentActivity?: any[]; linkBoxes?: CommunityLinkBox[] } }
 
 export function HomeTab({ communityId, slug, ownerId, initial }: HomeTabProps) {
   const router = useRouter()
@@ -33,14 +33,18 @@ export function HomeTab({ communityId, slug, ownerId, initial }: HomeTabProps) {
   const [canManage, setCanManage] = useState<boolean>(!!initial?.canManage)
   const [upcomingEvents, setUpcomingEvents] = useState<{ id: string; title: string; start_at: string; end_at?: string | null; location?: string | null; description?: string | null }[]>(((initial?.upcomingEvents || []) as any))
   const [recentActivity, setRecentActivity] = useState<{ id: string; kind: 'feed'|'blog'|'note'|'event'|'class'; title: string; created_at: string; href?: string; meta?: string }[]>(((initial?.recentActivity || []) as any))
+  const [linkBoxes, setLinkBoxes] = useState<CommunityLinkBox[]>(((initial?.linkBoxes || []) as any))
   // 홈 탭 내 통계 섹션은 별도 페이지로 이동됨
   const { brandColor: contextBrandColor } = useCommunityContext()
   const { user } = useAuthData()
   const isOwner = !!user && !!ownerId && user.id === ownerId
+  // Our Mission 작성/수정
+  const [isMissionDialogOpen, setIsMissionDialogOpen] = useState(false)
+  const [missionDraft, setMissionDraft] = useState('')
 
   useEffect(() => {
     // 초기 데이터가 이미 주어졌다면 추가 로딩 없이 종료
-    if (initial && (initial.settings || initial.notices || initial.upcomingEvents || initial.recentActivity)) {
+    if (initial && (initial.settings || initial.notices || initial.upcomingEvents || initial.recentActivity || initial.linkBoxes)) {
       setLoading(false)
       try { window.dispatchEvent(new Event('dashboard-initial-ready')) } catch {}
       return
@@ -56,6 +60,7 @@ export function HomeTab({ communityId, slug, ownerId, initial }: HomeTabProps) {
         setCanManage(!!home.canManage)
         setUpcomingEvents(((home.upcomingEvents || []) as any))
         setRecentActivity((home.recentActivity || []) as any)
+        setLinkBoxes(((home as any)?.linkBoxes || []) as any)
       } finally {
         if (isMounted) setLoading(false)
         try { window.dispatchEvent(new Event('dashboard-initial-ready')) } catch {}
@@ -157,11 +162,22 @@ export function HomeTab({ communityId, slug, ownerId, initial }: HomeTabProps) {
         {/* 1) Our Mission */}
         <div className="rounded-xl shadow-sm bg-white/60 backdrop-blur-md border" style={{ borderColor: withAlpha(brandColor || '#0f172a', 0.18) }}>
           <div className="p-6">
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center border shadow-sm" style={{ backgroundColor: withAlpha(brandColor || '#0f172a', 0.08), borderColor: withAlpha(brandColor || '#0f172a', 0.25) }}>
                 <Target className="w-5 h-5" style={{ color: brandColor || '#0f172a' }} />
               </div>
               <h3 className="text-xl font-semibold text-slate-900">Our Mission</h3>
+              </div>
+              {canManage && (
+                <button
+                  onClick={() => { setMissionDraft(settings?.mission || ''); setIsMissionDialogOpen(true) }}
+                  className="w-9 h-9 rounded-lg bg-white/80 hover:bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+                  title="미션 작성/수정"
+                >
+                  <SquarePen className="w-4 h-4" />
+                </button>
+              )}
             </div>
             <div className="text-slate-900 font-medium text-lg leading-relaxed">
               {settings?.mission || "커뮤니티의 목표와 가치를 설정해보세요."}
@@ -179,18 +195,79 @@ export function HomeTab({ communityId, slug, ownerId, initial }: HomeTabProps) {
         />
 
         {/* 3) 최근 활동 */}
-        {/* 모바일: 다가오는 이벤트를 최근 활동 위로 노출 */}
+        {/* 모바일: 링크 박스를 다가오는 이벤트보다 위로 노출 */}
         <div className="lg:hidden">
+          {linkBoxes && linkBoxes.length > 0 && (
+            <div className="mb-6">
+              <LinkBoxesCard items={linkBoxes} brandColor={brandColor} />
+            </div>
+          )}
           <UpcomingEventsCard items={upcomingEvents.slice(0,5)} brandColor={brandColor} />
         </div>
         <RecentActivityCard items={recentActivity} slug={slug} brandColor={brandColor} />
       </div>
       )})()}
 
+      {/* Our Mission 작성/수정 다이얼로그 */}
+      <Dialog open={isMissionDialogOpen} onOpenChange={setIsMissionDialogOpen}>
+        <DialogContent className="sm:max-w-[560px]">
+          <DialogHeader>
+            <DialogTitle>미션 작성/수정</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label htmlFor="mission-content">미션 내용</Label>
+              <Textarea
+                id="mission-content"
+                value={missionDraft}
+                onChange={(e) => setMissionDraft(e.target.value)}
+                placeholder="커뮤니티의 목표와 가치를 적어주세요"
+                rows={6}
+                maxLength={2000}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsMissionDialogOpen(false)
+                  setMissionDraft('')
+                }}
+                className="cursor-pointer"
+              >
+                취소
+              </Button>
+              <Button
+                className="cursor-pointer"
+                onClick={async () => {
+                  try {
+                    const s = await upsertCommunitySettings(communityId, { mission: (missionDraft || '').trim() })
+                    setSettings((prev) => {
+                      if (!prev) return s as any
+                      return { ...prev, mission: s?.mission }
+                    })
+                    setIsMissionDialogOpen(false)
+                    setMissionDraft('')
+                    toast.success('미션이 저장되었습니다.')
+                  } catch (e: any) {
+                    toast.error(e?.message || '저장 중 오류가 발생했습니다.')
+                  }
+                }}
+              >
+                저장
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* 우측 사이드바 */}
       {(() => { const brandColor = settings?.brand_color || contextBrandColor || undefined; return (
       <div className="space-y-6 min-w-0 max-w-full hidden lg:block">
-        {/* 4) 다가오는 이벤트 */}
+        {/* 4) 링크 박스를 다가오는 이벤트보다 위로 노출 */}
+        {linkBoxes && linkBoxes.length > 0 && (
+          <LinkBoxesCard items={linkBoxes} brandColor={brandColor} />
+        )}
         <UpcomingEventsCard items={upcomingEvents.slice(0,5)} brandColor={brandColor} />
       </div>
       )})()}
@@ -496,6 +573,82 @@ function NoticesSection({
         </DialogContent>
       </Dialog>
     </>
+  )
+}
+
+function LinkBoxesCard({ items, brandColor }: { items: CommunityLinkBox[]; brandColor?: string }) {
+  const [expanded, setExpanded] = useState(false)
+  const visibleItems = expanded ? items : items.slice(0, 3)
+  return (
+    <div className="rounded-xl shadow-sm bg-white/60 backdrop-blur-md border" style={{ borderColor: withAlpha(brandColor || '#0f172a', 0.18) }}>
+      <div className="p-6">
+        <div className="flex items-center gap-2 mb-6">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center border shadow-sm" style={{ backgroundColor: withAlpha(brandColor || '#0f172a', 0.08), borderColor: withAlpha(brandColor || '#0f172a', 0.25) }}>
+            <ExternalLink className="w-5 h-5" style={{ color: brandColor || '#0f172a' }} />
+          </div>
+          <h3 className="text-xl font-semibold text-slate-900">링크 박스</h3>
+        </div>
+        {(!items || items.length === 0) ? (
+          <div className="text-center py-8">
+            <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-3">
+              <ExternalLink className="w-8 h-8 text-slate-300" />
+            </div>
+            <p className="text-slate-500 text-sm">등록된 링크가 없습니다.</p>
+          </div>
+        ) : (
+          <>
+            <div className="relative">
+              <div className="grid grid-cols-1 gap-3">
+              {visibleItems.map((link) => (
+              <a
+                key={link.id}
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group rounded-xl border bg-white/80 hover:bg-white transition-colors p-3 flex items-center gap-2 cursor-pointer"
+                style={{ borderColor: withAlpha(brandColor || '#0f172a', 0.22) }}
+              >
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center border shadow-sm shrink-0"
+                  style={{ backgroundColor: withAlpha(brandColor || '#0f172a', 0.06), borderColor: withAlpha(brandColor || '#0f172a', 0.25) }}>
+                  <ExternalLink className="w-4 h-4" style={{ color: brandColor || '#0f172a' }} />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-slate-900 truncate">{link.title}</div>
+                  <div className="text-[11px] text-slate-500 truncate">{link.url}</div>
+                </div>
+              </a>
+              ))}
+              </div>
+              {!expanded && items.length > 3 && (
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-white to-transparent" />
+              )}
+            </div>
+            {items.length > 3 && (
+              <div className="mt-4 pt-3 border-t border-slate-100 flex justify-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setExpanded((v) => !v)}
+                  className="cursor-pointer rounded-lg px-4 transition-all hover:shadow-sm hover:-translate-y-0.5"
+                >
+                  {expanded ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      접기
+                      <ChevronUp className="w-4 h-4" />
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5">
+                      더 보기
+                      <ChevronDown className="w-4 h-4" />
+                    </span>
+                  )}
+                </Button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
   )
 }
 
